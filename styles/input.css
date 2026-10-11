@@ -1,0 +1,105 @@
+@import "tailwindcss" source(none);
+
+/* The island toggles `.dark` on its wrapper div; the host theme decides. */
+@custom-variant dark (&:is(.dark *));
+
+@source "../client";
+@source not "../client/generated";
+
+/*
+ * Semantic tokens. Values are supplied at runtime by theme-vars.ts (mapped
+ * from the host theme); :host fallbacks keep the island renderable before
+ * those land and never leak past the shadow boundary.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
+  --color-selection: var(--selection);
+  --color-selection-foreground: var(--selection-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:host {
+  --radius: 0.625rem;
+  --background: #ffffff;
+  --foreground: #27272a;
+  --card: #ffffff;
+  --card-foreground: #27272a;
+  --popover: #ffffff;
+  --popover-foreground: #27272a;
+  --primary: #27272a;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #27272a;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #27272a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.1);
+  --ring: #a1a1aa;
+  --sidebar: #f4f4f5;
+  --sidebar-foreground: #27272a;
+  --sidebar-primary: #27272a;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #e4e4e7;
+  --sidebar-accent-foreground: #27272a;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #a1a1aa;
+  --surface: #f4f4f5;
+  --surface-foreground: #27272a;
+  --code: #f4f4f5;
+  --code-foreground: #27272a;
+  --selection: #27272a;
+  --selection-foreground: #fafafa;
+  --warning: #f59e0b;
+  --warning-foreground: #000000;
+  --success: #22c55e;
+  --success-foreground: #000000;
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+}

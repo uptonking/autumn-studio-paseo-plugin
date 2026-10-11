@@ -1,0 +1,63 @@
+{
+  "name": "paseo-file-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node ./scripts/patch-embedpdf.js",
+    "build:css": "tailwindcss -i ./styles/input.css -o ./dist/tailwind.css --minify && node ./scripts/inline-css.js",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:runtime": "node scripts/runtime-test.mjs",
+    "build:wasm": "node ./scripts/inline-wasm.js",
+    "build": "npm run build:css && npm run build:wasm",
+    "check": "npm run typecheck && npm test && node scripts/compile-check.mjs"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@embedpdf/core": "^2.15.0",
+    "@embedpdf/engines": "^2.15.0",
+    "@embedpdf/models": "^2.15.0",
+    "@embedpdf/pdfium": "^2.15.0",
+    "@embedpdf/plugin-document-manager": "^2.15.0",
+    "@embedpdf/plugin-interaction-manager": "^2.15.0",
+    "@embedpdf/plugin-render": "^2.15.0",
+    "@embedpdf/plugin-rotate": "^2.15.0",
+    "@embedpdf/plugin-scroll": "^2.15.0",
+    "@embedpdf/plugin-search": "^2.15.0",
+    "@embedpdf/plugin-selection": "^2.15.0",
+    "@embedpdf/plugin-thumbnail": "^2.15.0",
+    "@embedpdf/plugin-tiling": "^2.15.0",
+    "@embedpdf/plugin-viewport": "^2.15.0",
+    "@embedpdf/plugin-zoom": "^2.15.0",
+    "@pierre/trees": "1.0.0-beta.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^0.544.0",
+    "mime-types": "^2.1.35",
+    "pdf-lib": "^1.17.1",
+    "react-dom": "19.1.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "^0.11.2",
+    "@tailwindcss/cli": "^4.1.0",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/emscripten": "^1.41.6",
+    "@types/jsdom": "^30.0.0",
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^22.10.2",
+    "@types/react": "~19.2.0",
+    "@types/react-dom": "~19.1.0",
+    "jsdom": "^30.1.2",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "uuid": "^11.0.0"
+  }
+}

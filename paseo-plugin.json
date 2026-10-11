@@ -1,0 +1,23 @@
+{
+  "id": "file-explorer",
+  "description": "Tree-based file navigator with rich previews (PDF, images) — desktop/web only",
+  "requirements": {
+    "paseo": ">=0.11.0"
+  },
+  "build": [
+    [
+      "npm",
+      "install"
+    ],
+    [
+      "npm",
+      "run",
+      "build:wasm"
+    ],
+    [
+      "npm",
+      "run",
+      "build:css"
+    ]
+  ]
+}
