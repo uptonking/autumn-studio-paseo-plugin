@@ -52,12 +52,39 @@ export const getFileContent = defineRpc({
     workspaceId: z.string(),
     relPath: z.string(),
   }),
-  output: z.object({ dataUri: z.string() }),
+  output: z.object({
+    dataUri: z.string(),
+    size: z.number().optional(),
+    mtime: z.number().optional(),
+  }),
+});
+
+/** Saves edited file content directly back to the workspace file system. */
+export const saveFileContent = defineRpc({
+  name: "file.save",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    content: z.string(),
+    encoding: z.enum(["base64", "utf8"]).default("base64"),
+  }),
+  output: z.object({
+    path: z.string(),
+    size: z.number(),
+    mtime: z.number(),
+  }),
 });
 
 /** Local pdfium.wasm binary bytes as a data URI for 100% offline PDF viewing. */
 export const getPdfWasm = defineRpc({
   name: "files.pdf_wasm",
+  input: z.object({}),
+  output: z.object({ dataUri: z.string() }),
+});
+
+/** Local duke_sheets_wasm_bg.wasm binary bytes as a data URI for 100% offline Excel viewing/editing. */
+export const getXlsxWasm = defineRpc({
+  name: "files.xlsx_wasm",
   input: z.object({}),
   output: z.object({ dataUri: z.string() }),
 });

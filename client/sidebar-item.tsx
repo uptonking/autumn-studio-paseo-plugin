@@ -4,8 +4,14 @@ import type { PluginSidebarItemProps } from "@getpaseo/plugin/client";
 import { SidebarRow } from "@getpaseo/plugin/client/ui";
 
 let latestOpenScreen: PluginSidebarItemProps["openScreen"] | null = null;
+let settingsPreloader: (() => void) | null = null;
+
+export function setSettingsScreenPreloader(preload: () => void): void {
+  settingsPreloader = preload;
+}
 
 export function openFileExplorerSettingsScreen(): void {
+  settingsPreloader?.();
   latestOpenScreen?.({ screenId: "settings" });
 }
 
@@ -15,6 +21,7 @@ export function FileExplorerSidebarItem({
 }: PluginSidebarItemProps) {
   useEffect(() => {
     latestOpenScreen = openScreen;
+    settingsPreloader?.();
     return () => {
       if (latestOpenScreen === openScreen) {
         latestOpenScreen = null;
@@ -32,6 +39,7 @@ export function FileExplorerSidebarItem({
       label="File Explorer"
       active={isActive}
       onPress={() => {
+        settingsPreloader?.();
         openScreen({ screenId: "settings" });
       }}
     />

@@ -2,89 +2,81 @@
 
 import * as React from "react"
 
-import { FileSystemColumnsView } from "./file-system/columns-view"
-import { FileSystemDateRangeDialog } from "./file-system/date-range-dialog"
+import { lazyWithPreload } from "../lazy-with-preload"
+import { preloadFileSurfaceForKind } from "../viewers/registry"
 import { FileSystemEmptyState } from "./file-system/file-visual"
-import { FileSystemGalleryView } from "./file-system/gallery-view"
 import {
   FileSystemInPlaceHeader,
   FileSystemToolbarHeader,
+  renderOpenModeMenuItems,
 } from "./file-system/header"
 import { FileSystemIconSpriteSheet } from "./file-system/icons"
-import { FileSystemIconsView } from "./file-system/icons-view"
 import { FileSystemListView } from "./file-system/list-view"
 import {
-  buildFileSystemIndex,
-  IPAD_MIN_WIDTH,
-  normalizeFolderPath,
-  pathName,
-  viewerKindForFile,
-  type FileEntry,
-  type FileSystemEntry,
-  type FileSystemItem,
-  type FileSystemOpenMode,
-  type FileSystemProps,
-  type FileSystemView,
-  type FileSystemViewerKind,
-  type FileSystemViewProps,
+  buildFileSystemIndex, IPAD_MIN_WIDTH, normalizeFolderPath, pathName, viewerKindForFile,
+  type FileEntry, type FileSystemEntry, type FileSystemItem, type FileSystemOpenMode,
+  type FileSystemProps, type FileSystemView, type FileSystemViewerKind, type FileSystemViewProps,
 } from "./file-system/types"
 import { useFileSystemFilters } from "./file-system/use-file-system-filters"
-import { useStagePool } from "./file-system/use-stage-pool"
-import { FileSystemViewerDialogAndPool } from "./file-system/viewer-stage"
+import { useOpenedFileSession, useStagePool } from "./file-system/use-stage-pool"
+import {
+  FileSystemGalleryStage,
+  FileSystemViewerDialogAndPool,
+} from "./file-system/viewer-stage"
 import { fileUrlCacheKey } from "./file-system/virtual-window"
 import { cn } from "./lib/utils"
 
+const LazyFileSystemIconsView = lazyWithPreload(() =>
+  import("./file-system/icons-view").then((m) => ({ default: m.FileSystemIconsView }))
+)
+const LazyFileSystemColumnsView = lazyWithPreload(() =>
+  import("./file-system/columns-view").then((m) => ({ default: m.FileSystemColumnsView }))
+)
+const LazyFileSystemGalleryView = lazyWithPreload(() =>
+  import("./file-system/gallery-view").then((m) => ({ default: m.FileSystemGalleryView }))
+)
+const LazyFileSystemDateRangeDialog = lazyWithPreload(() =>
+  import("./file-system/date-range-dialog").then((m) => ({ default: m.FileSystemDateRangeDialog }))
+)
+
+export function preloadFileSystemView(viewMode: FileSystemView): void {
+  if (viewMode === "icons") void LazyFileSystemIconsView.preload()
+  else if (viewMode === "columns") void LazyFileSystemColumnsView.preload()
+  else if (viewMode === "gallery") void LazyFileSystemGalleryView.preload()
+}
+
+export function preloadFileSystemDateRangeDialog(): void {
+  void LazyFileSystemDateRangeDialog.preload()
+}
+
 export type {
-  FileSystemView,
-  FileSystemFolderItem,
-  FileSystemFileItem,
-  FileSystemItem,
-  FileSystemLoadChildrenArgs,
-  FileSystemLoadChildrenResult,
-  FileSystemOpenMode,
-  FileSystemPdfSettings,
-  FileSystemTextSettings,
-  FileSystemProps,
-  FileSystemSortKey,
+  FileSystemView, FileSystemFolderItem, FileSystemFileItem, FileSystemItem,
+  FileSystemLoadChildrenArgs, FileSystemLoadChildrenResult, FileSystemOpenMode,
+  FileSystemPdfSettings, FileSystemXlsxSettings, FileSystemTextSettings,
+  FileSystemProps, FileSystemSortKey,
 } from "./file-system/types"
 export type { FileSystemFilterType } from "./file-system/filter-types"
 
 export function FileSystem({
-  items,
-  className,
-  title = "Files",
-  defaultView = "icons",
-  view: viewProp,
-  onViewChange,
-  defaultFileOpenMode = "in-place",
-  onOpenFileInNewTab,
-  onOpenSettings,
-  pdfSettings,
-  textSettings,
-  defaultPath = "",
-  onSelectionChange,
-  onFileOpen,
-  onOpenUnsupported,
-  onRefresh,
-  getFileUrl,
-  loadChildren,
-  loadPreviewImageUrl,
-  renderFilePreview,
+  items, recentFiles, className, title = "Files", defaultView = "icons", view: viewProp, onViewChange,
+  defaultFileOpenMode = "in-place", onOpenFileInNewTab, onRecordRecentFile, onClearRecentFiles, onOpenSettings,
+  pdfSettings, xlsxSettings, textSettings, formatSettings, autoSaveEdits, onSaveFile,
+  defaultPath = "", onSelectionChange, onFileOpen, onOpenUnsupported, onRefresh,
+  getFileUrl, loadChildren, loadPreviewImageUrl, renderFilePreview,
 }: FileSystemProps) {
   const [internalView, setInternalView] = React.useState(defaultView)
   React.useEffect(() => {
-    if (viewProp === undefined) {
-      setInternalView(defaultView)
-    }
+    if (viewProp === undefined) setInternalView(defaultView)
   }, [defaultView, viewProp])
   const view = viewProp ?? internalView
-  const setView = React.useCallback(
-    (nextView: FileSystemView) => {
-      setInternalView(nextView)
-      onViewChange?.(nextView)
-    },
-    [onViewChange]
-  )
+  React.useEffect(() => {
+    preloadFileSystemView(view)
+  }, [view])
+  const setView = React.useCallback((nextView: FileSystemView) => {
+    preloadFileSystemView(nextView)
+    setInternalView(nextView)
+    onViewChange?.(nextView)
+  }, [onViewChange])
 
   const [loadedItems, setLoadedItems] = React.useState<FileSystemItem[]>([])
   const allItems = React.useMemo(
@@ -111,36 +103,17 @@ export function FileSystem({
   }, [index, selectedPath])
 
   const {
-    applyCustomDateRange,
-    applySortKey,
-    dateRangeDialog,
-    fileFilter,
-    fileTypeOptions,
-    filters,
-    hasActiveFilters,
-    isSearchExpanded,
-    isSearching,
-    openDateRangeDialog,
-    searchInput,
-    searchInputRef,
-    searchQuery,
-    setDatePresetFilter,
-    setDateRangeDialog,
-    setFilters,
-    setIsSearchExpanded,
-    setSearchInput,
-    sort,
-    sortedIndex,
-    toggleFileTypeFilterValue,
-    toggleSortColumn,
-    visiblePaths,
+    applyCustomDateRange, applySortKey, dateRangeDialog, fileFilter, fileTypeOptions,
+    filters, hasActiveFilters, isSearchExpanded, isSearching, openDateRangeDialog,
+    searchInput, searchInputRef, searchQuery, setDatePresetFilter, setDateRangeDialog,
+    setFilters, setIsSearchExpanded, setSearchInput, sort, sortedIndex,
+    toggleFileTypeFilterValue, toggleSortColumn, visiblePaths,
   } = useFileSystemFilters({ currentPath, index })
 
   const selectedPathRef = React.useRef<string | null>(null)
   const selectEntry = React.useCallback(
     (entry: FileSystemEntry | null) => {
       const path = entry?.path ?? null
-
       if (selectedPathRef.current === path) return
       selectedPathRef.current = path
       setSelectedPath(path)
@@ -150,33 +123,22 @@ export function FileSystem({
   )
 
   React.useEffect(() => {
-    if (!visiblePaths || !selectedPath) return
-    if (!visiblePaths.has(selectedPath)) selectEntry(null)
+    if (visiblePaths && selectedPath && !visiblePaths.has(selectedPath)) selectEntry(null)
   }, [selectEntry, selectedPath, visiblePaths])
 
   const rootRef = React.useRef<HTMLDivElement | null>(null)
-  const [headerLayout, setHeaderLayout] = React.useState<
-    "full" | "compact" | "minimal"
-  >("full")
+  const [headerLayout, setHeaderLayout] = React.useState<"full" | "compact" | "minimal">("full")
   const [isBelowIpadWidth, setIsBelowIpadWidth] = React.useState(false)
 
   React.useEffect(() => {
     const root = rootRef.current
-
     if (!root || typeof ResizeObserver === "undefined") return
-
     const applyWidth = (width: number | undefined) => {
       if (width === undefined) return
-
-      setHeaderLayout(
-        width < 360 ? "minimal" : width < 560 ? "compact" : "full"
-      )
+      setHeaderLayout(width < 360 ? "minimal" : width < 560 ? "compact" : "full")
       setIsBelowIpadWidth(width < IPAD_MIN_WIDTH)
     }
-    const observer = new ResizeObserver((observerEntries) =>
-      applyWidth(observerEntries[0]?.contentRect.width)
-    )
-
+    const observer = new ResizeObserver((entries) => applyWidth(entries[0]?.contentRect.width))
     applyWidth(root.clientWidth)
     observer.observe(root)
     return () => observer.disconnect()
@@ -261,79 +223,37 @@ export function FileSystem({
     }
   }, [currentPath])
 
-  const [openedFile, setOpenedFile] = React.useState<{
-    file: FileEntry
-    kind: FileSystemViewerKind
-    mode: "in-place" | "dialog"
-    url: string
-  } | null>(null)
-
   const [resolvedUrlCache] = React.useState(() => new Map<string, string>())
   const [pageUrlCache] = React.useState(() => new Map<string, string>())
 
   const {
     attachedStagePaths,
-    dialogStageHostRef,
-    inPlaceStageHostRef,
     poolStagePath,
     registerStageHost,
     stageContainers,
     stagePool,
-  } = useStagePool({ index, openedFile })
+  } = useStagePool({ index })
 
-  const openFileWithMode = React.useCallback(
-    (file: FileEntry, modeOverride?: FileSystemOpenMode) => {
-      void (async () => {
-        const cacheKey = fileUrlCacheKey(file)
-        let url = file.url ?? resolvedUrlCache.get(cacheKey) ?? null
-        let fetchError: string | undefined
-
-        if (!url && getFileUrl) {
-          try {
-            url = await getFileUrl(file)
-            if (url) resolvedUrlCache.set(cacheKey, url)
-          } catch (err) {
-            url = null
-            fetchError = err instanceof Error ? err.message : String(err)
-          }
-        }
-        if (onFileOpen && !modeOverride) {
-          onFileOpen(file, url)
-          return
-        }
-
-        const kind = viewerKindForFile(file)
-        const effectiveMode = modeOverride ?? defaultFileOpenMode
-
-        if (kind && url) {
-          if (effectiveMode === "new-tab" && onOpenFileInNewTab) {
-            setOpenedFile((previous) =>
-              previous?.file.path === file.path ? null : previous
-            )
-            onOpenFileInNewTab(file, url)
-            return
-          }
-
-          const targetMode = effectiveMode === "dialog" ? "dialog" : "in-place"
-          poolStagePath(file.path)
-          setOpenedFile({ file, kind, mode: targetMode, url })
-        } else if (onOpenUnsupported) {
-          onOpenUnsupported(file, fetchError)
-        } else if (url && typeof window !== "undefined") {
-          window.open(url, "_blank", "noopener,noreferrer")
-        }
-      })()
-    },
-    [
-      defaultFileOpenMode,
-      getFileUrl,
-      onFileOpen,
-      onOpenFileInNewTab,
-      onOpenUnsupported,
-      poolStagePath,
-      resolvedUrlCache,
-    ]
-  )
+  const {
+    handleSaveFile,
+    openedFile,
+    openFileWithMode,
+    setOpenedFile,
+  } = useOpenedFileSession({
+    defaultFileOpenMode,
+    formatSettings,
+    getFileUrl,
+    index,
+    onFileOpen,
+    onOpenFileInNewTab,
+    onOpenUnsupported,
+    onRecordRecentFile,
+    onSaveFile,
+    pdfSettings,
+    resolvedUrlCache,
+    textSettings,
+    xlsxSettings,
+  })
 
   const openEntry = React.useCallback(
     (entry: FileSystemEntry) => {
@@ -349,9 +269,21 @@ export function FileSystem({
   const selectAndPrefetchEntry = React.useCallback(
     (entry: FileSystemEntry | null) => {
       selectEntry(entry)
-      if (entry?.kind === "folder") ensureChildren(entry.path)
+      if (entry?.kind === "folder") {
+        ensureChildren(entry.path)
+      } else if (entry?.kind === "file") {
+        const kind = viewerKindForFile(entry)
+        if (kind) {
+          void preloadFileSurfaceForKind(kind, {
+            pdfSettings,
+            xlsxSettings,
+            textSettings,
+            formatSettings,
+          })
+        }
+      }
     },
-    [ensureChildren, selectEntry]
+    [ensureChildren, formatSettings, pdfSettings, selectEntry, textSettings, xlsxSettings]
   )
 
   const goBack = React.useCallback(() => {
@@ -443,18 +375,40 @@ export function FileSystem({
           <FileSystemInPlaceHeader
             file={openedFile.file}
             fileName={openedFileName}
+            index={index}
             onBack={() => setOpenedFile(null)}
+            onClearRecentFiles={onClearRecentFiles}
             onOpenFileInNewTab={onOpenFileInNewTab}
             onOpenSettings={onOpenSettings}
             openFileWithMode={openFileWithMode}
+            recentFiles={recentFiles}
           />
           <div
             data-slot="file-system-inplace-stage"
             className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
           >
-            <div
-              ref={inPlaceStageHostRef}
-              className="flex size-full min-h-0 flex-1 flex-col"
+            <FileSystemGalleryStage
+              key={`${openedFile.file.path}::${openedFile.sessionId}`}
+              activeUrl={openedFile.url}
+              autoSaveEdits={autoSaveEdits}
+              extraMenuItems={renderOpenModeMenuItems({
+                currentMode: "in-place",
+                onOpenFileInNewTab,
+                openFileWithMode,
+                targetFile: index.files.get(openedFile.file.path) ?? openedFile.file,
+              })}
+              file={index.files.get(openedFile.file.path) ?? openedFile.file}
+              formatSettings={formatSettings}
+              getFileUrl={getFileUrl}
+              loadPreviewImageUrl={loadPreviewImageUrl}
+              onSaveFile={onSaveFile ? handleSaveFile : undefined}
+              pageUrlCache={pageUrlCache}
+              pdfSettings={pdfSettings}
+              renderFilePreview={renderFilePreview}
+              textSettings={textSettings}
+              urlCache={resolvedUrlCache}
+              variant="in-place"
+              xlsxSettings={xlsxSettings}
             />
           </div>
         </>
@@ -471,13 +425,18 @@ export function FileSystem({
             goForward={goForward}
             hasActiveFilters={hasActiveFilters}
             headerLayout={headerLayout}
+            index={index}
             isBelowIpadWidth={isBelowIpadWidth}
             isSearchExpanded={isSearchExpanded}
+            onClearRecentFiles={onClearRecentFiles}
             onOpenFileInNewTab={onOpenFileInNewTab}
             onOpenSettings={onOpenSettings}
+            onPreloadDateRangeDialog={preloadFileSystemDateRangeDialog}
+            onPreloadView={preloadFileSystemView}
             onRefresh={onRefresh}
             openDateRangeDialog={openDateRangeDialog}
             openFileWithMode={openFileWithMode}
+            recentFiles={recentFiles}
             searchInput={searchInput}
             searchInputRef={searchInputRef}
             selectedFileEntry={selectedFileEntry}
@@ -504,14 +463,20 @@ export function FileSystem({
                       : "This folder is empty"
                 }
               />
-            ) : view === "icons" ? (
-              <FileSystemIconsView {...viewProps} />
             ) : view === "list" ? (
               <FileSystemListView {...viewProps} />
-            ) : view === "columns" ? (
-              <FileSystemColumnsView {...viewProps} />
             ) : (
-              <FileSystemGalleryView {...viewProps} />
+              <React.Suspense
+                fallback={<FileSystemEmptyState label="Loading…" isLoading />}
+              >
+                {view === "icons" ? (
+                  <LazyFileSystemIconsView {...viewProps} />
+                ) : view === "columns" ? (
+                  <LazyFileSystemColumnsView {...viewProps} />
+                ) : (
+                  <LazyFileSystemGalleryView {...viewProps} />
+                )}
+              </React.Suspense>
             )}
           </div>
           <div
@@ -535,12 +500,13 @@ export function FileSystem({
         </>
       )}
       <FileSystemViewerDialogAndPool
-        dialogStageHostRef={dialogStageHostRef}
+        autoSaveEdits={autoSaveEdits}
         getFileUrl={getFileUrl}
         index={index}
         loadPreviewImageUrl={loadPreviewImageUrl}
         onCloseDialog={() => setOpenedFile(null)}
         onOpenFileInNewTab={onOpenFileInNewTab}
+        onSaveFile={onSaveFile ? handleSaveFile : undefined}
         openedFile={openedFile}
         openedFileName={openedFileName}
         openFileWithMode={openFileWithMode}
@@ -551,16 +517,20 @@ export function FileSystem({
         stageContainers={stageContainers}
         stagePool={stagePool}
         textSettings={textSettings}
+        xlsxSettings={xlsxSettings}
+        formatSettings={formatSettings}
       />
       {dateRangeDialog ? (
-        <FileSystemDateRangeDialog
-          initialRange={dateRangeDialog.initialRange}
-          onApply={(from, to) => {
-            applyCustomDateRange(dateRangeDialog.type, from, to)
-            setDateRangeDialog(null)
-          }}
-          onClose={() => setDateRangeDialog(null)}
-        />
+        <React.Suspense fallback={null}>
+          <LazyFileSystemDateRangeDialog
+            initialRange={dateRangeDialog.initialRange}
+            onApply={(from, to) => {
+              applyCustomDateRange(dateRangeDialog.type, from, to)
+              setDateRangeDialog(null)
+            }}
+            onClose={() => setDateRangeDialog(null)}
+          />
+        </React.Suspense>
       ) : null}
     </div>
   )

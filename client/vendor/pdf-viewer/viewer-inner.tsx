@@ -1,20 +1,13 @@
 import * as React from "react"
 import { refreshPages } from "@embedpdf/core"
 import { useRegistry } from "@embedpdf/core/react"
-import {
-  GlobalPointerProvider,
-  PagePointerProvider,
-} from "@embedpdf/plugin-interaction-manager/react"
-import { RenderLayer } from "@embedpdf/plugin-render/react"
-import { Rotate } from "@embedpdf/plugin-rotate/react"
+import { GlobalPointerProvider } from "@embedpdf/plugin-interaction-manager/react"
 import { useScroll, type PageLayout } from "@embedpdf/plugin-scroll/react"
-import { SearchLayer } from "@embedpdf/plugin-search/react"
 import { CopyToClipboard } from "@embedpdf/plugin-selection/react"
 import {
   useThumbnailCapability,
   useThumbnailPlugin,
 } from "@embedpdf/plugin-thumbnail/react"
-import { TilingLayer } from "@embedpdf/plugin-tiling/react"
 import { useZoom } from "@embedpdf/plugin-zoom/react"
 import { flushSync } from "react-dom"
 
@@ -24,12 +17,12 @@ import {
   useElementWidth,
   useInlineThumbnailSidebar,
 } from "../document-viewer-sidebar"
+import { PDFViewerPageLayer } from "./page-layer"
 import {
   PDFViewerScroller,
   PDFViewerScrollAreaViewport,
   PDFViewerSelectionCopyShortcut,
   PDFViewerSelectionReleaseGuard,
-  PDFViewerTextSelectionLayer,
   PDFViewerViewportBridge,
 } from "./scroller"
 import { PDFViewerSearchControl } from "./search-control"
@@ -42,9 +35,6 @@ import {
   getPdfDownloadFileName,
   getRotatedDimensions,
   normalizeRotation,
-  PAGE_BASE_RENDER_DPR,
-  PAGE_BASE_RENDER_MAX_SCALE,
-  rotationToDegrees,
   THUMBNAIL_SIDEBAR_CLOSED_CLASS,
   THUMBNAIL_SIDEBAR_WIDTH_CLASS,
   toZoomLevel,
@@ -71,6 +61,7 @@ export function PDFViewerInner({
   pageClassName,
   renderPageOverlay,
   onActivePageChange,
+  onDownloadPdf,
   onPdfUpload,
   onPagePointerDown,
   onPagePointerMove,
@@ -84,6 +75,7 @@ export function PDFViewerInner({
   const { provides: thumbnails } = useThumbnailCapability()
   const { plugin: thumbnailPlugin } = useThumbnailPlugin()
   const [sidebarOpen, setSidebarOpen] = React.useState(defaultSidebarOpen)
+  const [searchOpenRequest, setSearchOpenRequest] = React.useState(0)
 
   React.useEffect(() => {
     setSidebarOpen(defaultSidebarOpen)
@@ -285,20 +277,25 @@ export function PDFViewerInner({
   const handleDownload = React.useCallback(async () => {
     if (!pdfFile || isPreparingDownload) return
 
+    const resolvedFileName = getPdfDownloadFileName(fileName, pdfFile)
     setIsPreparingDownload(true)
 
     try {
-      await downloadPdfWithPageRotations({
-        fileName: getPdfDownloadFileName(fileName, pdfFile),
-        pageRotationDeltas,
-        src: pdfFile,
-      })
+      if (onDownloadPdf) {
+        await onDownloadPdf(resolvedFileName)
+      } else {
+        await downloadPdfWithPageRotations({
+          fileName: resolvedFileName,
+          pageRotationDeltas,
+          src: pdfFile,
+        })
+      }
     } catch (error) {
       console.error(error)
     } finally {
       setIsPreparingDownload(false)
     }
-  }, [fileName, isPreparingDownload, pageRotationDeltas, pdfFile])
+  }, [fileName, isPreparingDownload, onDownloadPdf, pageRotationDeltas, pdfFile])
 
   const rotateSelectedPages = React.useCallback(
     (direction: -1 | 1) => {
@@ -405,107 +402,63 @@ export function PDFViewerInner({
     [onPdfUpload, onUploadFile]
   )
 
-  const renderPage = React.useCallback(
-    (page: PageLayout) => {
-      const pageNumber = page.pageNumber
-      const basePageRotation =
-        basePageRotations[page.pageIndex] ??
-        pdfDocument?.pages[page.pageIndex]?.rotation ??
-        normalizeRotation(0)
-      const pageRotation = normalizeRotation(
-        basePageRotation + (pageRotationDeltas.get(page.pageIndex) ?? 0)
-      )
-
-      return (
-        <Rotate
-          documentId={documentId}
-          pageIndex={page.pageIndex}
-          rotation={pageRotation}
-        >
-          <PagePointerProvider
-            documentId={documentId}
-            pageIndex={page.pageIndex}
-            rotation={pageRotation}
-            key={`${page.pageIndex}-${pageRotation}`}
-            data-pdf-viewer-page={pageNumber}
-            className={cn(
-              "relative border border-transparent bg-transparent shadow-xs select-none selection:bg-transparent selection:text-inherit",
-              pageClassName?.(pageNumber)
-            )}
-            style={{ backgroundColor: "transparent" }}
-            onPointerDown={(event: React.PointerEvent<HTMLDivElement>) =>
-              onPagePointerDown?.(event, pageNumber)
-            }
-            onPointerMove={(event: React.PointerEvent<HTMLDivElement>) =>
-              onPagePointerMove?.(event, pageNumber)
-            }
-            onPointerUp={(event: React.PointerEvent<HTMLDivElement>) =>
-              onPagePointerUp?.(event, pageNumber)
-            }
-            onPointerCancel={(event: React.PointerEvent<HTMLDivElement>) =>
-              onPagePointerCancel?.(event, pageNumber)
-            }
-          >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-white"
-            />
-            <RenderLayer
-              documentId={documentId}
-              pageIndex={page.pageIndex}
-              scale={Math.min(currentZoomLevel, PAGE_BASE_RENDER_MAX_SCALE)}
-              dpr={PAGE_BASE_RENDER_DPR}
-              className="pointer-events-none absolute inset-0 h-full w-full object-fill opacity-100 blur-[0.35px] transition-none"
-            />
-            <TilingLayer
-              documentId={documentId}
-              pageIndex={page.pageIndex}
-              key={`tiles-${page.pageIndex}-${pageRotation}`}
-              className="pointer-events-none opacity-100 transition-none [&_img]:opacity-100 [&_img]:transition-none"
-            />
-            <SearchLayer
-              documentId={documentId}
-              pageIndex={page.pageIndex}
-              className="pointer-events-none"
-              highlightColor="rgba(253, 224, 71, 0.45)"
-              activeHighlightColor="rgba(249, 115, 22, 0.55)"
-            />
-            <PDFViewerTextSelectionLayer
-              documentId={documentId}
-              pageIndex={page.pageIndex}
-              scale={currentZoomLevel}
-            />
-            {renderPageOverlay?.({
-              pageNumber,
-              pageWidth: page.width,
-              pageHeight: page.height,
-              scale: currentZoomLevel,
-              rotation: rotationToDegrees(pageRotation),
-            })}
-          </PagePointerProvider>
-        </Rotate>
-      )
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (
+        showToolbar &&
+        !controlsDisabled &&
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "f"
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        setSearchOpenRequest((count) => count + 1)
+      }
     },
+    [controlsDisabled, showToolbar]
+  )
+
+  const renderPage = React.useCallback(
+    (page: PageLayout) => (
+      <PDFViewerPageLayer
+        basePageRotations={basePageRotations}
+        currentZoomLevel={currentZoomLevel}
+        documentId={documentId}
+        page={page}
+        pageClassName={pageClassName}
+        pageRotationDeltas={pageRotationDeltas}
+        pdfDocument={pdfDocument}
+        renderPageOverlay={renderPageOverlay}
+        onPagePointerDown={onPagePointerDown}
+        onPagePointerMove={onPagePointerMove}
+        onPagePointerUp={onPagePointerUp}
+        onPagePointerCancel={onPagePointerCancel}
+      />
+    ),
     [
       basePageRotations,
       currentZoomLevel,
+      documentId,
       onPagePointerCancel,
       onPagePointerDown,
       onPagePointerMove,
       onPagePointerUp,
       pageClassName,
       pageRotationDeltas,
-      renderPageOverlay,
-      documentId,
       pdfDocument,
+      renderPageOverlay,
     ]
   )
 
   return (
     <div
       data-slot="pdf-viewer"
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
       className={cn(
-        "flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden bg-background",
+        "flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden bg-background outline-none",
         className
       )}
     >
@@ -522,6 +475,7 @@ export function PDFViewerInner({
               key={documentId}
               documentId={documentId}
               controlsDisabled={controlsDisabled}
+              openRequest={searchOpenRequest}
             />
           }
           sidebarOpen={sidebarOpen}

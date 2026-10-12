@@ -1,263 +1,18 @@
-// Runtime test: evaluate the compiled client bundle the way the app's
-// evaluate.ts does, mount the plugin contributions with react-dom in jsdom,
-// and assert:
-// 1. Left sidebar header item ("File Explorer") opens the settings screen.
-// 2. Settings screen renders General and PDF sections.
-// 3. File Explorer panel renders inside its ShadowRoot.
-// 4. Clicking a file opens it in-place by default with a Go Back button and
-//    top-right More (...) menu ("Open file in dialog", "Open file in new tab").
+// Runtime test: evaluate the compiled client bundle inside JSDOM and verify
+// sidebar item, settings sections, FileSystem rendering, and editor persistence.
 import { readFileSync } from "fs";
-import { createRequire } from "module";
-import { join } from "path";
-import { fileURLToPath } from "url";
-import { JSDOM } from "jsdom";
+import {
+  deletedDiskPaths,
+  dom,
+  pluginRequire,
+  React,
+  rpcInputs,
+  runtimeRequire,
+  simulatedDiskFiles,
+} from "./runtime-test-harness.mjs";
 
-const PLUGIN_DIR = join(fileURLToPath(new URL("../", import.meta.url)));
-const bundleText =
-  process.env.CLIENT_BUNDLE ?? "/tmp/fe-client-bundle.js";
+const bundleText = process.env.CLIENT_BUNDLE ?? "/tmp/fe-client-bundle.js";
 const text2 = readFileSync(bundleText, "utf-8");
-
-// --- jsdom as the renderer environment -------------------------------------
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "http://localhost/",
-});
-globalThis.window = dom.window;
-globalThis.document = dom.window.document;
-Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
-globalThis.HTMLElement = dom.window.HTMLElement;
-globalThis.Element = dom.window.Element;
-globalThis.Node = dom.window.Node;
-globalThis.SVGElement = dom.window.SVGElement;
-globalThis.CustomEvent = dom.window.CustomEvent;
-globalThis.MouseEvent = dom.window.MouseEvent;
-globalThis.KeyboardEvent = dom.window.KeyboardEvent;
-globalThis.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-globalThis.getComputedStyle = dom.window.getComputedStyle;
-globalThis.customElements = dom.window.customElements;
-for (const key of Object.getOwnPropertyNames(dom.window)) {
-  if (/^(HTML|SVG|CSS|DOM|Event|Pointer|Touch|UI|Range|Node|Element|Text|Attr|NamedNodeMap|MutationObserver|IntersectionObserver|CustomElementRegistry|ShadowRoot|DocumentFragment|Comment|Document|Window|Image|Blob|File|FormData|URL|URLSearchParams|Headers|Request|Response|AbortController|ReadableStream|WritableStream)/.test(key)) {
-    try {
-      Object.defineProperty(globalThis, key, {
-        value: dom.window[key],
-        configurable: true,
-        writable: true,
-      });
-    } catch {}
-  }
-}
-globalThis.matchMedia =
-  dom.window.matchMedia ??
-  ((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener() {},
-    removeListener() {},
-    addEventListener() {},
-    removeEventListener() {},
-    dispatchEvent() {
-      return false;
-    },
-  }));
-globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
-globalThis.cancelAnimationFrame = clearTimeout;
-if (!globalThis.Element.prototype.getAnimations) {
-  globalThis.Element.prototype.getAnimations = () => [];
-}
-if (!globalThis.URL.createObjectURL) {
-  globalThis.URL.createObjectURL = () => "blob:http://localhost/fake-blob";
-}
-
-// --- host module map (mirrors evaluate.ts runtimeRequire) ------------------
-const pluginRequire = createRequire(join(PLUGIN_DIR, "package.json"));
-const React = pluginRequire("react");
-
-const View = "div";
-const Text = "span";
-const ScrollView = "div";
-const ReactNative = { Platform: { OS: "web" }, View, Text, ScrollView };
-
-const fakeTree = {
-  kind: "folder",
-  path: "/",
-  name: "ws",
-  children: [
-    {
-      kind: "folder",
-      path: "docs/",
-      name: "docs/",
-      children: [
-        {
-          kind: "file",
-          path: "docs/guide.pdf",
-          name: "guide.pdf",
-          size: 12345,
-          mtime: Date.now(),
-          contentType: "application/pdf",
-        },
-      ],
-    },
-    {
-      kind: "file",
-      path: "preview.png",
-      name: "preview.png",
-      size: 512,
-      mtime: Date.now(),
-      contentType: "image/png",
-    },
-    {
-      kind: "file",
-      path: "README.md",
-      name: "README.md",
-      size: 42,
-      mtime: Date.now(),
-      contentType: "text/markdown",
-    },
-  ],
-};
-
-let currentSettingsData = {
-  general: {
-    enabled: true,
-    fileOpenMode: "in-place",
-    defaultViewMode: "icons",
-  },
-  pdf: {
-    showThumbnailsByDefault: false,
-    defaultZoom: "fit-width",
-    showRotateControls: true,
-    showDownloadButton: true,
-  },
-  formats: {},
-};
-
-const rpcInputs = [];
-const sdkClient = {
-  useRpc: () => async (input) => {
-    rpcInputs.push(input);
-    return input.relPath !== undefined
-      ? { dataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }
-      : { tree: fakeTree, truncated: false };
-  },
-  useSettings: () => ({
-    status: "ready",
-    values: currentSettingsData,
-    revision: "rev-1",
-    saving: false,
-    saveError: null,
-    save: async (nextValues) => {
-      currentSettingsData = nextValues;
-      return true;
-    },
-    reset: async () => true,
-    reload: async () => {},
-  }),
-  useToast: () => ({ show() {}, error() {} }),
-  copyText: async () => {},
-};
-
-const sdkClientUi = {
-  SidebarRow: ({ icon, label, active, onPress }) =>
-    React.createElement(
-      "button",
-      {
-        "data-testid": "sidebar-row",
-        "data-icon": icon,
-        "data-active": String(Boolean(active)),
-        onClick: onPress,
-      },
-      label
-    ),
-  SettingsSection: ({ title, description, children }) =>
-    React.createElement(
-      "section",
-      { "data-testid": `settings-section-${title}` },
-      React.createElement("h2", null, title),
-      description ? React.createElement("p", null, description) : null,
-      children
-    ),
-  SettingsCard: ({ children }) =>
-    React.createElement("div", { "data-testid": "settings-card" }, children),
-  SettingsSwitch: ({ label, title, hint, description, value, onValueChange }) => {
-    const displayLabel = label ?? title;
-    const displayHint = hint ?? description;
-    return React.createElement(
-      "label",
-      { "data-testid": `settings-switch-${displayLabel}` },
-      React.createElement("span", null, displayLabel),
-      displayHint ? React.createElement("span", null, displayHint) : null,
-      React.createElement("input", {
-        type: "checkbox",
-        checked: value,
-        onChange: (e) => onValueChange(e.target.checked),
-      })
-    );
-  },
-  SettingsSelect: ({ label, title, hint, description, value, options, onValueChange }) => {
-    const displayLabel = label ?? title;
-    const displayHint = hint ?? description;
-    return React.createElement(
-      "div",
-      { "data-testid": `settings-select-${displayLabel}` },
-      React.createElement("span", null, displayLabel),
-      displayHint ? React.createElement("span", null, displayHint) : null,
-      React.createElement(
-        "select",
-        {
-          value,
-          onChange: (e) => onValueChange(e.target.value),
-        },
-        options.map((opt) =>
-          React.createElement("option", { key: opt.value, value: opt.value }, opt.label)
-        )
-      )
-    );
-  },
-  SettingsAction: ({ label, title, hint, description, actionLabel, onPress }) => {
-    const displayLabel = label ?? title;
-    const displayHint = hint ?? description;
-    return React.createElement(
-      "div",
-      { "data-testid": `settings-action-${displayLabel}` },
-      React.createElement("span", null, displayLabel),
-      displayHint ? React.createElement("span", null, displayHint) : null,
-      React.createElement("button", { onClick: onPress }, actionLabel)
-    );
-  },
-  Button: ({ label, onPress }) =>
-    React.createElement("button", { onClick: onPress }, label),
-};
-
-const runtimeRequire = (name) => {
-  switch (name) {
-    case "react":
-      return pluginRequire("react");
-    case "react/jsx-runtime":
-      return pluginRequire("react/jsx-runtime");
-    case "react-native":
-      return ReactNative;
-    case "@tanstack/react-query":
-      return pluginRequire("@tanstack/react-query");
-    case "zod":
-      return pluginRequire("zod");
-    case "@getpaseo/plugin":
-      return {
-        defineRpc: (d) => d,
-        defineSettings: (d) => d,
-      };
-    case "@getpaseo/plugin/client":
-      return sdkClient;
-    case "@getpaseo/plugin/client/ui":
-      return sdkClientUi;
-    default:
-      throw new Error(`unexpected require: ${name}`);
-  }
-};
 
 // --- evaluate the bundle exactly like the app ------------------------------
 const factory = eval(text2);
@@ -362,11 +117,28 @@ settingsRoot.render(
 await new Promise((r) => setTimeout(r, 80));
 const generalSection = settingsHost.querySelector('[data-testid="settings-section-General"]');
 const pdfSection = settingsHost.querySelector('[data-testid="settings-section-PDF"]');
+const xlsxSection = settingsHost.querySelector('[data-testid="settings-section-Excel"]');
 const textSection = settingsHost.querySelector('[data-testid="settings-section-Code & Text"]');
-if (!generalSection || !pdfSection || !textSection) {
-  throw new Error("General, PDF, or Code & Text settings section missing from settings screen");
+const imageSection = settingsHost.querySelector('[data-testid="settings-section-Images"]');
+if (!generalSection || !pdfSection || !xlsxSection || !textSection || !imageSection) {
+  throw new Error("General, PDF, Excel, Code & Text, or Images settings section missing from settings screen");
 }
-console.log("✓ settings screen rendered General, PDF, and Code & Text sections");
+const maxOpenTabsSelect = generalSection.querySelector('[data-testid="settings-select-Maximum open file tabs"] select');
+if (!maxOpenTabsSelect || maxOpenTabsSelect.value !== "8") {
+  throw new Error(`Expected Maximum open file tabs select with default value '8', got '${maxOpenTabsSelect?.value}'`);
+}
+const xlsxZoomSelect = xlsxSection.querySelector('[data-testid="settings-select-Default zoom level"]');
+const xlsxBehaviorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default open behavior"]');
+const xlsxViewerSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel viewer"]');
+const xlsxEditorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel editor"]');
+if (!xlsxZoomSelect || !xlsxBehaviorSelect || !xlsxViewerSelect || !xlsxEditorSelect) {
+  throw new Error("Excel settings section missing Default zoom level, Default open behavior, Default viewer, or Default editor select");
+}
+const zoomOptionValues = [...xlsxZoomSelect.querySelectorAll("option")].map((opt) => opt.value);
+if (!zoomOptionValues.includes("50") || !zoomOptionValues.includes("200")) {
+  throw new Error(`Expected Excel zoom options to include 50 and 200, got: ${zoomOptionValues.join(",")}`);
+}
+console.log("✓ settings screen rendered General, PDF, Excel, Code & Text, and Images sections with multi-provider open behavior selects");
 
 // --- render the File Explorer panel with react-dom -------------------------
 const host = document.createElement("div");
@@ -412,10 +184,10 @@ const fsRoot = shadow.querySelector('[data-slot="file-system"]');
 if (!fsRoot) throw new Error("FileSystem root not rendered");
 console.log("✓ FileSystem root rendered");
 
-if (rpcInputs.length === 0 || rpcInputs[0].workspaceId !== "ws-test") {
+if (rpcInputs.length === 0 || rpcInputs[0].input?.workspaceId !== "ws-test") {
   throw new Error("tree RPC not invoked with workspaceId");
 }
-console.log("✓ FileSystem structure rendered, RPC invoked for", rpcInputs[0].workspaceId);
+console.log("✓ FileSystem structure rendered, RPC invoked for", rpcInputs[0].input.workspaceId);
 
 // --- test clicking a file opens it in-place with Go Back and More menu ------
 const fileButtons = [...shadow.querySelectorAll("button")];
@@ -423,7 +195,6 @@ const previewBtn = fileButtons.find((btn) => (btn.textContent ?? "").includes("p
 if (!previewBtn) {
   throw new Error("preview.png file button not found in icons view");
 }
-// Double-click in icons view opens the file using defaultFileOpenMode ("in-place")
 previewBtn.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
 await new Promise((r) => setTimeout(r, 300));
 
@@ -437,13 +208,161 @@ if (!backBtn) throw new Error("Go Back button missing in in-place viewer header"
 if (!moreBtn) throw new Error("More actions button missing in in-place viewer header");
 console.log("✓ clicking file opened in-place viewer with Go Back button and top-right More button");
 
-// Click Go Back button to return to the file tree
 backBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
 await new Promise((r) => setTimeout(r, 150));
 if (shadow.querySelector('[data-slot="file-system-inplace-header"]')) {
   throw new Error("In-place header should close after clicking Go Back button");
 }
 console.log("✓ Go Back button returns to the file tree UI");
+
+// --- test defaultOpenBehavior="editor" save -> Go Back -> reopen preserves edits ---
+const findReadmeButton = () =>
+  [...shadow.querySelectorAll("button")].find((btn) =>
+    (btn.textContent ?? "").includes("README.md")
+  );
+const readmeBtn = findReadmeButton();
+if (!readmeBtn) throw new Error("README.md button not found in icons view");
+readmeBtn.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 200));
+
+const editorTextarea = shadow.querySelector('[data-testid="code-text-editor-textarea"]');
+if (!editorTextarea) throw new Error("README.md did not open in default editor mode");
+if (editorTextarea.value !== "# Hello Paseo") {
+  throw new Error(`Expected initial README.md content '# Hello Paseo', got '${editorTextarea.value}'`);
+}
+
+// Verify Markdown Split Preview toggle works in .md editor
+const previewToggleBtn = shadow.querySelector('[data-testid="markdown-preview-toggle"]');
+if (!previewToggleBtn) throw new Error("Markdown Split Preview toggle button missing for README.md");
+previewToggleBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 60));
+const mdPreview = shadow.querySelector('[data-testid="markdown-preview"]');
+if (!mdPreview || !(mdPreview.textContent ?? "").includes("Hello Paseo")) {
+  throw new Error("Markdown Split Preview pane did not render README.md heading");
+}
+console.log("✓ Markdown Split Preview toggle renders live Markdown preview alongside editor");
+
+// Simulate editing text and immediately clicking Go Back (before 650ms debounce)
+// to verify unmount flush + trackWorkspaceFileSave serialization
+const nativeValueSetter = Object.getOwnPropertyDescriptor(
+  dom.window.HTMLTextAreaElement.prototype,
+  "value"
+)?.set;
+nativeValueSetter.call(editorTextarea, "# Updated Paseo");
+editorTextarea.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 30));
+
+const readmeBackBtn = shadow.querySelector(
+  '[data-slot="file-system-inplace-header"] [aria-label="Back to file tree"]'
+);
+if (!readmeBackBtn) throw new Error("Go Back button missing after editing README.md");
+readmeBackBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+// Reopen README.md and verify the saved edits are shown (not stale initial blob)
+const readmeBtnAgain = findReadmeButton();
+if (!readmeBtnAgain) throw new Error("README.md button missing after returning to file tree");
+readmeBtnAgain.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 200));
+
+const reopenedTextarea = shadow.querySelector('[data-testid="code-text-editor-textarea"]');
+if (!reopenedTextarea) throw new Error("Reopened README.md did not render editor textarea");
+if (reopenedTextarea.value !== "# Updated Paseo") {
+  throw new Error(
+    `Stale content after Go Back & reopen: expected '# Updated Paseo', got '${reopenedTextarea.value}'`
+  );
+}
+console.log("✓ editing file in default editor mode, clicking Go Back immediately, and reopening preserves saved edits");
+
+// --- test external Mac filesystem edit while file is open updates content on window focus ---
+simulatedDiskFiles.set("README.md", {
+  content: Buffer.from("# Live Synced from Mac App on Focus", "utf8"),
+  contentType: "text/markdown",
+  mtime: Date.now() + 5_000,
+});
+dom.window.dispatchEvent(new dom.window.Event("focus"));
+await new Promise((r) => setTimeout(r, 200));
+
+const textareaAfterFocus = shadow.querySelector('[data-testid="code-text-editor-textarea"]');
+if (!textareaAfterFocus || textareaAfterFocus.value !== "# Live Synced from Mac App on Focus") {
+  throw new Error(
+    `Expected open editor to sync on window focus, got '${textareaAfterFocus?.value}'`
+  );
+}
+console.log("✓ external Mac filesystem edit while file is open syncs automatically on window focus");
+
+// --- test external Mac filesystem edit after closing shows fresh disk content on reopen ---
+const readmeBackBtn2 = shadow.querySelector(
+  '[data-slot="file-system-inplace-header"] [aria-label="Back to file tree"]'
+);
+if (!readmeBackBtn2) throw new Error("Go Back button missing before external Mac filesystem edit");
+readmeBackBtn2.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+simulatedDiskFiles.set("README.md", {
+  content: Buffer.from("# Edited Externally on Mac Filesystem", "utf8"),
+  contentType: "text/markdown",
+  mtime: Date.now() + 10_000,
+});
+
+const readmeBtnAfterExternal = findReadmeButton();
+if (!readmeBtnAfterExternal) {
+  throw new Error("README.md button missing after external Mac filesystem edit");
+}
+readmeBtnAfterExternal.dispatchEvent(
+  new dom.window.MouseEvent("dblclick", { bubbles: true })
+);
+await new Promise((r) => setTimeout(r, 200));
+
+const textareaAfterExternal = shadow.querySelector(
+  '[data-testid="code-text-editor-textarea"]'
+);
+if (!textareaAfterExternal) {
+  throw new Error("README.md did not render editor textarea after external Mac edit");
+}
+if (textareaAfterExternal.value !== "# Edited Externally on Mac Filesystem") {
+  throw new Error(
+    `Stale cache after external Mac filesystem edit: expected '# Edited Externally on Mac Filesystem', got '${textareaAfterExternal.value}'`
+  );
+}
+console.log("✓ external Mac filesystem edit after in-app edit shows fresh content on reopen");
+
+// Switch to Viewer mode and verify Cmd/Ctrl+F in-file text search + <mark> highlighting
+const modeSwitcherBtn = [
+  ...shadow.querySelectorAll('[data-testid="surface-mode-switcher"] button'),
+].find((btn) => btn.textContent?.trim() === "Viewer");
+if (!modeSwitcherBtn) {
+  throw new Error("Viewer mode button missing in SurfaceModeSwitcher");
+}
+modeSwitcherBtn.click();
+await new Promise((r) => setTimeout(r, 150));
+
+const findBtn = shadow.querySelector('[data-testid="text-search-toggle"]');
+if (!findBtn) {
+  throw new Error("In-file search toggle button missing in TextViewer toolbar");
+}
+findBtn.click();
+await new Promise((r) => setTimeout(r, 80));
+
+const searchInput = shadow.querySelector('[data-testid="text-search-input"]');
+if (!searchInput) {
+  throw new Error("In-file search input did not open in TextViewer");
+}
+const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+  dom.window.HTMLInputElement.prototype,
+  "value"
+)?.set;
+nativeInputValueSetter.call(searchInput, "Externally");
+searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+
+const marks = shadow.querySelectorAll('[data-testid="code-text-viewer"] mark');
+if (marks.length !== 1 || marks[0]?.textContent !== "Externally") {
+  throw new Error(
+    `Expected 1 highlighted <mark> for 'Externally', found ${marks.length}`
+  );
+}
+console.log("✓ TextViewer in-file search highlights matches and supports navigation");
 
 // dark theme flips the flag
 const mount = [...shadow.children].find((el) => el.tagName === "DIV");
@@ -468,7 +387,182 @@ await new Promise((r) => setTimeout(r, 120));
 if (!mount.classList.contains("dark")) throw new Error("dark flag not applied for dark theme");
 console.log("✓ dark flag flips with host theme");
 
+// --- test File Viewer sub-tabs & Recent files in top-right More menu --------
+const viewerHost = document.createElement("div");
+document.body.appendChild(viewerHost);
+const viewerRoot = createRoot(viewerHost);
+viewerRoot.render(
+  React.createElement(
+    QueryClientProvider,
+    { client: queryClient },
+    React.createElement(viewerPanel.Component, props)
+  )
+);
+await new Promise((r) => setTimeout(r, 200));
+
+// Use the in-place header More actions -> "Open file in new tab" on README.md (currently in Viewer mode)
+const inPlaceMoreTrigger = shadow.querySelector(
+  '[data-slot="file-system-inplace-header"] [aria-label="More actions"]'
+);
+if (!inPlaceMoreTrigger) {
+  throw new Error("In-place More actions button not found for opening file in new tab");
+}
+inPlaceMoreTrigger.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+
+const openInNewTabItem = [...shadow.querySelectorAll('[data-slot="dropdown-menu-item"]')].find(
+  (el) => (el.textContent ?? "").includes("Open file in new tab")
+);
+if (!openInNewTabItem) {
+  throw new Error("'Open file in new tab' menu item not found in in-place More menu");
+}
+openInNewTabItem.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+// Also return to tree and open preview.png in a new tab via context menu or in-place menu
+const backFromReadme = shadow.querySelector(
+  '[data-slot="file-system-inplace-header"] [aria-label="Back to file tree"]'
+);
+backFromReadme?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 120));
+
+// Verify File Explorer toolbar's own More actions menu also shows Recent files
+const explorerMoreBtn = shadow.querySelector('[aria-label="More actions"]');
+if (!explorerMoreBtn) throw new Error("File Explorer toolbar More actions button missing");
+explorerMoreBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+const explorerRecentGroup = shadow.querySelector('[data-testid="file-system-recent-files"]');
+if (!explorerRecentGroup) {
+  throw new Error("Recent files section missing in File Explorer toolbar More actions menu");
+}
+// Close the menu before clicking preview.png
+explorerMoreBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 50));
+
+const previewBtnForTab = [...shadow.querySelectorAll("button")].find((btn) =>
+  (btn.textContent ?? "").includes("preview.png")
+);
+previewBtnForTab?.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+const previewMoreTrigger = shadow.querySelector(
+  '[data-slot="file-system-inplace-header"] [aria-label="More actions"]'
+);
+previewMoreTrigger?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+
+const openPreviewInTabItem = [...shadow.querySelectorAll('[data-slot="dropdown-menu-item"]')].find(
+  (el) => (el.textContent ?? "").includes("Open file in new tab")
+);
+openPreviewInTabItem?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 200));
+
+const viewerShadow = viewerHost.querySelector("div")?.shadowRoot;
+if (!viewerShadow) throw new Error("File Viewer shadow root not attached");
+
+const closeReadmeTabBtn = viewerShadow.querySelector('[aria-label="Close README.md"]');
+if (!closeReadmeTabBtn) {
+  throw new Error("README.md sub-tab close button not found in File Viewer");
+}
+closeReadmeTabBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 100));
+
+// Open the top-right More actions menu in File Viewer and verify Recent files lists closed README.md
+const viewerTabBarMoreBtn = viewerShadow
+  .querySelector('[role="tablist"]')
+  ?.parentElement?.querySelector('[aria-label="More actions"]');
+if (!viewerTabBarMoreBtn) {
+  throw new Error("Top-right More actions button missing in File Viewer tab bar");
+}
+viewerTabBarMoreBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 100));
+
+const recentFilesGroup = viewerShadow.querySelector('[data-testid="file-viewer-recent-files"]');
+if (!recentFilesGroup) {
+  throw new Error("Recent files section missing in File Viewer top-right More menu");
+}
+const closedReadmeRecentItem = viewerShadow.querySelector(
+  '[data-testid="file-viewer-recent-item-README.md"]'
+);
+if (!closedReadmeRecentItem) {
+  throw new Error("Closed README.md missing from Recent files section in File Viewer More menu");
+}
+const readmeRecentIcon = closedReadmeRecentItem.querySelector("svg[data-icon-token]");
+const previewRecentIcon = viewerShadow.querySelector(
+  '[data-testid="file-viewer-recent-item-preview.png"] svg[data-icon-token]'
+);
+if (
+  readmeRecentIcon?.getAttribute("data-icon-token") !== "markdown" ||
+  previewRecentIcon?.getAttribute("data-icon-token") !== "image"
+) {
+  throw new Error(
+    `Expected distinct file-type icons in Recent files menu (markdown & image), got ${readmeRecentIcon?.getAttribute("data-icon-token")} and ${previewRecentIcon?.getAttribute("data-icon-token")}`
+  );
+}
+closedReadmeRecentItem.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+if (!viewerShadow.querySelector('[data-testid="file-viewer-tab-README.md"]')) {
+  throw new Error("Clicking closed README.md in Recent files menu did not reopen its tab");
+}
+
+// Verify ArrowLeft / ArrowRight keyboard navigation on the File Viewer tablist
+const tablist = viewerShadow.querySelector('[role="tablist"]');
+if (!tablist) throw new Error("File Viewer tablist missing");
+tablist.dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })
+);
+await new Promise((r) => setTimeout(r, 80));
+const previewTabButton = viewerShadow.querySelector(
+  '[data-testid="file-viewer-tab-preview.png"] [role="tab"]'
+);
+if (previewTabButton?.getAttribute("aria-selected") !== "true") {
+  throw new Error("ArrowLeft keydown on tablist did not switch active sub-tab to preview.png");
+}
+
+// Close README.md tab, simulate README.md being moved/deleted on filesystem, then click it in Recent files
+viewerShadow
+  .querySelector('[aria-label="Close README.md"]')
+  ?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+deletedDiskPaths.add("README.md");
+
+viewerShadow
+  .querySelector('[role="tablist"]')
+  ?.parentElement?.querySelector('[aria-label="More actions"]')
+  ?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 80));
+
+viewerShadow
+  .querySelector('[data-testid="file-viewer-recent-item-README.md"]')
+  ?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 150));
+
+const missingFileNotice = viewerShadow.querySelector('[data-testid="file-viewer-missing-file"]');
+if (!missingFileNotice || !(missingFileNotice.textContent ?? "").includes("was moved or deleted")) {
+  throw new Error("Missing-file friendly reminder was not displayed for deleted README.md");
+}
+if ((missingFileNotice.textContent ?? "").includes("requestType=plugin.rpc.invoke.request")) {
+  throw new Error("Raw RPC handler_error leaked into missing-file UI");
+}
+const missingRecentList = viewerShadow.querySelector(
+  '[data-testid="file-viewer-missing-recent-files"]'
+);
+const missingRecentPreviewItem = viewerShadow.querySelector(
+  '[data-testid="file-viewer-missing-recent-item-preview.png"]'
+);
+if (!missingRecentList || !missingRecentPreviewItem) {
+  throw new Error("Recent files list below missing-file notice did not render remaining recent files");
+}
+missingRecentPreviewItem.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+await new Promise((r) => setTimeout(r, 120));
+if (viewerShadow.querySelector('[data-testid="file-viewer-tab-README.md"]')) {
+  throw new Error("Clicking another recent file from missing-file notice should close the missing file tab");
+}
+console.log("✓ File Viewer top-right More menu shows file-type icons, reopens closed tabs, handles moved/deleted files with Recent files below, and supports keyboard tab navigation");
+
 // unmount cleans up
+viewerRoot.unmount();
 root.unmount();
 sidebarRoot.unmount();
 settingsRoot.unmount();

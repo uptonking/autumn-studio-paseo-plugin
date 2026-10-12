@@ -1,5 +1,7 @@
 import * as React from "react"
 
+import { RecentFilesDropdownSection } from "../../file-viewer-tab-bar"
+import type { OpenedFileTab } from "../../opened-tabs-store"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,13 +39,31 @@ import {
   FileSystemSortSelect,
 } from "./toolbar-controls"
 import {
+  pathName,
+  pathParent,
   TOOLBAR_ICON_BUTTON_CLASSNAME,
   type FileEntry,
+  type FileSystemIndex,
   type FileSystemOpenMode,
   type FileSystemSortKey,
   type FileSystemSortState,
   type FileSystemView,
 } from "./types"
+
+function toFileEntry(file: OpenedFileTab, index?: FileSystemIndex): FileEntry {
+  return (
+    index?.files.get(file.path) ?? {
+      kind: "file",
+      key: file.path,
+      path: file.path,
+      name: file.name || pathName(file.path),
+      parentPath: pathParent(file.path),
+      contentType: file.contentType,
+      size: file.size,
+      updatedAt: file.updatedAt,
+    }
+  )
+}
 
 export function FileSystemListColumnHeader({
   className,
@@ -126,18 +146,25 @@ export function renderOpenModeMenuItems({
 export function FileSystemInPlaceHeader({
   file,
   fileName,
+  index,
   onBack,
+  onClearRecentFiles,
   onOpenFileInNewTab,
   onOpenSettings,
   openFileWithMode,
+  recentFiles,
 }: {
   file: FileEntry
   fileName: string
+  index?: FileSystemIndex
   onBack: () => void
+  onClearRecentFiles?: () => void
   onOpenFileInNewTab?: (file: FileEntry, url: string) => void
   onOpenSettings?: () => void
   openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void
+  recentFiles?: readonly OpenedFileTab[]
 }) {
+  const hasRecent = (recentFiles?.length ?? 0) > 0
   return (
     <div
       data-slot="file-system-inplace-header"
@@ -168,7 +195,7 @@ export function FileSystemInPlaceHeader({
               <IconPlaceholder lucide="Ellipsis" className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
             {renderOpenModeMenuItems({
               currentMode: "in-place",
               onOpenFileInNewTab,
@@ -182,6 +209,22 @@ export function FileSystemInPlaceHeader({
                   <IconPlaceholder lucide="Settings" className="size-4" />
                   File Explorer settings
                 </DropdownMenuItem>
+              </>
+            ) : null}
+            {hasRecent ? (
+              <>
+                <DropdownMenuSeparator />
+                <RecentFilesDropdownSection
+                  recentFiles={recentFiles ?? []}
+                  activePath={file.path}
+                  testId="file-system-recent-files"
+                  itemTestIdPrefix="file-system-recent-item-"
+                  clearTestId="file-system-clear-recent-files"
+                  onSelectFile={(item) =>
+                    openFileWithMode(toFileEntry(item, index))
+                  }
+                  onClearRecentFiles={onClearRecentFiles}
+                />
               </>
             ) : null}
           </DropdownMenuContent>
@@ -202,13 +245,18 @@ export function FileSystemToolbarHeader({
   goForward,
   hasActiveFilters,
   headerLayout,
+  index,
   isBelowIpadWidth,
   isSearchExpanded,
+  onClearRecentFiles,
   onOpenFileInNewTab,
   onOpenSettings,
+  onPreloadDateRangeDialog,
+  onPreloadView,
   onRefresh,
   openDateRangeDialog,
   openFileWithMode,
+  recentFiles,
   searchInput,
   searchInputRef,
   selectedFileEntry,
@@ -231,13 +279,18 @@ export function FileSystemToolbarHeader({
   goForward: () => void
   hasActiveFilters: boolean
   headerLayout: "full" | "compact" | "minimal"
+  index?: FileSystemIndex
   isBelowIpadWidth: boolean
   isSearchExpanded: boolean
+  onClearRecentFiles?: () => void
   onOpenFileInNewTab?: (file: FileEntry, url: string) => void
   onOpenSettings?: () => void
+  onPreloadDateRangeDialog?: () => void
+  onPreloadView?: (viewMode: FileSystemView) => void
   onRefresh?: () => void
   openDateRangeDialog: (type: FileSystemDateFilterType) => void
   openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void
+  recentFiles?: readonly OpenedFileTab[]
   searchInput: string
   searchInputRef: React.RefObject<HTMLInputElement | null>
   selectedFileEntry: FileEntry | null
@@ -325,7 +378,12 @@ export function FileSystemToolbarHeader({
             </SelectTrigger>
             <SelectContent>
               {VIEW_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  onMouseEnter={() => onPreloadView?.(option.value)}
+                  onFocus={() => onPreloadView?.(option.value)}
+                >
                   <span className="flex items-center gap-2">
                     <option.icon className="size-4" />
                     {option.label}
@@ -347,6 +405,8 @@ export function FileSystemToolbarHeader({
                   value={option.value}
                   aria-label={`${option.label} view`}
                   title={option.label}
+                  onMouseEnter={() => onPreloadView?.(option.value)}
+                  onFocus={() => onPreloadView?.(option.value)}
                   className="h-7 grow-0 px-2.5 sm:h-7"
                 >
                   <option.icon className="size-4" />
@@ -355,7 +415,10 @@ export function FileSystemToolbarHeader({
             </TabsList>
           </Tabs>
         )}
-        <div className="flex min-w-0 items-center justify-end gap-1">
+        <div
+          className="flex min-w-0 items-center justify-end gap-1"
+          onMouseEnter={() => onPreloadDateRangeDialog?.()}
+        >
           <FileSystemSortSelect
             layout={headerLayout}
             onKeyChange={applySortKey}
@@ -377,7 +440,7 @@ export function FileSystemToolbarHeader({
             onValueChange={setSearchInput}
             value={searchInput}
           />
-          {selectedFileEntry || onOpenSettings ? (
+          {selectedFileEntry || onOpenSettings || (recentFiles?.length ?? 0) > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -389,7 +452,7 @@ export function FileSystemToolbarHeader({
                   <IconPlaceholder lucide="Ellipsis" className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
                 {selectedFileEntry
                   ? renderOpenModeMenuItems({
                       currentMode: "tree",
@@ -406,6 +469,23 @@ export function FileSystemToolbarHeader({
                     <IconPlaceholder lucide="Settings" className="size-4" />
                     File Explorer settings
                   </DropdownMenuItem>
+                ) : null}
+                {(recentFiles?.length ?? 0) > 0 ? (
+                  <>
+                    {selectedFileEntry || onOpenSettings ? (
+                      <DropdownMenuSeparator />
+                    ) : null}
+                    <RecentFilesDropdownSection
+                      recentFiles={recentFiles ?? []}
+                      testId="file-system-recent-files"
+                      itemTestIdPrefix="file-system-recent-item-"
+                      clearTestId="file-system-clear-recent-files"
+                      onSelectFile={(item) =>
+                        openFileWithMode(toFileEntry(item, index))
+                      }
+                      onClearRecentFiles={onClearRecentFiles}
+                    />
+                  </>
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>

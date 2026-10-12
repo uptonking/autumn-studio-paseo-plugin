@@ -5,14 +5,18 @@ import {
   getFileContent,
   getFileTree,
   getPdfWasm,
+  getXlsxWasm,
+  saveFileContent,
 } from "./shared/contracts.js";
-import { safeResolve, workspaceRoot } from "./server/paths.js";
+import { atomicWriteFile, safeResolve, workspaceRoot } from "./server/paths.js";
 import { contentTypeFor, scanWorkspaceTree } from "./server/scan.js";
-import { pdfiumWasmBase64 } from "./server/generated/pdfium-wasm.js";
 
 /** Refuse to buffer more than 32MB into a data URI — the WebSocket and the
  * renderer's blob both pay for it. Larger files report a readable error. */
 const MAX_CONTENT_BYTES = 32 * 1024 * 1024;
+
+let pdfWasmPayloadPromise: Promise<{ dataUri: string }> | null = null;
+let xlsxWasmPayloadPromise: Promise<{ dataUri: string }> | null = null;
 
 /**
  * Every handler resolves the workspace root from its id and re-checks the
@@ -44,14 +48,65 @@ export default function contribute(server: PluginServerContext) {
     const buffer = await readFile(file);
     const contentType =
       contentTypeFor(file) ?? "application/octet-stream";
-    return { dataUri: `data:${contentType};base64,${buffer.toString("base64")}` };
+    return {
+      dataUri: `data:${contentType};base64,${buffer.toString("base64")}`,
+      size: stats.size,
+      mtime: stats.mtimeMs,
+    };
   });
+
+  server.handle(
+    saveFileContent,
+    async ({ workspaceId, relPath, content, encoding }, { paseo }) => {
+      const file = await locate(paseo, workspaceId, relPath);
+      const buffer =
+        encoding === "utf8"
+          ? Buffer.from(content, "utf8")
+          : Buffer.from(content, "base64");
+      if (buffer.byteLength > MAX_CONTENT_BYTES) {
+        throw new Error(
+          `File is too large to save (${Math.round(buffer.byteLength / 1024 / 1024)}MB, limit 32MB)`
+        );
+      }
+      const updatedStats = await atomicWriteFile(file, buffer);
+      return {
+        path: relPath,
+        size: updatedStats.size,
+        mtime: updatedStats.mtimeMs,
+      };
+    }
+  );
 
   // The wasm ships inside this bundle (scripts/inline-wasm.js): the daemon
   // evals server bundles with no usable __filename, so node_modules paths
-  // cannot be resolved at runtime. Serving it keeps PDF viewing offline.
+  // cannot be resolved at runtime. Dynamic imports keep both 6MB base64
+  // strings lazy until a PDF or Excel file is actually opened.
   server.handle(getPdfWasm, async () => {
-    return { dataUri: `data:application/wasm;base64,${pdfiumWasmBase64}` };
+    if (!pdfWasmPayloadPromise) {
+      pdfWasmPayloadPromise = import("./server/generated/pdfium-wasm.js")
+        .then(({ pdfiumWasmBase64 }) => ({
+          dataUri: `data:application/wasm;base64,${pdfiumWasmBase64}`,
+        }))
+        .catch((err) => {
+          pdfWasmPayloadPromise = null;
+          throw err;
+        });
+    }
+    return await pdfWasmPayloadPromise;
+  });
+
+  server.handle(getXlsxWasm, async () => {
+    if (!xlsxWasmPayloadPromise) {
+      xlsxWasmPayloadPromise = import("./server/generated/xlsx-wasm.js")
+        .then(({ xlsxWasmBase64 }) => ({
+          dataUri: `data:application/wasm;base64,${xlsxWasmBase64}`,
+        }))
+        .catch((err) => {
+          xlsxWasmPayloadPromise = null;
+          throw err;
+        });
+    }
+    return await xlsxWasmPayloadPromise;
   });
 
   return () => {};

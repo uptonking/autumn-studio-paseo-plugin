@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "postinstall": "node ./scripts/patch-embedpdf.js",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
+    "postinstall": "node ./scripts/patch-embedpdf.js && node ./scripts/bundle-vendor.js",
+    "build:vendor": "node ./scripts/bundle-vendor.js",
     "build:css": "tailwindcss -i ./styles/input.css -o ./dist/tailwind.css --minify && node ./scripts/inline-css.js",
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "test:runtime": "node scripts/runtime-test.mjs",
     "build:wasm": "node ./scripts/inline-wasm.js",
-    "build": "npm run build:css && npm run build:wasm",
+    "build": "npm run build:vendor && npm run build:css && npm run build:wasm",
     "check": "npm run typecheck && npm test && node scripts/compile-check.mjs"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@embedpdf/plugin-tiling": "^2.15.0",
     "@embedpdf/plugin-viewport": "^2.15.0",
     "@embedpdf/plugin-zoom": "^2.15.0",
+    "@extend-ai/react-xlsx": "^0.16.6",
     "@pierre/trees": "1.0.0-beta.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -50,6 +52,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "~19.2.0",
     "@types/react-dom": "~19.1.0",
+    "esbuild": "^0.27.3",
     "jsdom": "^30.1.2",
     "react": "19.1.0",
     "react-native": "0.81.5",

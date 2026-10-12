@@ -1,4 +1,4 @@
-import { fileExtension, type FileEntry } from "./types"
+import { fileExtension, type FileEntry } from "./types.ts"
 
 const EXTENSION_MIME_TYPES: Record<string, string> = {
   avif: "image/avif",
@@ -302,7 +302,9 @@ export function fileMatchesFilter(file: FileEntry, filter: FileSystemFilter) {
   }
 
   const timestamp =
-    filter.type === "dateCreated" ? file.createdAt : file.updatedAt
+    filter.type === "dateCreated"
+      ? (file.createdAt ?? file.updatedAt)
+      : file.updatedAt
   const time = timestamp ? Date.parse(timestamp) : Number.NaN
 
   if (Number.isNaN(time)) return false

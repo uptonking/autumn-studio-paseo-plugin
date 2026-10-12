@@ -1,9 +1,20 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, symlink, rm, realpath } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
-import { safeResolve, workspaceRoot } from "../server/paths.ts";
+import { atomicWriteFile, safeResolve, workspaceRoot } from "../server/paths.ts";
 
 describe("paths: safeResolve", () => {
   let tempDir: string;
@@ -75,6 +86,38 @@ describe("paths: safeResolve", () => {
     await assert.rejects(
       () => safeResolve(tempDir, "escape-symlink.txt"),
       /Path escapes the workspace/
+    );
+  });
+
+  it("normalizes leading slashes inside the workspace root", async () => {
+    const resolved = await safeResolve(tempDir, "/sub/nested.txt");
+    const expected = await realpath(join(tempDir, "sub", "nested.txt"));
+    assert.equal(resolved, expected);
+  });
+
+  it("atomically writes file contents, preserves file mode, and cleans up temp files", async () => {
+    const targetFile = join(tempDir, "atomic-target.sh");
+    await writeFile(targetFile, "#!/bin/sh\necho old\n", { mode: 0o755 });
+    await chmod(targetFile, 0o755);
+
+    const updatedPayload = Buffer.from("#!/bin/sh\necho updated\n", "utf8");
+    const result = await atomicWriteFile(targetFile, updatedPayload);
+
+    assert.equal(result.size, updatedPayload.byteLength);
+    assert.equal(await readFile(targetFile, "utf8"), "#!/bin/sh\necho updated\n");
+
+    const fileStats = await stat(targetFile);
+    assert.equal(fileStats.mode & 0o777, 0o755);
+
+    const entries = await readdir(tempDir);
+    assert.equal(
+      entries.some((name) => name.includes(".paseo-") && name.endsWith(".tmp")),
+      false,
+    );
+
+    await assert.rejects(
+      () => atomicWriteFile(join(tempDir, "sub"), Buffer.from("nope")),
+      /Cannot overwrite a directory/,
     );
   });
 });

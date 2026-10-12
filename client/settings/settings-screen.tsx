@@ -36,6 +36,14 @@ function SettingsSectionsList({
         ...DEFAULT_FILE_EXPLORER_SETTINGS.pdf,
         ...settings.values?.pdf,
       },
+      xlsx: {
+        ...DEFAULT_FILE_EXPLORER_SETTINGS.xlsx,
+        ...settings.values?.xlsx,
+      },
+      text: {
+        ...DEFAULT_FILE_EXPLORER_SETTINGS.text,
+        ...settings.values?.text,
+      },
       formats: {
         ...DEFAULT_FILE_EXPLORER_SETTINGS.formats,
         ...settings.values?.formats,

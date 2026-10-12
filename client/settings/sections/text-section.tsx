@@ -8,6 +8,7 @@ import {
   getTextViewerSettings,
   withTextViewerSettings,
 } from "../../../shared/settings.js";
+import { FormatOpenBehaviorFields } from "../components/format-open-behavior-fields.js";
 import type {
   SettingsSectionComponentProps,
   SettingsSectionDescriptor,
@@ -26,19 +27,26 @@ export function TextSettingsSection({
     (showLineNumbers: boolean) => {
       updateValues((prev) => withTextViewerSettings(prev, { showLineNumbers }));
     },
-    [updateValues],
+    [updateValues]
   );
 
   const handleToggleWordWrap = useCallback(
     (wordWrap: boolean) => {
       updateValues((prev) => withTextViewerSettings(prev, { wordWrap }));
     },
-    [updateValues],
+    [updateValues]
   );
 
   return (
     <SettingsSection title="Code & Text" testID="file-explorer-settings-text">
       <SettingsCard>
+        <FormatOpenBehaviorFields
+          kind="text"
+          formatLabel="Code & Text"
+          values={values}
+          disabled={controlsDisabled}
+          updateValues={updateValues}
+        />
         <SettingsSwitch
           label="Show line numbers"
           hint="Display line numbers along the left gutter in text and code previews."

@@ -127,8 +127,12 @@ describe("scan: scanWorkspaceTree", () => {
     assert.ok(!docChildren.includes("readme-link.md"), "symlink should be skipped");
   });
 
-  it("truncates scan when maxFiles limit is reached", async () => {
-    const { truncated } = await scanWorkspaceTree(tempDir, 1);
+  it("truncates scan when maxFiles limit is reached and prioritizes shallow files deterministically", async () => {
+    const { tree, truncated } = await scanWorkspaceTree(tempDir, 2);
     assert.equal(truncated, true);
+    const rootFiles = expectFolder(tree)
+      .children.filter((c) => c.kind === "file")
+      .map((c) => c.name);
+    assert.deepEqual(rootFiles, [".env", "README.md"]);
   });
 });

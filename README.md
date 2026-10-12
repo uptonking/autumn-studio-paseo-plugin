@@ -1,38 +1,17 @@
-# File Explorer Plugin
+# paseo-file-explorer plugin
 
-A nested-tree file navigator and multi-format file viewer for Paseo — desktop/web
-only. Built on `react-dom`, Tailwind CSS v4, and modularized extend-ui
-components, isolated from the host UI inside a Shadow DOM island.
+An intuitive file explorer and file viewer/editor for Paseo — desktop/web only. 
+Built with react , Tailwind CSS v4, and modularized extend-ui components, isolated from the host UI inside a Shadow DOM island.
 
 ## Features
 
-- **Left Sidebar Entry (`File Explorer`)**: Contributes a `SidebarRow` below
-  Paseo's built-in sidebar items (`History`, `Search`, `Schedules`) that opens
-  the File Explorer settings page. Also registered under **Settings → Plugins →
-  File Explorer**.
-- **Modular Settings Registry (`client/settings/`)**:
-  - **General**: Enable/disable File Explorer, configure default file open mode
-    (`in-place`, `dialog`, `new-tab`), and default explorer view (`list`,
-    `icons`, `columns`, `gallery`).
-  - **PDF**: Toggle page thumbnail sidebar by default, default zoom level
-    (`fit-width`, `fit-page`, `100%`, `125%`, `150%`), rotation controls, and
-    download button.
-  - **Code & Text**: Toggle line numbers and word wrapping for source code,
-    Markdown, JSON, YAML, TOML, SQL, shell scripts, and plain text files.
-  - **Extensible Format Sections**: Register additional format sections in
-    `client/settings/registry.ts` backed by `settings.formats.<formatId>`.
-- **Three File Open Modes & Top-Right More (`...`) Menu**:
-  - **In-Place (Default)**: Opens the file viewer directly in place of the file
-    tree with a **Go Back** button (`Alt/Cmd+Backspace` or click) and a
-    top-right **More (`...`)** menu (`Open file in dialog`, `Open file in new
-    tab`, `File Explorer settings`).
-  - **Popup Dialog**: Opens the file in a modal dialog with a top-right **More
-    (`...`)** menu (`Open file in-place`, `Open file in new tab`). Switching
-    between `in-place` and `dialog` reparents the live DOM viewer container
-    without reloading or re-parsing the document.
-  - **New Tab**: Opens files in Paseo's center workspace `File Viewer` panel
-    with a multi-tab strip, per-tab close buttons, and a top-right **More
-    (`...`)** menu.
+- **PDF**: Toggle page thumbnail sidebar by default, default zoom level
+  ( `fit-width` , `fit-page` , `100%` , `125%` , `150%` ), rotation controls, and
+  download button.
+- **Code & Text**: Toggle line numbers and word wrapping for source code, 
+  Markdown, JSON, YAML, TOML, SQL, shell scripts, and plain text files.
+- **Extensible Format Sections**: Register additional format sections in
+`client/settings/registry.ts` backed by `settings.formats.<formatId>` .
 
 ## Architecture
 
@@ -75,9 +54,9 @@ does not cross a root boundary — the app's `PluginRpcProvider` and
 `QueryClientProvider` are invisible inside it:
 
 - `file-explorer-panel.tsx` and `file-viewer-panel.tsx` (host tree) own
-  `useRpc`, `useSettings`, queries, and the shared `blob-url-cache.ts`.
-- `file-explorer-island.web.tsx`, `file-explorer-content.tsx`, and
-  `file-viewer-content.tsx` receive plain props and callbacks across the island
+`useRpc` , `useSettings` , queries, and the shared `blob-url-cache.ts` .
+- `file-explorer-island.web.tsx`,          `file-explorer-content.tsx`, and
+`file-viewer-content.tsx` receive plain props and callbacks across the island
   boundary.
 
 ## Build & Verification
@@ -89,3 +68,7 @@ npm run typecheck          # tsc --noEmit
 npm test                   # node:test unit suite (test/*.test.ts)
 npm run check              # typecheck + unit tests + real Paseo plugin compiler + jsdom runtime test
 ```
+
+## License
+
+[AGPL-3.0](./LICENSE.md)

@@ -1,29 +1,23 @@
-import { lazy, Suspense, useCallback, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { Platform, Text, View } from "react-native";
+import type { PluginWorkspacePanelProps } from "@getpaseo/plugin/client";
 import {
-  useRpc,
-  useSettings,
-  type PluginWorkspacePanelProps,
-} from "@getpaseo/plugin/client";
-import {
-  DEFAULT_FILE_EXPLORER_SETTINGS,
-  fileExplorerSettings,
-  getFileContent,
-  getPdfWasm,
-  getTextViewerSettings,
-  toPdfViewerZoom,
-} from "../shared/contracts.js";
-import {
-  getOrCreateFileBlobUrl,
-  getOrCreatePdfWasmBlobUrl,
-} from "./blob-url-cache.js";
-import {
+  clearRecentFilesInStore,
   closeAllFileTabsInStore,
   closeFileTabInStore,
+  closeFileTabsToRightInStore,
+  closeOtherFileTabsInStore,
+  enforceMaxOpenTabsInStore,
+  openFileTabInStore,
+  removeRecentFileInStore,
   setActiveFileTabInStore,
+  setFileTabDirtyInStore,
+  togglePinFileTabInStore,
   useWorkspaceOpenedTabs,
+  type OpenedFileTab,
 } from "./opened-tabs-store.js";
-import type { FileOpenRef, FileViewerViewProps } from "./view-props.js";
+import { useWorkspaceFileBridge } from "./use-workspace-file-bridge.js";
+import type { FileViewerViewProps } from "./view-props.js";
 
 const FileViewerIsland = lazy(() =>
   import("./file-viewer-island.web.js").then((m) => ({
@@ -38,48 +32,25 @@ export function FileViewerPanel(
   },
 ) {
   const isWeb = Platform.OS === "web";
-  const fetchContent = useRpc(getFileContent);
-  const fetchPdfWasm = useRpc(getPdfWasm);
-  const settingsState = useSettings(fileExplorerSettings);
-  const settings =
-    settingsState.status === "ready"
-      ? settingsState.values
-      : DEFAULT_FILE_EXPLORER_SETTINGS;
+  const {
+    settings,
+    pdfSettings,
+    xlsxSettings,
+    textSettings,
+    getFileUrl,
+    getPdfWasmUrl,
+    getXlsxWasmDataUri,
+    handleSaveFile,
+  } = useWorkspaceFileBridge(props.workspaceId);
 
-  const { tabs, activePath } = useWorkspaceOpenedTabs(props.workspaceId);
-
-  const getPdfWasmUrl = useCallback(
-    () => getOrCreatePdfWasmBlobUrl(() => fetchPdfWasm({})),
-    [fetchPdfWasm],
+  const { tabs, activePath, recentFiles } = useWorkspaceOpenedTabs(
+    props.workspaceId,
   );
+  const maxOpenTabs = settings.general.maxOpenTabs;
 
-  const getFileUrl = useCallback(
-    (file: FileOpenRef) =>
-      getOrCreateFileBlobUrl(props.workspaceId, file, (relPath) =>
-        fetchContent({ workspaceId: props.workspaceId, relPath }),
-      ),
-    [props.workspaceId, fetchContent],
-  );
-
-  const pdfSettings = useMemo(
-    () => ({
-      showThumbnailsByDefault: settings.pdf.showThumbnailsByDefault,
-      defaultZoom: toPdfViewerZoom(settings.pdf.defaultZoom),
-      showRotateControls: settings.pdf.showRotateControls,
-      showDownloadButton: settings.pdf.showDownloadButton,
-    }),
-    [
-      settings.pdf.showThumbnailsByDefault,
-      settings.pdf.defaultZoom,
-      settings.pdf.showRotateControls,
-      settings.pdf.showDownloadButton,
-    ],
-  );
-
-  const textSettings = useMemo(
-    () => getTextViewerSettings(settings),
-    [settings],
-  );
+  useEffect(() => {
+    enforceMaxOpenTabsInStore(props.workspaceId, maxOpenTabs);
+  }, [maxOpenTabs, props.workspaceId]);
 
   const handleSelectTab = useCallback(
     (path: string) => {
@@ -95,8 +66,54 @@ export function FileViewerPanel(
     [props.workspaceId],
   );
 
+  const handleCloseOtherTabs = useCallback(
+    (keepPath: string) => {
+      closeOtherFileTabsInStore(props.workspaceId, keepPath);
+    },
+    [props.workspaceId],
+  );
+
+  const handleCloseTabsToRight = useCallback(
+    (fromPath: string) => {
+      closeFileTabsToRightInStore(props.workspaceId, fromPath);
+    },
+    [props.workspaceId],
+  );
+
   const handleCloseAllTabs = useCallback(() => {
     closeAllFileTabsInStore(props.workspaceId);
+  }, [props.workspaceId]);
+
+  const handleTogglePinTab = useCallback(
+    (path: string) => {
+      togglePinFileTabInStore(props.workspaceId, path);
+    },
+    [props.workspaceId],
+  );
+
+  const handleTabDirtyChange = useCallback(
+    (path: string, isDirty: boolean) => {
+      setFileTabDirtyInStore(props.workspaceId, path, isDirty);
+    },
+    [props.workspaceId],
+  );
+
+  const handleOpenRecentFile = useCallback(
+    (file: OpenedFileTab) => {
+      openFileTabInStore(props.workspaceId, file, { maxOpenTabs });
+    },
+    [maxOpenTabs, props.workspaceId],
+  );
+
+  const handleRemoveRecentFile = useCallback(
+    (path: string) => {
+      removeRecentFileInStore(props.workspaceId, path);
+    },
+    [props.workspaceId],
+  );
+
+  const handleClearRecentFiles = useCallback(() => {
+    clearRecentFilesInStore(props.workspaceId);
   }, [props.workspaceId]);
 
   const handleOpenExplorer = useCallback(() => {
@@ -111,28 +128,56 @@ export function FileViewerPanel(
     () => ({
       tabs,
       activePath,
+      recentFiles,
+      maxOpenTabs,
       enabled: settings.general.enabled,
+      autoSaveEdits: settings.general.autoSaveEdits,
       pdfSettings,
+      xlsxSettings,
       textSettings,
+      formatSettings: settings.formats,
       getFileUrl,
       getPdfWasmUrl,
+      getXlsxWasmDataUri,
+      onSaveFile: handleSaveFile,
       onSelectTab: handleSelectTab,
       onCloseTab: handleCloseTab,
+      onCloseOtherTabs: handleCloseOtherTabs,
+      onCloseTabsToRight: handleCloseTabsToRight,
       onCloseAllTabs: handleCloseAllTabs,
+      onTogglePinTab: handleTogglePinTab,
+      onTabDirtyChange: handleTabDirtyChange,
+      onOpenRecentFile: handleOpenRecentFile,
+      onRemoveRecentFile: handleRemoveRecentFile,
+      onClearRecentFiles: handleClearRecentFiles,
       onOpenExplorer: props.onOpenExplorer ? handleOpenExplorer : undefined,
       onOpenSettings: props.onOpenSettings ? handleOpenSettings : undefined,
     }),
     [
       tabs,
       activePath,
+      recentFiles,
+      maxOpenTabs,
       settings.general.enabled,
+      settings.general.autoSaveEdits,
       pdfSettings,
+      xlsxSettings,
       textSettings,
+      settings.formats,
       getFileUrl,
       getPdfWasmUrl,
+      getXlsxWasmDataUri,
+      handleSaveFile,
       handleSelectTab,
       handleCloseTab,
+      handleCloseOtherTabs,
+      handleCloseTabsToRight,
       handleCloseAllTabs,
+      handleTogglePinTab,
+      handleTabDirtyChange,
+      handleOpenRecentFile,
+      handleRemoveRecentFile,
+      handleClearRecentFiles,
       props.onOpenExplorer,
       handleOpenExplorer,
       props.onOpenSettings,
@@ -142,7 +187,14 @@ export function FileViewerPanel(
 
   if (!isWeb) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
         <Text style={{ fontSize: 15, opacity: 0.7, textAlign: "center" }}>
           File Viewer is available on desktop and web only.
         </Text>
@@ -153,7 +205,9 @@ export function FileViewerPanel(
   return (
     <Suspense
       fallback={
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <Text style={{ fontSize: 13, opacity: 0.6 }}>Loading viewer…</Text>
         </View>
       }

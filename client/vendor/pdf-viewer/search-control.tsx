@@ -16,15 +16,19 @@ import { PDF_SEARCH_DEBOUNCE_MS } from "./types"
 export function PDFViewerSearchControl({
   documentId,
   controlsDisabled,
+  openRequest = 0,
 }: {
   documentId: string
   controlsDisabled: boolean
+  openRequest?: number
 }) {
   const { state, provides } = useSearch(documentId)
   const { provides: scroll } = useScroll(documentId)
+  const [open, setOpen] = React.useState(false)
   const [searchDraft, setSearchDraft] = React.useState("")
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isSearching, setIsSearching] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement | null>(null)
   const providesRef = React.useRef(provides)
   const scrollRef = React.useRef(scroll)
   const searchRequestIdRef = React.useRef(0)
@@ -36,6 +40,16 @@ export function PDFViewerSearchControl({
       : state.total
         ? `${state.activeResultIndex + 1} / ${state.total}`
         : "No results"
+
+  React.useEffect(() => {
+    if (!openRequest || controlsDisabled) return
+    setOpen(true)
+    const frame = window.requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [controlsDisabled, openRequest])
 
   const scrollToResult = React.useCallback(
     (index: number) => {
@@ -172,8 +186,8 @@ export function PDFViewerSearchControl({
   )
 
   return (
-    <Popover>
-      <ToolbarTooltip label="Search text">
+    <Popover open={open} onOpenChange={setOpen}>
+      <ToolbarTooltip label="Search text (Cmd/Ctrl+F)">
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -196,10 +210,17 @@ export function PDFViewerSearchControl({
       <PopoverContent align="end" className="w-72">
         <div className="space-y-3">
           <Input
+            ref={inputRef}
+            data-testid="pdf-search-input"
             placeholder="Search text"
             value={searchDraft}
             onChange={handleSearchDraftChange}
             onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault()
+                setOpen(false)
+                return
+              }
               if (event.key !== "Enter") return
 
               event.preventDefault()

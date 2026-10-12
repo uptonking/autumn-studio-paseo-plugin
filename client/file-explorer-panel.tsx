@@ -2,23 +2,17 @@ import { lazy, Suspense, useCallback, useMemo } from "react";
 import { Platform, Text, View } from "react-native";
 import {
   useRpc,
-  useSettings,
   type PluginWorkspacePanelProps,
 } from "@getpaseo/plugin/client";
 import { useQuery } from "@tanstack/react-query";
+import { getFileTree } from "../shared/contracts.js";
 import {
-  DEFAULT_FILE_EXPLORER_SETTINGS,
-  fileExplorerSettings,
-  getFileContent,
-  getFileTree,
-  getPdfWasm,
-  getTextViewerSettings,
-  toPdfViewerZoom,
-} from "../shared/contracts.js";
-import {
-  getOrCreateFileBlobUrl,
-  getOrCreatePdfWasmBlobUrl,
-} from "./blob-url-cache.js";
+  clearRecentFilesInStore,
+  recordRecentFileInStore,
+  removeRecentFileInStore,
+  useWorkspaceOpenedTabs,
+} from "./opened-tabs-store.js";
+import { useWorkspaceFileBridge } from "./use-workspace-file-bridge.js";
 import {
   flattenTree,
   type FileExplorerViewProps,
@@ -41,65 +35,71 @@ const FileExplorerIsland = lazy(() =>
  */
 export function FileExplorerPanel(
   props: PluginWorkspacePanelProps & {
-    onOpenFileInNewTab?: (workspaceId: string, file: FileOpenRef) => void;
+    onOpenFileInNewTab?: (
+      workspaceId: string,
+      file: FileOpenRef,
+      options?: { maxOpenTabs?: number },
+    ) => void;
     onOpenSettings?: (workspaceId: string) => void;
   },
 ) {
   const isWeb = Platform.OS === "web";
   const fetchTree = useRpc(getFileTree);
-  const fetchContent = useRpc(getFileContent);
-  const fetchPdfWasm = useRpc(getPdfWasm);
-  const settingsState = useSettings(fileExplorerSettings);
-  const settings =
-    settingsState.status === "ready"
-      ? settingsState.values
-      : DEFAULT_FILE_EXPLORER_SETTINGS;
+  const {
+    settings,
+    pdfSettings,
+    xlsxSettings,
+    textSettings,
+    getFileUrl,
+    getPdfWasmUrl,
+    getXlsxWasmDataUri,
+    handleSaveFile,
+  } = useWorkspaceFileBridge(props.workspaceId);
+  const { recentFiles } = useWorkspaceOpenedTabs(props.workspaceId);
   const isEnabled = settings.general.enabled;
 
   const query = useQuery({
     queryKey: ["file-explorer:tree", props.workspaceId],
     queryFn: () => fetchTree({ workspaceId: props.workspaceId }),
     enabled: isWeb && isEnabled,
+    refetchOnWindowFocus: true,
   });
-
-  const getPdfWasmUrl = useCallback(
-    () => getOrCreatePdfWasmBlobUrl(() => fetchPdfWasm({})),
-    [fetchPdfWasm],
-  );
-
-  const getFileUrl = useCallback(
-    (file: FileOpenRef) =>
-      getOrCreateFileBlobUrl(props.workspaceId, file, (relPath) =>
-        fetchContent({ workspaceId: props.workspaceId, relPath }),
-      ),
-    [props.workspaceId, fetchContent],
-  );
-
-  const pdfSettings = useMemo(
-    () => ({
-      showThumbnailsByDefault: settings.pdf.showThumbnailsByDefault,
-      defaultZoom: toPdfViewerZoom(settings.pdf.defaultZoom),
-      showRotateControls: settings.pdf.showRotateControls,
-      showDownloadButton: settings.pdf.showDownloadButton,
-    }),
-    [
-      settings.pdf.showThumbnailsByDefault,
-      settings.pdf.defaultZoom,
-      settings.pdf.showRotateControls,
-      settings.pdf.showDownloadButton,
-    ],
-  );
-
-  const textSettings = useMemo(
-    () => getTextViewerSettings(settings),
-    [settings],
-  );
 
   const handleOpenFileInNewTab = useCallback(
     (file: FileOpenRef) => {
-      props.onOpenFileInNewTab?.(props.workspaceId, file);
+      props.onOpenFileInNewTab?.(props.workspaceId, file, {
+        maxOpenTabs: settings.general.maxOpenTabs,
+      });
     },
-    [props.onOpenFileInNewTab, props.workspaceId],
+    [
+      props.onOpenFileInNewTab,
+      props.workspaceId,
+      settings.general.maxOpenTabs,
+    ],
+  );
+
+  const handleRecordRecentFile = useCallback(
+    (file: FileOpenRef) => {
+      recordRecentFileInStore(props.workspaceId, {
+        path: file.path,
+        name: file.name ?? file.path.split("/").pop() ?? file.path,
+        contentType: file.contentType,
+        size: file.size,
+        updatedAt: file.updatedAt,
+      });
+    },
+    [props.workspaceId],
+  );
+
+  const handleClearRecentFiles = useCallback(() => {
+    clearRecentFilesInStore(props.workspaceId);
+  }, [props.workspaceId]);
+
+  const handleRemoveRecentFile = useCallback(
+    (path: string) => {
+      removeRecentFileInStore(props.workspaceId, path);
+    },
+    [props.workspaceId],
   );
 
   const handleOpenSettings = useCallback(() => {
@@ -118,6 +118,7 @@ export function FileExplorerPanel(
   const view: FileExplorerViewProps = useMemo(
     () => ({
       items: flattenedItems,
+      recentFiles,
       isLoading: query.isLoading,
       truncated: query.data?.truncated,
       error:
@@ -129,31 +130,48 @@ export function FileExplorerPanel(
       enabled: isEnabled,
       defaultFileOpenMode: settings.general.fileOpenMode,
       defaultViewMode: settings.general.defaultViewMode,
+      autoSaveEdits: settings.general.autoSaveEdits,
       pdfSettings,
+      xlsxSettings,
       textSettings,
+      formatSettings: settings.formats,
       onRetry: handleRetry,
       getFileUrl,
       getPdfWasmUrl,
+      getXlsxWasmDataUri,
+      onSaveFile: handleSaveFile,
       onOpenFileInNewTab: props.onOpenFileInNewTab
         ? handleOpenFileInNewTab
         : undefined,
+      onRecordRecentFile: handleRecordRecentFile,
+      onRemoveRecentFile: handleRemoveRecentFile,
+      onClearRecentFiles: handleClearRecentFiles,
       onOpenSettings: props.onOpenSettings ? handleOpenSettings : undefined,
     }),
     [
       flattenedItems,
+      recentFiles,
       query.isLoading,
       query.data?.truncated,
       query.error,
       isEnabled,
       settings.general.fileOpenMode,
       settings.general.defaultViewMode,
+      settings.general.autoSaveEdits,
       pdfSettings,
+      xlsxSettings,
       textSettings,
+      settings.formats,
       handleRetry,
       getFileUrl,
       getPdfWasmUrl,
+      getXlsxWasmDataUri,
+      handleSaveFile,
       props.onOpenFileInNewTab,
       handleOpenFileInNewTab,
+      handleRecordRecentFile,
+      handleRemoveRecentFile,
+      handleClearRecentFiles,
       props.onOpenSettings,
       handleOpenSettings,
     ],
@@ -161,11 +179,25 @@ export function FileExplorerPanel(
 
   if (!isWeb) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
         <Text style={{ fontSize: 15, opacity: 0.7, textAlign: "center" }}>
           File Explorer is available on desktop and web only.
         </Text>
-        <Text style={{ marginTop: 8, fontSize: 13, opacity: 0.5, textAlign: "center" }}>
+        <Text
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+            opacity: 0.5,
+            textAlign: "center",
+          }}
+        >
           Use the Files panel for mobile access.
         </Text>
       </View>
@@ -175,7 +207,9 @@ export function FileExplorerPanel(
   return (
     <Suspense
       fallback={
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <Text style={{ fontSize: 13, opacity: 0.6 }}>Loading explorer…</Text>
         </View>
       }

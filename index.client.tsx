@@ -1,19 +1,53 @@
+import { Suspense } from "react";
 import type {
   PluginClientContext,
+  PluginScreenProps,
+  PluginSurfaceProps,
   PluginWorkspacePanelProps,
 } from "@getpaseo/plugin/client";
 import { FileExplorerPanel } from "./client/file-explorer-panel.js";
 import { FileViewerPanel } from "./client/file-viewer-panel.js";
+import { lazyWithPreload } from "./client/lazy-with-preload.js";
 import { openFileTabInStore } from "./client/opened-tabs-store.js";
-import {
-  FileExplorerSettingsContent,
-  FileExplorerSettingsPage,
-} from "./client/settings/settings-screen.js";
 import {
   FileExplorerSidebarItem,
   openFileExplorerSettingsScreen,
+  setSettingsScreenPreloader,
 } from "./client/sidebar-item.js";
 import type { FileOpenRef } from "./client/view-props.js";
+
+const LazyFileExplorerSettingsPage = lazyWithPreload(() =>
+  import("./client/settings/settings-screen.js").then((m) => ({
+    default: m.FileExplorerSettingsPage,
+  })),
+);
+
+const LazyFileExplorerSettingsContent = lazyWithPreload(() =>
+  import("./client/settings/settings-screen.js").then((m) => ({
+    default: m.FileExplorerSettingsContent,
+  })),
+);
+
+setSettingsScreenPreloader(() => {
+  void LazyFileExplorerSettingsPage.preload();
+  void LazyFileExplorerSettingsContent.preload();
+});
+
+function FileExplorerSettingsPageWrapper(props: PluginScreenProps) {
+  return (
+    <Suspense fallback={null}>
+      <LazyFileExplorerSettingsPage {...props} />
+    </Suspense>
+  );
+}
+
+function FileExplorerSettingsContentWrapper(props: PluginSurfaceProps) {
+  return (
+    <Suspense fallback={null}>
+      <LazyFileExplorerSettingsContent {...props} />
+    </Suspense>
+  );
+}
 
 function pathBasename(filePath: string): string {
   const trimmed = filePath.endsWith("/") ? filePath.slice(0, -1) : filePath;
@@ -22,14 +56,22 @@ function pathBasename(filePath: string): string {
 }
 
 export default function contribute(client: PluginClientContext) {
-  const handleOpenFileInNewTab = (workspaceId: string, file: FileOpenRef) => {
-    openFileTabInStore(workspaceId, {
-      path: file.path,
-      name: file.name ?? pathBasename(file.path),
-      contentType: file.contentType,
-      size: file.size,
-      updatedAt: file.updatedAt,
-    });
+  const handleOpenFileInNewTab = (
+    workspaceId: string,
+    file: FileOpenRef,
+    options?: { maxOpenTabs?: number },
+  ) => {
+    openFileTabInStore(
+      workspaceId,
+      {
+        path: file.path,
+        name: file.name ?? pathBasename(file.path),
+        contentType: file.contentType,
+        size: file.size,
+        updatedAt: file.updatedAt,
+      },
+      options,
+    );
     client.openPanel("file-viewer", { workspaceId, location: "workspace" });
   };
 
@@ -60,14 +102,14 @@ export default function contribute(client: PluginClientContext) {
   const removeScreen = client.addScreen({
     id: "settings",
     title: "File Explorer",
-    Component: FileExplorerSettingsPage,
+    Component: FileExplorerSettingsPageWrapper,
   });
 
   const removeSettingsScreen = client.addSettingsScreen({
     id: "settings",
     title: "File Explorer",
     icon: "FolderTree",
-    Component: FileExplorerSettingsContent,
+    Component: FileExplorerSettingsContentWrapper,
   });
 
   const removeExplorerPanel = client.addWorkspacePanel({

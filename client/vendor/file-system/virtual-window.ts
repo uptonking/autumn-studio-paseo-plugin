@@ -127,9 +127,11 @@ export function useResolvedFileUrl(
   const cacheKey = file ? fileUrlCacheKey(file) : null
   const [state, setState] = React.useState<{
     isResolving: boolean
+    path: string | null
     url: string | null
   }>(() => ({
     isResolving: false,
+    path: file?.path ?? null,
     url: file ? (file.url ?? (cacheKey ? cache?.get(cacheKey) : null) ?? null) : null,
   }))
   const fileRef = React.useRef(file)
@@ -142,24 +144,36 @@ export function useResolvedFileUrl(
 
   React.useEffect(() => {
     const currentFile = fileRef.current
+    const currentPath = currentFile?.path ?? null
     const knownUrl =
       fileUrl ?? (cacheKey ? (cache?.get(cacheKey) ?? null) : null)
 
     if (!currentFile || knownUrl || !getFileUrl || !cacheKey) {
-      setState({ isResolving: false, url: knownUrl })
+      setState({ isResolving: false, path: currentPath, url: knownUrl })
       return
     }
 
     let isCurrent = true
 
-    setState({ isResolving: true, url: null })
+    setState((previous) => {
+      if (previous.path === currentPath && previous.url !== null) {
+        return previous
+      }
+      return { isResolving: true, path: currentPath, url: null }
+    })
     void Promise.resolve(getFileUrl(currentFile))
       .then((url) => {
         if (url) cache?.set(cacheKey, url)
-        if (isCurrent) setState({ isResolving: false, url })
+        if (isCurrent) setState({ isResolving: false, path: currentPath, url })
       })
       .catch(() => {
-        if (isCurrent) setState({ isResolving: false, url: null })
+        if (isCurrent) {
+          setState((previous) =>
+            previous.path === currentPath && previous.url !== null
+              ? { ...previous, isResolving: false }
+              : { isResolving: false, path: currentPath, url: null }
+          )
+        }
       })
 
     return () => {

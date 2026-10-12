@@ -6,6 +6,7 @@ import {
   SettingsSwitch,
 } from "@getpaseo/plugin/client/ui";
 import type { PdfDefaultZoom } from "../../../shared/settings.js";
+import { FormatOpenBehaviorFields } from "../components/format-open-behavior-fields.js";
 import type {
   SettingsSectionComponentProps,
   SettingsSectionDescriptor,
@@ -70,6 +71,13 @@ export function PdfSettingsSection({
   return (
     <SettingsSection title="PDF" testID="file-explorer-settings-pdf">
       <SettingsCard>
+        <FormatOpenBehaviorFields
+          kind="pdf"
+          formatLabel="PDF"
+          values={values}
+          disabled={controlsDisabled}
+          updateValues={updateValues}
+        />
         <SettingsSwitch
           label="Show page thumbnails by default"
           hint="Automatically open the left thumbnail side panel when viewing PDF documents."

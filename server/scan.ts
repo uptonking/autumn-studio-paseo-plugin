@@ -53,6 +53,9 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
     } catch {
       return { kind: "folder", path, name, children };
     }
+    entries.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const pendingDirs: Array<{ fullPath: string; childRelPath: string }> = [];
 
     for (const entry of entries) {
       if (fileCount >= maxFiles) {
@@ -64,6 +67,7 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
         break;
       }
       if (SKIP_DIRS.has(entry) || SKIP_FILES.has(entry)) continue;
+      if (entry.includes(".paseo-") && entry.endsWith(".tmp")) continue;
 
       const fullPath = join(dirPath, entry);
       const childRelPath = relPath === "" ? entry : `${relPath}/${entry}`;
@@ -81,7 +85,7 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
       if (stats.isDirectory() && entry.startsWith(".")) continue;
 
       if (stats.isDirectory()) {
-        children.push(await scanDir(fullPath, childRelPath, depth + 1));
+        pendingDirs.push({ fullPath, childRelPath });
       } else if (stats.isFile()) {
         fileCount++;
         children.push({
@@ -93,6 +97,16 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
           contentType: contentTypeFor(entry),
         });
       }
+    }
+
+    for (const subDir of pendingDirs) {
+      if (fileCount >= maxFiles) {
+        truncated = true;
+        break;
+      }
+      children.push(
+        await scanDir(subDir.fullPath, subDir.childRelPath, depth + 1),
+      );
     }
 
     children.sort((a, b) => {

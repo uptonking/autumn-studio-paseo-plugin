@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import { FileSystem } from "./vendor/file-system.js";
+import {
+  formatFileLoadError,
+  isFileNotFoundError,
+} from "./opened-tabs-store.js";
+import { FileSystem, preloadFileSystemView } from "./vendor/file-system.js";
 import { setPdfiumWasmResolver } from "./vendor/lib/pdf-thumbnail-utils.js";
+import { setXlsxWasmResolver } from "./vendor/xlsx-viewer/wasm-loader.js";
 import type { FileExplorerViewProps, FileOpenRef } from "./view-props.js";
 
 /**
@@ -10,11 +15,16 @@ import type { FileExplorerViewProps, FileOpenRef } from "./view-props.js";
 export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
   const [unsupported, setUnsupported] = useState<FileOpenRef | null>(null);
 
+  if (view.getPdfWasmUrl) {
+    setPdfiumWasmResolver(view.getPdfWasmUrl);
+  }
+  if (view.getXlsxWasmDataUri) {
+    setXlsxWasmResolver(view.getXlsxWasmDataUri);
+  }
+
   useEffect(() => {
-    if (view.getPdfWasmUrl) {
-      setPdfiumWasmResolver(view.getPdfWasmUrl);
-    }
-  }, [view.getPdfWasmUrl]);
+    preloadFileSystemView(view.defaultViewMode ?? "list");
+  }, [view.defaultViewMode]);
 
   useEffect(() => {
     if (!unsupported) return;
@@ -25,9 +35,12 @@ export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
   if (view.enabled === false) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-sm font-medium text-foreground">File Explorer is disabled</p>
+        <p className="text-sm font-medium text-foreground">
+          File Explorer is disabled
+        </p>
         <p className="max-w-xs text-xs text-muted-foreground">
-          Enable File Explorer in the plugin settings to browse and preview workspace files.
+          Enable File Explorer in the plugin settings to browse and preview
+          workspace files.
         </p>
         {view.onOpenSettings ? (
           <button
@@ -59,7 +72,9 @@ export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
   if (view.isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading workspace files…</p>
+        <p className="text-sm text-muted-foreground">
+          Loading workspace files…
+        </p>
       </div>
     );
   }
@@ -73,15 +88,22 @@ export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
       ) : null}
       <FileSystem
         items={view.items}
+        recentFiles={view.recentFiles}
         title="Explorer"
         defaultView={view.defaultViewMode ?? "list"}
         defaultFileOpenMode={view.defaultFileOpenMode ?? "in-place"}
+        autoSaveEdits={view.autoSaveEdits}
         pdfSettings={view.pdfSettings}
+        xlsxSettings={view.xlsxSettings}
         textSettings={view.textSettings}
+        formatSettings={view.formatSettings}
+        onSaveFile={view.onSaveFile}
         className="h-full w-full rounded-none border-0"
         getFileUrl={view.getFileUrl}
         onRefresh={view.onRetry}
         onOpenSettings={view.onOpenSettings}
+        onRecordRecentFile={view.onRecordRecentFile}
+        onClearRecentFiles={view.onClearRecentFiles}
         onOpenFileInNewTab={
           view.onOpenFileInNewTab
             ? (file) =>
@@ -94,14 +116,20 @@ export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
                 })
             : undefined
         }
-        onOpenUnsupported={(file, error) =>
-          setUnsupported({ path: file.path, name: file.name, error })
-        }
+        onOpenUnsupported={(file, error) => {
+          if (error && isFileNotFoundError(error)) {
+            view.onRemoveRecentFile?.(file.path);
+          }
+          setUnsupported({ path: file.path, name: file.name, error });
+        }}
       />
       {unsupported ? (
         <div className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2 max-w-[90%] truncate rounded-lg border bg-popover px-3 py-2 text-center text-xs text-popover-foreground shadow-md">
           {unsupported.error
-            ? `Failed to open ${unsupported.name ?? unsupported.path}: ${unsupported.error}`
+            ? formatFileLoadError(
+                unsupported.error,
+                unsupported.name ?? unsupported.path,
+              )
             : `No preview for ${unsupported.name ?? unsupported.path} yet`}
         </div>
       ) : null}

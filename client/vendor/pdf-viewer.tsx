@@ -264,6 +264,7 @@ export const PDFViewer = React.forwardRef<PDFViewerHandle, PDFViewerProps>(
       renderPageOverlay,
       onActivePageChange,
       onDocumentLoadSuccess,
+      onDownloadPdf,
       onPdfUpload,
       onPagePointerDown,
       onPagePointerMove,
@@ -403,6 +404,7 @@ export const PDFViewer = React.forwardRef<PDFViewerHandle, PDFViewerProps>(
             renderPageOverlay={renderPageOverlay}
             onActivePageChange={onActivePageChange}
             onDocumentLoadSuccess={onDocumentLoadSuccess}
+            onDownloadPdf={onDownloadPdf}
             onPdfUpload={onPdfUpload}
             onPagePointerDown={onPagePointerDown}
             onPagePointerMove={onPagePointerMove}

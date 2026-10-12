@@ -1,26 +1,50 @@
 import type {
   FileExplorerViewMode,
+  FileFormatOpenBehavior,
   FileNode,
   FileOpenMode,
   TextViewerSettings,
 } from "../shared/contracts.js";
 import type { OpenedFileTab } from "./opened-tabs-store.js";
+import type {
+  FileSaveCallbackInput,
+  FileSaveCallbackResult,
+} from "./viewers/registry.js";
 
 export interface PdfViewerPreferences {
+  defaultOpenBehavior?: FileFormatOpenBehavior;
+  defaultViewer?: string;
+  defaultEditor?: string;
   showThumbnailsByDefault?: boolean;
   defaultZoom?: "fit-page" | "fit-width" | number;
   showRotateControls?: boolean;
   showDownloadButton?: boolean;
 }
 
+export interface XlsxViewerPreferences {
+  defaultOpenBehavior?: FileFormatOpenBehavior;
+  defaultViewer?: string;
+  defaultEditor?: string;
+  defaultZoom?: number;
+  showFormulaBar?: boolean;
+  showHiddenSheets?: boolean;
+  showDownloadButton?: boolean;
+}
+
+export interface GetFileUrlOptions {
+  forceRefresh?: boolean;
+  reuseIfUnchanged?: boolean;
+}
+
 /**
-  * Everything the island needs to draw the explorer. The panel (host React
-  * tree) owns the RPC calls, settings, and query — context does not cross the
-  * island's separate react-dom root, so the island stays purely presentational
-  * and receives this snapshot plus plain callbacks as props.
-  */
+ * Everything the island needs to draw the explorer. The panel (host React
+ * tree) owns the RPC calls, settings, and query — context does not cross the
+ * island's separate react-dom root, so the island stays purely presentational
+ * and receives this snapshot plus plain callbacks as props.
+ */
 export interface FileExplorerViewProps {
   items: FileSystemItemView[];
+  recentFiles?: OpenedFileTab[];
   isLoading: boolean;
   truncated?: boolean;
   /** Human-readable load failure, when any. */
@@ -28,15 +52,28 @@ export interface FileExplorerViewProps {
   enabled?: boolean;
   defaultFileOpenMode?: FileOpenMode;
   defaultViewMode?: FileExplorerViewMode;
+  autoSaveEdits?: boolean;
   pdfSettings?: PdfViewerPreferences;
+  xlsxSettings?: XlsxViewerPreferences;
   textSettings?: TextViewerSettings;
+  formatSettings?: Record<string, Record<string, unknown>>;
   onRetry(): void;
   /** Resolves a blob URL for a file's bytes; rejects on failure. */
-  getFileUrl(file: FileOpenRef): Promise<string>;
+  getFileUrl(file: FileOpenRef, options?: GetFileUrlOptions): Promise<string>;
   /** Resolves a blob URL for local pdfium.wasm for offline PDF viewing. */
   getPdfWasmUrl?(): Promise<string>;
+  /** Resolves a data URI for local duke_sheets_wasm_bg.wasm for offline Excel viewing/editing. */
+  getXlsxWasmDataUri?(): Promise<string>;
+  /** Persists edited file bytes/text back to the workspace file system. */
+  onSaveFile?(input: FileSaveCallbackInput): Promise<FileSaveCallbackResult>;
   /** Opens a file in the File Viewer workspace tab. */
   onOpenFileInNewTab?(file: FileOpenRef): void;
+  /** Records a file in the workspace's 8-item recent files list. */
+  onRecordRecentFile?(file: FileOpenRef): void;
+  /** Removes a single missing/stale file from the recent files list. */
+  onRemoveRecentFile?(path: string): void;
+  /** Clears the workspace's recent files list. */
+  onClearRecentFiles?(): void;
   /** Opens the File Explorer settings page. */
   onOpenSettings?(): void;
 }
@@ -44,14 +81,28 @@ export interface FileExplorerViewProps {
 export interface FileViewerViewProps {
   tabs: OpenedFileTab[];
   activePath: string | null;
+  recentFiles?: OpenedFileTab[];
+  maxOpenTabs?: number;
   enabled?: boolean;
+  autoSaveEdits?: boolean;
   pdfSettings?: PdfViewerPreferences;
+  xlsxSettings?: XlsxViewerPreferences;
   textSettings?: TextViewerSettings;
-  getFileUrl(file: FileOpenRef): Promise<string>;
+  formatSettings?: Record<string, Record<string, unknown>>;
+  getFileUrl(file: FileOpenRef, options?: GetFileUrlOptions): Promise<string>;
   getPdfWasmUrl?(): Promise<string>;
+  getXlsxWasmDataUri?(): Promise<string>;
+  onSaveFile?(input: FileSaveCallbackInput): Promise<FileSaveCallbackResult>;
   onSelectTab(path: string): void;
   onCloseTab(path: string): void;
+  onCloseOtherTabs?(keepPath: string): void;
+  onCloseTabsToRight?(fromPath: string): void;
   onCloseAllTabs?(): void;
+  onTogglePinTab?(path: string): void;
+  onTabDirtyChange?(path: string, isDirty: boolean): void;
+  onOpenRecentFile?(file: OpenedFileTab): void;
+  onRemoveRecentFile?(path: string): void;
+  onClearRecentFiles?(): void;
   onOpenExplorer?(): void;
   onOpenSettings?(): void;
 }
@@ -65,7 +116,10 @@ export interface FileSystemItemView {
   contentType?: string;
 }
 
-export type FileSystemFileViewItem = Extract<FileSystemItemView, { kind: "file" }>;
+export type FileSystemFileViewItem = Extract<
+  FileSystemItemView,
+  { kind: "file" }
+>;
 
 /** Minimal shape the island hands back on open/unsupported — vendor item
  * types stay inside the island and both directions stay assignable. */
@@ -83,7 +137,8 @@ export function flattenTree(node: FileNode | undefined): FileSystemItemView[] {
   const items: FileSystemItemView[] = [];
   const walk = (n: FileNode) => {
     if (n.kind === "folder") {
-      if (n.path !== "/") items.push({ kind: "folder", path: n.path, name: n.name });
+      if (n.path !== "/")
+        items.push({ kind: "folder", path: n.path, name: n.name });
       for (const child of n.children) walk(child);
     } else {
       items.push({
@@ -116,3 +171,61 @@ export async function dataUriToObjectUrl(dataUri: string): Promise<string> {
   const blob = await (await fetch(dataUri)).blob();
   return URL.createObjectURL(blob);
 }
+
+export function isMarkdownFileName(fileName?: string): boolean {
+  if (!fileName) return false;
+  return /\.(md|mdx|markdown)$/i.test(fileName.trim());
+}
+
+const TEXT_VIEWABLE_EXTENSIONS = new Set([
+  "c", "cc", "cfg", "cjs", "conf", "cpp", "css", "csv", "cts", "env",
+  "gitignore", "go", "graphql", "gql", "h", "hpp", "htm", "html", "ini",
+  "java", "js", "json", "jsonc", "jsonl", "jsx", "kt", "less", "lock", "log",
+  "lua", "md", "mdx", "mjs", "mts", "php", "pl", "prisma", "py", "r", "rb",
+  "rs", "sass", "scala", "scss", "sh", "sql", "svelte", "swift", "tf", "toml",
+  "ts", "tsv", "tsx", "txt", "vue", "xml", "yaml", "yml", "zig", "zsh",
+]);
+
+const TEXT_VIEWABLE_BASENAMES = new Set([
+  ".babelrc", ".dockerignore", ".editorconfig", ".env", ".env.example",
+  ".env.local", ".eslintrc", ".gitattributes", ".gitignore", ".npmrc",
+  ".nvmrc", ".prettierrc", "agents.md", "cargo.lock", "cargo.toml",
+  "claude.md", "cmakelists.txt", "dockerfile", "gemfile", "go.mod", "go.sum",
+  "justfile", "license", "makefile", "procfile", "rakefile", "readme",
+]);
+
+export function isTextViewableFile(file: {
+  name?: string;
+  path: string;
+  contentType?: string;
+}): boolean {
+  const type = file.contentType?.toLowerCase() ?? "";
+  if (
+    type.startsWith("text/") ||
+    type === "application/json" ||
+    type === "application/ld+json" ||
+    type === "application/javascript" ||
+    type === "application/typescript" ||
+    type === "application/xml" ||
+    type === "application/x-yaml" ||
+    type === "application/toml" ||
+    type === "application/sql" ||
+    type === "application/x-sh"
+  ) {
+    return true;
+  }
+
+  const rawName = (
+    file.name ??
+    file.path.split("/").pop() ??
+    ""
+  ).toLowerCase();
+  if (!rawName) return false;
+  if (TEXT_VIEWABLE_BASENAMES.has(rawName)) return true;
+
+  const dotIndex = rawName.lastIndexOf(".");
+  if (dotIndex <= 0) return false;
+  const ext = rawName.slice(dotIndex + 1);
+  return TEXT_VIEWABLE_EXTENSIONS.has(ext);
+}
+

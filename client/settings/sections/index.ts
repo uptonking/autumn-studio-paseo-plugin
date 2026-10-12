@@ -1,17 +1,21 @@
 import type { SettingsSectionDescriptor } from "../registry.js";
 import { generalSectionDescriptor } from "./general-section.js";
+import { imageSectionDescriptor } from "./image-section.js";
 import { pdfSectionDescriptor } from "./pdf-section.js";
 import { textSectionDescriptor } from "./text-section.js";
+import { xlsxSectionDescriptor } from "./xlsx-section.js";
 
 /**
  * Ordered registry of settings sections for `paseo-file-explorer`.
- * Future file viewers/editors (e.g. Office DOCX/PPTX/XLSX, Images)
+ * Future file viewers/editors (e.g. Office DOCX/PPTX, Images)
  * can add a section descriptor here without changing the settings page shell.
  */
 const registeredSections: SettingsSectionDescriptor[] = [
   generalSectionDescriptor,
   pdfSectionDescriptor,
+  xlsxSectionDescriptor,
   textSectionDescriptor,
+  imageSectionDescriptor,
 ];
 
 export function registerSettingsSection(
