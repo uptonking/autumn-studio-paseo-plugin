@@ -32,5 +32,17 @@ export const imageSectionDescriptor: SettingsSectionDescriptor = {
   id: "image",
   title: "Images",
   order: 40,
+  sidebarGroup: "more",
+  formatKind: "image",
+  extensions: [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"],
+  description: "Default image preview behavior and viewer engine.",
+  resetSection: (current) => {
+    const nextFormats = { ...current.formats };
+    delete nextFormats.image;
+    return {
+      ...current,
+      formats: nextFormats,
+    };
+  },
   Component: ImageSettingsSection,
 };

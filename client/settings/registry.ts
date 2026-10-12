@@ -20,15 +20,34 @@ export interface SettingsSectionComponentProps {
   ) => void;
 }
 
+export type SettingsSidebarGroup = "primary" | "more";
+
 export interface SettingsSectionDescriptor {
-  /** Unique section id (e.g. "general", "pdf", "markdown", "code", "docx"). */
+  /** Unique section id (e.g. "general", "pdf", "xlsx", "text", "image", "docx"). */
   id: string;
   /** Display heading for the section. */
   title: string;
   /** Sort order (lower renders higher on the page). */
   order: number;
+  /**
+   * "primary" renders as its own top-level item in the left sidebar
+   * (e.g. General, PDF, Excel).
+   * "more" groups the section under the "More Formats" sidebar menu item
+   * (e.g. Code & Text, Images, and future formats).
+   */
+  sidebarGroup?: SettingsSidebarGroup;
+  /** Short subtitle describing what this section configures. */
+  description?: string;
+  /** File extensions governed by this format section (e.g. [".pdf"]). */
+  extensions?: readonly string[];
+  /** Format kind key for open-behavior lookup (e.g. "pdf", "xlsx", "text", "image"). */
+  formatKind?: string;
   /** Optional visibility predicate given current settings values. */
   isVisible?: (values: FileExplorerSettingsValues) => boolean;
+  /** Optional section-scoped reset updater. */
+  resetSection?: (
+    current: FileExplorerSettingsValues
+  ) => FileExplorerSettingsValues;
   /** Section UI component. */
   Component: ComponentType<SettingsSectionComponentProps>;
 }

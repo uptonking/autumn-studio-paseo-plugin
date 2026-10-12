@@ -10,9 +10,13 @@ export function setSettingsScreenPreloader(preload: () => void): void {
   settingsPreloader = preload;
 }
 
-export function openFileExplorerSettingsScreen(): void {
+export function openFileExplorerSettingsScreen(section?: string): void {
   settingsPreloader?.();
-  latestOpenScreen?.({ screenId: "settings" });
+  latestOpenScreen?.(
+    section
+      ? { screenId: "settings", params: { section } }
+      : { screenId: "settings" },
+  );
 }
 
 export function FileExplorerSidebarItem({

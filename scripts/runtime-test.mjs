@@ -9,6 +9,7 @@ import {
   rpcInputs,
   runtimeRequire,
   simulatedDiskFiles,
+  verifySettingsSidebarNavigation,
 } from "./runtime-test-harness.mjs";
 
 const bundleText = process.env.CLIENT_BUNDLE ?? "/tmp/fe-client-bundle.js";
@@ -115,30 +116,8 @@ settingsRoot.render(
   })
 );
 await new Promise((r) => setTimeout(r, 80));
-const generalSection = settingsHost.querySelector('[data-testid="settings-section-General"]');
-const pdfSection = settingsHost.querySelector('[data-testid="settings-section-PDF"]');
-const xlsxSection = settingsHost.querySelector('[data-testid="settings-section-Excel"]');
-const textSection = settingsHost.querySelector('[data-testid="settings-section-Code & Text"]');
-const imageSection = settingsHost.querySelector('[data-testid="settings-section-Images"]');
-if (!generalSection || !pdfSection || !xlsxSection || !textSection || !imageSection) {
-  throw new Error("General, PDF, Excel, Code & Text, or Images settings section missing from settings screen");
-}
-const maxOpenTabsSelect = generalSection.querySelector('[data-testid="settings-select-Maximum open file tabs"] select');
-if (!maxOpenTabsSelect || maxOpenTabsSelect.value !== "8") {
-  throw new Error(`Expected Maximum open file tabs select with default value '8', got '${maxOpenTabsSelect?.value}'`);
-}
-const xlsxZoomSelect = xlsxSection.querySelector('[data-testid="settings-select-Default zoom level"]');
-const xlsxBehaviorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default open behavior"]');
-const xlsxViewerSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel viewer"]');
-const xlsxEditorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel editor"]');
-if (!xlsxZoomSelect || !xlsxBehaviorSelect || !xlsxViewerSelect || !xlsxEditorSelect) {
-  throw new Error("Excel settings section missing Default zoom level, Default open behavior, Default viewer, or Default editor select");
-}
-const zoomOptionValues = [...xlsxZoomSelect.querySelectorAll("option")].map((opt) => opt.value);
-if (!zoomOptionValues.includes("50") || !zoomOptionValues.includes("200")) {
-  throw new Error(`Expected Excel zoom options to include 50 and 200, got: ${zoomOptionValues.join(",")}`);
-}
-console.log("✓ settings screen rendered General, PDF, Excel, Code & Text, and Images sections with multi-provider open behavior selects");
+await verifySettingsSidebarNavigation(settingsHost);
+console.log("✓ settings screen rendered left sidebar (General, PDF, Excel, More Formats) and switched sections on click");
 
 // --- render the File Explorer panel with react-dom -------------------------
 const host = document.createElement("div");

@@ -6,6 +6,7 @@ import {
   SettingsSwitch,
 } from "@getpaseo/plugin/client/ui";
 import {
+  DEFAULT_GENERAL_SETTINGS,
   DEFAULT_MAX_OPEN_TABS,
   type FileExplorerViewMode,
   type FileOpenMode,
@@ -176,5 +177,12 @@ export const generalSectionDescriptor: SettingsSectionDescriptor = {
   id: "general",
   title: "General",
   order: 10,
+  sidebarGroup: "primary",
+  description:
+    "Configure workspace file tree behavior, maximum open file tabs, and automatic saving.",
+  resetSection: (current) => ({
+    ...current,
+    general: { ...DEFAULT_GENERAL_SETTINGS },
+  }),
   Component: GeneralSettingsSection,
 };

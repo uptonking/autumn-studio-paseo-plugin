@@ -6,6 +6,7 @@ import {
   SettingsSwitch,
 } from "@getpaseo/plugin/client/ui";
 import {
+  DEFAULT_XLSX_SETTINGS,
   getXlsxSettings,
   withXlsxSettings,
   type XlsxDefaultZoom,
@@ -119,5 +120,14 @@ export const xlsxSectionDescriptor: SettingsSectionDescriptor = {
   id: "xlsx",
   title: "Excel",
   order: 25,
+  sidebarGroup: "primary",
+  formatKind: "xlsx",
+  extensions: [".xlsx", ".xls", ".csv"],
+  description:
+    "Default spreadsheet viewer and editor engines, zoom scale, formula bar, and hidden sheet visibility.",
+  resetSection: (current) => ({
+    ...current,
+    xlsx: { ...DEFAULT_XLSX_SETTINGS },
+  }),
   Component: XlsxSettingsSection,
 };

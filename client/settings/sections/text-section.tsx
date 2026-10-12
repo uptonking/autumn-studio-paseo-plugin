@@ -5,6 +5,7 @@ import {
   SettingsSwitch,
 } from "@getpaseo/plugin/client/ui";
 import {
+  DEFAULT_TEXT_VIEWER_SETTINGS,
   getTextViewerSettings,
   withTextViewerSettings,
 } from "../../../shared/settings.js";
@@ -72,5 +73,14 @@ export const textSectionDescriptor: SettingsSectionDescriptor = {
   id: "text",
   title: "Code & Text",
   order: 30,
+  sidebarGroup: "more",
+  formatKind: "text",
+  extensions: [".md", ".txt", ".ts", ".tsx", ".js", ".json", ".py"],
+  description:
+    "Markdown, source code, and plain text viewer/editor engines, line numbers, and word wrap.",
+  resetSection: (current) => ({
+    ...current,
+    text: { ...DEFAULT_TEXT_VIEWER_SETTINGS },
+  }),
   Component: TextSettingsSection,
 };

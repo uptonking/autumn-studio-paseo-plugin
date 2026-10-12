@@ -13,52 +13,6 @@ Built with react , Tailwind CSS v4, and modularized extend-ui components, isolat
 - **Extensible Format Sections**: Register additional format sections in
 `client/settings/registry.ts` backed by `settings.formats.<formatId>` .
 
-## Architecture
-
-```
-index.client.tsx                ← Contributes sidebar item, settings screens, panels, commands
-index.server.ts                 ← Registers host settings + files.tree / file.content / files.pdf_wasm RPCs
-shared/
-  contracts.ts                  ← Zod RPC schemas + settings re-exports
-  settings.ts                   ← Host settings schema (General, PDF, Code & Text, extensible formats)
-server/
-  paths.ts                      ← workspaceRoot + safeResolve (realpath containment)
-  scan.ts                       ← Tree walk: skips dot-dirs, symlinks, node_modules…
-client/
-  blob-url-cache.ts             ← Shared mtime/size-aware Blob URL & PDFium WASM URL cache
-  file-explorer-panel.tsx       ← Host wrapper for File Explorer panel
-  file-viewer-panel.tsx         ← Host wrapper for File Viewer (new-tab) workspace panel
-  shadow-island.web.tsx         ← Reusable ShadowRoot island with Tailwind CSS + theme vars
-  file-explorer-island.web.tsx  ← File Explorer ShadowRoot island entry
-  file-viewer-island.web.tsx    ← File Viewer ShadowRoot island entry
-  file-explorer-content.tsx     ← Tree query flattening + FileSystem wiring
-  file-viewer-content.tsx       ← Multi-tab File Viewer content inside ShadowRoot
-  opened-tabs-store.ts          ← Per-workspace store for files opened in new tabs
-  sidebar-item.tsx              ← Left sidebar "File Explorer" SidebarRow contribution
-  settings/                     ← Modular settings screen & section registry (General, PDF, Code & Text)
-  viewers/
-    registry.tsx                ← Pluggable viewer registry shared by FileSystem and FileViewer
-    image-viewer.tsx            ← Interactive Image viewer (zoom, fit/100%, rotate, download)
-    text-viewer.tsx             ← Built-in Code & Text viewer (line numbers, wrap, copy, download)
-  vendor/
-    file-system.tsx             ← Root FileSystem component (<600 lines)
-    file-system/                ← Modularized views, header, filters, stage pool, virtual window
-    pdf-viewer.tsx              ← Root PDFViewer component (<600 lines)
-    pdf-viewer/                 ← Modularized PDF toolbar, search, scroller, thumbnails, engine
-```
-
-### Context boundary (the load-bearing rule)
-
-The Shadow DOM island renders in its own `react-dom` root, and React context
-does not cross a root boundary — the app's `PluginRpcProvider` and
-`QueryClientProvider` are invisible inside it:
-
-- `file-explorer-panel.tsx` and `file-viewer-panel.tsx` (host tree) own
-`useRpc` , `useSettings` , queries, and the shared `blob-url-cache.ts` .
-- `file-explorer-island.web.tsx`,          `file-explorer-content.tsx`, and
-`file-viewer-content.tsx` receive plain props and callbacks across the island
-  boundary.
-
 ## Build & Verification
 
 ```bash

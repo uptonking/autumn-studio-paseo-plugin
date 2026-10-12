@@ -91,7 +91,7 @@ const View = ({ testID, style, children, ...rest }) =>
     { ...rest, "data-testid": testID, style },
     children,
   );
-const Text = ({ testID, style, children, ...rest }) =>
+const Text = ({ testID, style, numberOfLines: _numberOfLines, children, ...rest }) =>
   React.createElement(
     "span",
     { ...rest, "data-testid": testID, style },
@@ -113,7 +113,45 @@ const ScrollView = ({
     },
     children,
   );
-const ReactNative = { Platform: { OS: "web" }, View, Text, ScrollView };
+const Pressable = ({
+  testID,
+  style,
+  onPress,
+  disabled,
+  accessibilityRole,
+  accessibilityState,
+  children,
+  ...rest
+}) =>
+  React.createElement(
+    "button",
+    {
+      ...rest,
+      type: "button",
+      disabled,
+      role: accessibilityRole,
+      "aria-selected":
+        accessibilityState?.selected !== undefined
+          ? String(Boolean(accessibilityState.selected))
+          : undefined,
+      "data-testid": testID,
+      style:
+        typeof style === "function"
+          ? style({ pressed: false, hovered: false })
+          : style,
+      onClick: disabled ? undefined : onPress,
+    },
+    typeof children === "function"
+      ? children({ pressed: false, hovered: false })
+      : children,
+  );
+const ReactNative = {
+  Platform: { OS: "web" },
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+};
 
 export const fakeTree = {
   kind: "folder",
@@ -384,3 +422,151 @@ export const runtimeRequire = (name) => {
       throw new Error(`unexpected require: ${name}`);
   }
 };
+
+export async function verifySettingsSidebarNavigation(settingsHost) {
+  const settingsSidebar = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-sidebar"]',
+  );
+  const navGeneral = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-nav-general"]',
+  );
+  const navPdf = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-nav-pdf"]',
+  );
+  const navXlsx = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-nav-xlsx"]',
+  );
+  const navMore = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-nav-more"]',
+  );
+  if (!settingsSidebar || !navGeneral || !navPdf || !navXlsx || !navMore) {
+    throw new Error(
+      "Settings sidebar missing General, PDF, Excel, or More Formats navigation items",
+    );
+  }
+  if (
+    navGeneral.style.borderLeftColor ||
+    navGeneral.style.outlineStyle !== "none"
+  ) {
+    throw new Error(
+      "Selected settings sidebar menu item should not render a border or focus outline",
+    );
+  }
+
+  const generalSection = settingsHost.querySelector(
+    '[data-testid="settings-section-General"]',
+  );
+  if (
+    !generalSection ||
+    settingsHost.querySelector('[data-testid="settings-section-PDF"]') ||
+    settingsHost.querySelector('[data-testid="settings-section-Excel"]') ||
+    settingsHost.querySelector(
+      '[data-testid="settings-section-Code & Text"]',
+    ) ||
+    settingsHost.querySelector('[data-testid="settings-section-Images"]')
+  ) {
+    throw new Error(
+      "Expected only General section to be shown by default on initial settings render",
+    );
+  }
+  const maxOpenTabsSelect = generalSection.querySelector(
+    '[data-testid="settings-select-Maximum open file tabs"] select',
+  );
+  if (!maxOpenTabsSelect || maxOpenTabsSelect.value !== "8") {
+    throw new Error(
+      `Expected Maximum open file tabs select with default value '8', got '${maxOpenTabsSelect?.value}'`,
+    );
+  }
+
+  navPdf.click();
+  await new Promise((r) => setTimeout(r, 60));
+  const pdfSection = settingsHost.querySelector(
+    '[data-testid="settings-section-PDF"]',
+  );
+  if (
+    !pdfSection ||
+    settingsHost.querySelector('[data-testid="settings-section-General"]')
+  ) {
+    throw new Error(
+      "Clicking PDF in settings sidebar did not switch detail pane to only PDF section",
+    );
+  }
+
+  navXlsx.click();
+  await new Promise((r) => setTimeout(r, 60));
+  const xlsxSection = settingsHost.querySelector(
+    '[data-testid="settings-section-Excel"]',
+  );
+  if (
+    !xlsxSection ||
+    settingsHost.querySelector('[data-testid="settings-section-PDF"]')
+  ) {
+    throw new Error(
+      "Clicking Excel in settings sidebar did not switch detail pane to only Excel section",
+    );
+  }
+  const xlsxZoomSelect = xlsxSection.querySelector(
+    '[data-testid="settings-select-Default zoom level"]',
+  );
+  const xlsxBehaviorSelect = xlsxSection.querySelector(
+    '[data-testid="settings-select-Default open behavior"]',
+  );
+  const xlsxViewerSelect = xlsxSection.querySelector(
+    '[data-testid="settings-select-Default Excel viewer"]',
+  );
+  const xlsxEditorSelect = xlsxSection.querySelector(
+    '[data-testid="settings-select-Default Excel editor"]',
+  );
+  if (
+    !xlsxZoomSelect ||
+    !xlsxBehaviorSelect ||
+    !xlsxViewerSelect ||
+    !xlsxEditorSelect
+  ) {
+    throw new Error(
+      "Excel settings section missing Default zoom level, Default open behavior, Default viewer, or Default editor select",
+    );
+  }
+  const zoomOptionValues = [...xlsxZoomSelect.querySelectorAll("option")].map(
+    (opt) => opt.value,
+  );
+  if (!zoomOptionValues.includes("50") || !zoomOptionValues.includes("200")) {
+    throw new Error(
+      `Expected Excel zoom options to include 50 and 200, got: ${zoomOptionValues.join(",")}`,
+    );
+  }
+
+  navMore.click();
+  await new Promise((r) => setTimeout(r, 60));
+  const textSection = settingsHost.querySelector(
+    '[data-testid="settings-section-Code & Text"]',
+  );
+  const imageSection = settingsHost.querySelector(
+    '[data-testid="settings-section-Images"]',
+  );
+  if (
+    !textSection ||
+    !imageSection ||
+    settingsHost.querySelector('[data-testid="settings-section-Excel"]')
+  ) {
+    throw new Error(
+      "Clicking More Formats in settings sidebar did not display Code & Text and Images sections",
+    );
+  }
+  const filterImageBtn = settingsHost.querySelector(
+    '[data-testid="file-explorer-settings-more-filter-image"]',
+  );
+  if (!filterImageBtn) {
+    throw new Error("More Formats sub-filter pill for Images missing");
+  }
+  filterImageBtn.click();
+  await new Promise((r) => setTimeout(r, 60));
+  if (
+    !settingsHost.querySelector('[data-testid="settings-section-Images"]') ||
+    settingsHost.querySelector('[data-testid="settings-section-Code & Text"]')
+  ) {
+    throw new Error(
+      "Clicking Images sub-filter pill in More Formats did not isolate Images section",
+    );
+  }
+}

@@ -5,7 +5,10 @@ import {
   SettingsSelect,
   SettingsSwitch,
 } from "@getpaseo/plugin/client/ui";
-import type { PdfDefaultZoom } from "../../../shared/settings.js";
+import {
+  DEFAULT_PDF_SETTINGS,
+  type PdfDefaultZoom,
+} from "../../../shared/settings.js";
 import { FormatOpenBehaviorFields } from "../components/format-open-behavior-fields.js";
 import type {
   SettingsSectionComponentProps,
@@ -120,5 +123,14 @@ export const pdfSectionDescriptor: SettingsSectionDescriptor = {
   id: "pdf",
   title: "PDF",
   order: 20,
+  sidebarGroup: "primary",
+  formatKind: "pdf",
+  extensions: [".pdf"],
+  description:
+    "Default viewer and editor engines, initial zoom level, and PDF toolbar controls.",
+  resetSection: (current) => ({
+    ...current,
+    pdf: { ...DEFAULT_PDF_SETTINGS },
+  }),
   Component: PdfSettingsSection,
 };
