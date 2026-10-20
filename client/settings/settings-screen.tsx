@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_FILE_EXPLORER_SETTINGS,
   fileExplorerSettings,
+  getAiTextSettings,
   type FileExplorerSettingsValues,
 } from "../../shared/settings.js";
 import {
@@ -60,6 +61,7 @@ function SettingsSectionsWorkspace({
         ...DEFAULT_FILE_EXPLORER_SETTINGS.formats,
         ...settings.values?.formats,
       },
+      aiText: getAiTextSettings(settings.values),
     }),
     [settings.values],
   );

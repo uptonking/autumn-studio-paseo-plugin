@@ -60,7 +60,7 @@ export type { FileSystemFilterType } from "./file-system/filter-types"
 export function FileSystem({
   items, recentFiles, className, title = "Files", defaultView = "icons", view: viewProp, onViewChange,
   defaultFileOpenMode = "in-place", onOpenFileInNewTab, onRecordRecentFile, onClearRecentFiles, onOpenSettings,
-  pdfSettings, xlsxSettings, textSettings, formatSettings, autoSaveEdits, onSaveFile,
+  pdfSettings, xlsxSettings, textSettings, formatSettings, aiText, autoSaveEdits, onSaveFile,
   defaultPath = "", onSelectionChange, onFileOpen, onOpenUnsupported, onRefresh,
   getFileUrl, loadChildren, loadPreviewImageUrl, renderFilePreview,
 }: FileSystemProps) {
@@ -399,6 +399,7 @@ export function FileSystem({
               })}
               file={index.files.get(openedFile.file.path) ?? openedFile.file}
               formatSettings={formatSettings}
+              aiText={aiText}
               getFileUrl={getFileUrl}
               loadPreviewImageUrl={loadPreviewImageUrl}
               onSaveFile={onSaveFile ? handleSaveFile : undefined}
@@ -519,6 +520,7 @@ export function FileSystem({
         textSettings={textSettings}
         xlsxSettings={xlsxSettings}
         formatSettings={formatSettings}
+        aiText={aiText}
       />
       {dateRangeDialog ? (
         <React.Suspense fallback={null}>

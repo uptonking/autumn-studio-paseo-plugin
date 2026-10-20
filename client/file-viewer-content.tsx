@@ -410,6 +410,13 @@ export function FileViewerContent({ view }: { view: FileViewerViewProps }) {
             xlsxSettings={view.xlsxSettings}
             textSettings={view.textSettings}
             formatSettings={view.formatSettings}
+            aiText={view.aiText}
+            sourceUpdatedAt={
+              activeTab.updatedAt
+                ? Date.parse(activeTab.updatedAt) || undefined
+                : undefined
+            }
+            sourceFileSize={activeTab.size}
             onSaveFile={view.onSaveFile ? handleSaveFile : undefined}
             onDirtyChange={
               view.onTabDirtyChange ? handleActiveTabDirtyChange : undefined

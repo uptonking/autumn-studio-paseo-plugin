@@ -11,6 +11,7 @@ import {
   simulatedDiskFiles,
   verifySettingsSidebarNavigation,
 } from "./runtime-test-harness.mjs";
+import { verifyAiTextSplitViewAndMultiVersion } from "./runtime-test-ai-text.mjs";
 
 const bundleText = process.env.CLIENT_BUNDLE ?? "/tmp/fe-client-bundle.js";
 const text2 = readFileSync(bundleText, "utf-8");
@@ -163,10 +164,11 @@ const fsRoot = shadow.querySelector('[data-slot="file-system"]');
 if (!fsRoot) throw new Error("FileSystem root not rendered");
 console.log("✓ FileSystem root rendered");
 
-if (rpcInputs.length === 0 || rpcInputs[0].input?.workspaceId !== "ws-test") {
+const treeRpcCall = rpcInputs.find((r) => r.name === "files.tree");
+if (!treeRpcCall || treeRpcCall.input?.workspaceId !== "ws-test") {
   throw new Error("tree RPC not invoked with workspaceId");
 }
-console.log("✓ FileSystem structure rendered, RPC invoked for", rpcInputs[0].input.workspaceId);
+console.log("✓ FileSystem structure rendered, RPC invoked for", treeRpcCall.input.workspaceId);
 
 // --- test clicking a file opens it in-place with Go Back and More menu ------
 const fileButtons = [...shadow.querySelectorAll("button")];
@@ -539,6 +541,13 @@ if (viewerShadow.querySelector('[data-testid="file-viewer-tab-README.md"]')) {
   throw new Error("Clicking another recent file from missing-file notice should close the missing file tab");
 }
 console.log("✓ File Viewer top-right More menu shows file-type icons, reopens closed tabs, handles moved/deleted files with Recent files below, and supports keyboard tab navigation");
+
+await verifyAiTextSplitViewAndMultiVersion({
+  shadow,
+  dom,
+  simulatedDiskFiles,
+});
+console.log("✓ AI Text Mode opens right-hand split view, switches button to 'AI text again', generates multiple .autumn/ versions with metadata, and switches versions");
 
 // unmount cleans up
 viewerRoot.unmount();

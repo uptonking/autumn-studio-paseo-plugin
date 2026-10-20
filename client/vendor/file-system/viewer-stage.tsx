@@ -1,6 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 
+import type { AiTextBridge } from "../../ai-text/ai-text-context"
 import {
   FileViewerLoadingFallback,
   RegisteredFileViewer,
@@ -38,6 +39,7 @@ export const FileSystemViewerLoading = FileViewerLoadingFallback
 
 export function FileSystemGalleryStage({
   activeUrl,
+  aiText,
   autoSaveEdits,
   extraMenuItems,
   file,
@@ -55,6 +57,7 @@ export function FileSystemGalleryStage({
   xlsxSettings,
 }: {
   activeUrl?: string | null
+  aiText?: AiTextBridge
   autoSaveEdits?: boolean
   extraMenuItems?: React.ReactNode
   file: FileEntry
@@ -164,6 +167,11 @@ export function FileSystemGalleryStage({
           xlsxSettings={xlsxSettings}
           textSettings={textSettings}
           formatSettings={formatSettings}
+          aiText={aiText}
+          sourceUpdatedAt={
+            file.updatedAt ? Date.parse(file.updatedAt) || undefined : undefined
+          }
+          sourceFileSize={file.size}
           autoSaveEdits={autoSaveEdits}
           onSaveFile={onSaveFile ? handleSaveFile : undefined}
           extraMenuItems={extraMenuItems}
@@ -186,6 +194,7 @@ export function FileSystemGalleryStage({
 }
 
 export function FileSystemViewerDialogAndPool({
+  aiText,
   autoSaveEdits,
   formatSettings,
   getFileUrl,
@@ -206,6 +215,7 @@ export function FileSystemViewerDialogAndPool({
   textSettings,
   xlsxSettings,
 }: {
+  aiText?: AiTextBridge
   autoSaveEdits?: boolean
   formatSettings?: FileSystemFormatSettingsMap
   getFileUrl?: (
@@ -291,6 +301,7 @@ export function FileSystemViewerDialogAndPool({
               })}
               file={index.files.get(openedFile.file.path) ?? openedFile.file}
               formatSettings={formatSettings}
+              aiText={aiText}
               getFileUrl={getFileUrl}
               loadPreviewImageUrl={loadPreviewImageUrl}
               onSaveFile={onSaveFile}

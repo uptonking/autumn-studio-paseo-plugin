@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
 import {
+  getAiTextSettings,
   getFormatBehaviorConfig,
   type FileExplorerSettingsValues,
 } from "../../../shared/settings.js";
@@ -160,12 +161,17 @@ export function SettingsSidebarNav({
       {primarySections.map((section) => {
         const isSelected =
           !isMoreActive && activePrimarySectionId === section.id;
-        const behaviorBadge = section.formatKind
-          ? getFormatBehaviorConfig(values, section.formatKind)
-              .defaultOpenBehavior === "editor"
-            ? "Editor"
-            : "Viewer"
-          : null;
+        const behaviorBadge =
+          section.id === "ai-text"
+            ? getAiTextSettings(values).enabled
+              ? "On"
+              : "Off"
+            : section.formatKind
+              ? getFormatBehaviorConfig(values, section.formatKind)
+                  .defaultOpenBehavior === "editor"
+                ? "Editor"
+                : "Viewer"
+              : null;
 
         return (
           <Pressable

@@ -2,6 +2,10 @@ import { createRequire } from "module";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
+import {
+  handleAiTextRpc,
+  verifyAiTextSettingsSection,
+} from "./runtime-test-ai-text.mjs";
 
 export const PLUGIN_DIR = join(fileURLToPath(new URL("../", import.meta.url)));
 
@@ -175,6 +179,14 @@ export const fakeTree = {
     },
     {
       kind: "file",
+      path: "guide.pdf",
+      name: "guide.pdf",
+      size: 2048,
+      mtime: Date.now(),
+      contentType: "application/pdf",
+    },
+    {
+      kind: "file",
       path: "preview.png",
       name: "preview.png",
       size: 512,
@@ -188,6 +200,14 @@ export const fakeTree = {
       size: 42,
       mtime: Date.now(),
       contentType: "text/markdown",
+    },
+    {
+      kind: "file",
+      path: "report.html",
+      name: "report.html",
+      size: 64,
+      mtime: Date.now(),
+      contentType: "text/html",
     },
   ],
 };
@@ -239,11 +259,28 @@ export const simulatedDiskFiles = new Map([
       mtime: 1700000000000,
     },
   ],
+  [
+    "report.html",
+    {
+      content: Buffer.from("<h1>Annual Report</h1><p>Summary</p>", "utf8"),
+      contentType: "text/html",
+      mtime: 1700000000000,
+    },
+  ],
 ]);
 
 export const sdkClient = {
   useRpc: (rpcDef) => async (input) => {
     rpcInputs.push({ name: rpcDef?.name, input });
+    const aiTextResult = handleAiTextRpc(
+      rpcDef?.name,
+      input,
+      currentSettingsData,
+      simulatedDiskFiles,
+    );
+    if (aiTextResult !== undefined) {
+      return aiTextResult;
+    }
     if (rpcDef?.name === "file.save") {
       const nextBuffer =
         input.encoding === "utf8"
@@ -492,6 +529,8 @@ export async function verifySettingsSidebarNavigation(settingsHost) {
     );
   }
 
+  await verifyAiTextSettingsSection(settingsHost);
+
   navXlsx.click();
   await new Promise((r) => setTimeout(r, 60));
   const xlsxSection = settingsHost.querySelector(
@@ -505,68 +544,32 @@ export async function verifySettingsSidebarNavigation(settingsHost) {
       "Clicking Excel in settings sidebar did not switch detail pane to only Excel section",
     );
   }
-  const xlsxZoomSelect = xlsxSection.querySelector(
-    '[data-testid="settings-select-Default zoom level"]',
-  );
-  const xlsxBehaviorSelect = xlsxSection.querySelector(
-    '[data-testid="settings-select-Default open behavior"]',
-  );
-  const xlsxViewerSelect = xlsxSection.querySelector(
-    '[data-testid="settings-select-Default Excel viewer"]',
-  );
-  const xlsxEditorSelect = xlsxSection.querySelector(
-    '[data-testid="settings-select-Default Excel editor"]',
-  );
-  if (
-    !xlsxZoomSelect ||
-    !xlsxBehaviorSelect ||
-    !xlsxViewerSelect ||
-    !xlsxEditorSelect
-  ) {
-    throw new Error(
-      "Excel settings section missing Default zoom level, Default open behavior, Default viewer, or Default editor select",
-    );
+  const xlsxZoomSelect = xlsxSection.querySelector('[data-testid="settings-select-Default zoom level"]');
+  const xlsxBehaviorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default open behavior"]');
+  const xlsxViewerSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel viewer"]');
+  const xlsxEditorSelect = xlsxSection.querySelector('[data-testid="settings-select-Default Excel editor"]');
+  if (!xlsxZoomSelect || !xlsxBehaviorSelect || !xlsxViewerSelect || !xlsxEditorSelect) {
+    throw new Error("Excel settings section missing Default zoom level, Default open behavior, Default viewer, or Default editor select");
   }
-  const zoomOptionValues = [...xlsxZoomSelect.querySelectorAll("option")].map(
-    (opt) => opt.value,
-  );
+  const zoomOptionValues = [...xlsxZoomSelect.querySelectorAll("option")].map((opt) => opt.value);
   if (!zoomOptionValues.includes("50") || !zoomOptionValues.includes("200")) {
-    throw new Error(
-      `Expected Excel zoom options to include 50 and 200, got: ${zoomOptionValues.join(",")}`,
-    );
+    throw new Error(`Expected Excel zoom options to include 50 and 200, got: ${zoomOptionValues.join(",")}`);
   }
 
   navMore.click();
   await new Promise((r) => setTimeout(r, 60));
-  const textSection = settingsHost.querySelector(
-    '[data-testid="settings-section-Code & Text"]',
-  );
-  const imageSection = settingsHost.querySelector(
-    '[data-testid="settings-section-Images"]',
-  );
-  if (
-    !textSection ||
-    !imageSection ||
-    settingsHost.querySelector('[data-testid="settings-section-Excel"]')
-  ) {
-    throw new Error(
-      "Clicking More Formats in settings sidebar did not display Code & Text and Images sections",
-    );
+  const textSection = settingsHost.querySelector('[data-testid="settings-section-Code & Text"]');
+  const imageSection = settingsHost.querySelector('[data-testid="settings-section-Images"]');
+  if (!textSection || !imageSection || settingsHost.querySelector('[data-testid="settings-section-Excel"]')) {
+    throw new Error("Clicking More Formats in settings sidebar did not display Code & Text and Images sections");
   }
-  const filterImageBtn = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-more-filter-image"]',
-  );
+  const filterImageBtn = settingsHost.querySelector('[data-testid="file-explorer-settings-more-filter-image"]');
   if (!filterImageBtn) {
     throw new Error("More Formats sub-filter pill for Images missing");
   }
   filterImageBtn.click();
   await new Promise((r) => setTimeout(r, 60));
-  if (
-    !settingsHost.querySelector('[data-testid="settings-section-Images"]') ||
-    settingsHost.querySelector('[data-testid="settings-section-Code & Text"]')
-  ) {
-    throw new Error(
-      "Clicking Images sub-filter pill in More Formats did not isolate Images section",
-    );
+  if (!settingsHost.querySelector('[data-testid="settings-section-Images"]') || settingsHost.querySelector('[data-testid="settings-section-Code & Text"]')) {
+    throw new Error("Clicking Images sub-filter pill in More Formats did not isolate Images section");
   }
 }

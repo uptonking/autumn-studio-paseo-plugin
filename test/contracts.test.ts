@@ -216,6 +216,7 @@ describe("contracts: fileExplorerSettings", () => {
       formats: {
         markdown: { previewByDefault: true },
       },
+      aiText: DEFAULT_FILE_EXPLORER_SETTINGS.aiText,
     };
     const parsed = fileExplorerSettingsSchema.parse(custom);
     assert.deepEqual(parsed, custom);

@@ -1,5 +1,11 @@
 import { defineRpc } from "@getpaseo/plugin";
 import { z } from "zod";
+import {
+  aiTextAgentOptionSchema,
+  aiTextDocumentMetadataSchema,
+  aiTextParserProviderIdSchema,
+  aiTextVersionRecordSchema,
+} from "./ai-text-settings.ts";
 
 /**
  * Workspace files as a nested tree. Folder paths carry a trailing slash
@@ -87,6 +93,76 @@ export const getXlsxWasm = defineRpc({
   name: "files.xlsx_wasm",
   input: z.object({}),
   output: z.object({ dataUri: z.string() }),
+});
+
+/** Lists configured and auto-detected Paseo coding agents for AI Text Mode (with `pi` as default). */
+export const listAiTextAgents = defineRpc({
+  name: "ai_text.agents.list",
+  input: z.object({
+    workspaceId: z.string().optional(),
+  }),
+  output: z.object({
+    agents: z.array(aiTextAgentOptionSchema),
+  }),
+});
+
+/** Loads `.autumn/<doc-slug>/metadata.json` and the active extracted Markdown content for a file. */
+export const getAiTextMetadata = defineRpc({
+  name: "ai_text.metadata.get",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+  }),
+  output: z.object({
+    metadata: aiTextDocumentMetadataSchema.nullable(),
+    activeContent: z.string().nullable(),
+  }),
+});
+
+/** Runs the configured parser + agent to create a new versioned Markdown file inside `.autumn/`. */
+export const extractAiText = defineRpc({
+  name: "ai_text.extract",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    parserId: aiTextParserProviderIdSchema.optional(),
+    agentId: z.string().optional(),
+  }),
+  output: z.object({
+    metadata: aiTextDocumentMetadataSchema,
+    newVersion: aiTextVersionRecordSchema,
+    content: z.string(),
+  }),
+});
+
+/** Switches the active extracted Markdown version for a file in `.autumn/<doc-slug>/metadata.json`. */
+export const selectAiTextVersion = defineRpc({
+  name: "ai_text.version.select",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    versionId: z.string(),
+  }),
+  output: z.object({
+    metadata: aiTextDocumentMetadataSchema,
+    activeVersion: aiTextVersionRecordSchema.nullable(),
+    content: z.string().nullable(),
+  }),
+});
+
+/** Deletes a specific extracted Markdown version from `.autumn/<doc-slug>/` and updates `metadata.json`. */
+export const deleteAiTextVersion = defineRpc({
+  name: "ai_text.version.delete",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    versionId: z.string(),
+  }),
+  output: z.object({
+    metadata: aiTextDocumentMetadataSchema.nullable(),
+    activeVersion: aiTextVersionRecordSchema.nullable(),
+    content: z.string().nullable(),
+  }),
 });
 
 export * from "./settings.ts";

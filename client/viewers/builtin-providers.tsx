@@ -431,11 +431,24 @@ export function registerBuiltinSurfaceProviders(
       src,
       fileName,
       variant = "in-place",
+      role,
+      canSwitchRole,
+      onRoleChange,
       extraMenuItems,
       toolbarActions,
       className,
     }) => {
       const hasFullChrome = variant !== "stage";
+      const combinedActions = hasFullChrome ? (
+        <div className="flex items-center gap-1.5">
+          <SurfaceModeSwitcher
+            role={role}
+            canEdit={canSwitchRole}
+            onRoleChange={onRoleChange}
+          />
+          {toolbarActions}
+        </div>
+      ) : undefined;
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyDocxViewerPreview
@@ -443,7 +456,7 @@ export function registerBuiltinSurfaceProviders(
             fileName={fileName}
             showToolbar={hasFullChrome}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
-            toolbarActions={hasFullChrome ? toolbarActions : undefined}
+            toolbarActions={combinedActions}
             className={cn(
               "h-full min-h-0",
               variant === "dialog" && "overflow-hidden rounded-2xl",

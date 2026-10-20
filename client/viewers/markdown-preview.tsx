@@ -4,6 +4,61 @@ import { isMarkdownFileName } from "../view-props.js";
 
 export { isMarkdownFileName };
 
+function parseMarkdownTableCells(rowLine: string): string[] {
+  const trimmed = rowLine.trim();
+  const inner =
+    trimmed.startsWith("|") && trimmed.endsWith("|")
+      ? trimmed.slice(1, -1)
+      : trimmed.startsWith("|")
+        ? trimmed.slice(1)
+        : trimmed;
+  return inner.split(/(?<!\\)\|/).map((cell) => cell.replace(/\\\|/g, "|").trim());
+}
+
+function isMarkdownTableSeparator(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed.includes("|") || !trimmed.includes("-")) return false;
+  const cells = parseMarkdownTableCells(trimmed);
+  return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
+}
+
+function parseHtmlTableRows(tableHtml: string): {
+  headers: string[];
+  rows: string[][];
+} | null {
+  const trMatches = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
+  if (trMatches.length === 0) return null;
+  const allRows: { isHeader: boolean; cells: string[] }[] = [];
+  for (const tr of trMatches) {
+    const trBody = tr[1] ?? "";
+    const thMatches = [...trBody.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)];
+    if (thMatches.length > 0) {
+      allRows.push({
+        isHeader: true,
+        cells: thMatches.map((m) =>
+          (m[1] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+        ),
+      });
+      continue;
+    }
+    const tdMatches = [...trBody.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
+    if (tdMatches.length > 0) {
+      allRows.push({
+        isHeader: false,
+        cells: tdMatches.map((m) =>
+          (m[1] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+        ),
+      });
+    }
+  }
+  if (allRows.length === 0) return null;
+  const first = allRows[0]!;
+  return {
+    headers: first.cells,
+    rows: allRows.slice(1).map((r) => r.cells),
+  };
+}
+
 function renderInlineMarkdown(text: string): React.ReactNode[] {
   const tokens: React.ReactNode[] = [];
   const pattern =
@@ -77,6 +132,51 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
   return tokens;
 }
 
+function renderTableElement(
+  key: string,
+  headers: string[],
+  rows: string[][],
+): React.ReactNode {
+  return (
+    <div
+      key={key}
+      className="my-3 overflow-x-auto rounded-md border border-border/80"
+    >
+      <table
+        data-testid="markdown-table"
+        className="w-full border-collapse text-left text-xs"
+      >
+        <thead className="border-b border-border/80 bg-muted/50">
+          <tr>
+            {headers.map((header, idx) => (
+              <th
+                key={idx}
+                className="px-3 py-1.5 font-semibold text-foreground"
+              >
+                {renderInlineMarkdown(header)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} className="hover:bg-muted/25">
+              {headers.map((_, cIdx) => (
+                <td
+                  key={cIdx}
+                  className="px-3 py-1.5 align-top text-foreground/90"
+                >
+                  {renderInlineMarkdown(row[cIdx] ?? "")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function MarkdownPreview({
   content,
   className,
@@ -120,6 +220,47 @@ export function MarkdownPreview({
       if (!line.trim()) {
         i += 1;
         continue;
+      }
+
+      // Markdown pipe table: | col1 | col2 | followed by | --- | --- |
+      if (
+        line.trim().startsWith("|") &&
+        i + 1 < lines.length &&
+        isMarkdownTableSeparator(lines[i + 1] ?? "")
+      ) {
+        const tableStart = i;
+        const headers = parseMarkdownTableCells(line);
+        i += 2;
+        const rows: string[][] = [];
+        while (i < lines.length && (lines[i] ?? "").trim().startsWith("|")) {
+          rows.push(parseMarkdownTableCells(lines[i] ?? ""));
+          i += 1;
+        }
+        elements.push(renderTableElement(`table-${tableStart}`, headers, rows));
+        continue;
+      }
+
+      // HTML <table>...</table> block (e.g. from MinerU)
+      if (/^\s*<table\b/i.test(line)) {
+        const tableStart = i;
+        const htmlLines: string[] = [];
+        while (i < lines.length) {
+          const cur = lines[i] ?? "";
+          htmlLines.push(cur);
+          i += 1;
+          if (/<\/table>/i.test(cur)) break;
+        }
+        const parsedHtmlTable = parseHtmlTableRows(htmlLines.join("\n"));
+        if (parsedHtmlTable) {
+          elements.push(
+            renderTableElement(
+              `html-table-${tableStart}`,
+              parsedHtmlTable.headers,
+              parsedHtmlTable.rows,
+            ),
+          );
+          continue;
+        }
       }
 
       const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);

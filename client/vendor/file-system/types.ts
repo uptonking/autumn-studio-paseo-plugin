@@ -1,4 +1,5 @@
 import type * as React from "react"
+import type { AiTextBridge } from "../../ai-text/ai-text-context"
 import { isTextViewableFile } from "../../view-props.ts"
 import type { FileSaveCallbackInput, FileSaveCallbackResult } from "../../viewers/registry"
 
@@ -115,6 +116,8 @@ export type FileSystemProps = {
   textSettings?: FileSystemTextSettings
   /** Additional format preferences keyed by viewer kind (e.g. image, docx, pptx). */
   formatSettings?: FileSystemFormatSettingsMap
+  /** AI Text Mode bridge for document extraction and side-by-side split view. */
+  aiText?: AiTextBridge
   /** Whether file edits are automatically saved to the file system. */
   autoSaveEdits?: boolean
   /** Callback to persist edited file payloads back to the workspace file system. */

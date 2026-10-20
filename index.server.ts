@@ -1,13 +1,29 @@
 import { readFile, stat } from "fs/promises";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import {
+  DEFAULT_AI_TEXT_SETTINGS,
+  deleteAiTextVersion,
+  extractAiText,
   fileExplorerSettings,
+  getAiTextMetadata,
+  getAiTextSettings,
   getFileContent,
   getFileTree,
   getPdfWasm,
   getXlsxWasm,
+  listAiTextAgents,
   saveFileContent,
+  selectAiTextVersion,
 } from "./shared/contracts.js";
+import {
+  deleteExtractedVersion,
+  readDocumentMetadata,
+  selectActiveVersion,
+} from "./server/ai-text/metadata-store.js";
+import {
+  discoverAiTextAgents,
+  runAiTextExtractionPipeline,
+} from "./server/ai-text/parser-registry.js";
 import { atomicWriteFile, safeResolve, workspaceRoot } from "./server/paths.js";
 import { contentTypeFor, scanWorkspaceTree } from "./server/scan.js";
 
@@ -29,7 +45,19 @@ async function locate(paseo: unknown, workspaceId: string, relPath: string) {
 }
 
 export default function contribute(server: PluginServerContext) {
-  server.registerSettings(fileExplorerSettings);
+  const settingsHandle = server.registerSettings(fileExplorerSettings);
+
+  async function resolveAiTextSettings() {
+    try {
+      const state = await settingsHandle.read();
+      if (state?.status === "ready") {
+        return getAiTextSettings(state.values);
+      }
+    } catch {
+      // Fall back to default AI Text settings
+    }
+    return DEFAULT_AI_TEXT_SETTINGS;
+  }
 
   server.handle(getFileTree, async ({ workspaceId }, { paseo }) => {
     const root = await workspaceRoot(paseo, workspaceId);
@@ -108,6 +136,75 @@ export default function contribute(server: PluginServerContext) {
     }
     return await xlsxWasmPayloadPromise;
   });
+
+  server.handle(listAiTextAgents, async ({ workspaceId }, { paseo }) => {
+    let cwd: string | undefined;
+    if (workspaceId) {
+      cwd = await workspaceRoot(paseo, workspaceId).catch(() => undefined);
+    }
+    const agents = await discoverAiTextAgents(paseo, cwd);
+    return { agents };
+  });
+
+  server.handle(
+    getAiTextMetadata,
+    async ({ workspaceId, relPath }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await readDocumentMetadata(
+        root,
+        relPath,
+        aiSettings.outputRootDir,
+      );
+    },
+  );
+
+  server.handle(
+    extractAiText,
+    async ({ workspaceId, relPath, parserId, agentId }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const sourceAbsPath = await safeResolve(root, relPath);
+      const aiSettings = await resolveAiTextSettings();
+      return await runAiTextExtractionPipeline({
+        paseo,
+        workspaceId,
+        workspaceRootPath: root,
+        sourceRelPath: relPath,
+        sourceAbsPath,
+        settings: aiSettings,
+        parserIdOverride: parserId,
+        agentIdOverride: agentId,
+      });
+    },
+  );
+
+  server.handle(
+    selectAiTextVersion,
+    async ({ workspaceId, relPath, versionId }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await selectActiveVersion(
+        root,
+        relPath,
+        versionId,
+        aiSettings.outputRootDir,
+      );
+    },
+  );
+
+  server.handle(
+    deleteAiTextVersion,
+    async ({ workspaceId, relPath, versionId }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await deleteExtractedVersion(
+        root,
+        relPath,
+        versionId,
+        aiSettings.outputRootDir,
+      );
+    },
+  );
 
   return () => {};
 }

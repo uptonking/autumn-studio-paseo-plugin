@@ -1,5 +1,14 @@
 import { defineSettings } from "@getpaseo/plugin";
 import { z } from "zod";
+import {
+  aiTextSettingsSchema,
+  DEFAULT_AI_TEXT_SETTINGS,
+  DEFAULT_MINERU_SETTINGS,
+  type AiTextSettings,
+  type MineruSettings,
+} from "./ai-text-settings.ts";
+
+export * from "./ai-text-settings.ts";
 
 export const fileOpenModeSchema = z.enum(["in-place", "dialog", "new-tab"]);
 export type FileOpenMode = z.infer<typeof fileOpenModeSchema>;
@@ -119,6 +128,7 @@ export const fileExplorerSettingsSchema = z.object({
   pdf: pdfSettingsSchema.default(DEFAULT_PDF_SETTINGS),
   xlsx: xlsxSettingsSchema.default(DEFAULT_XLSX_SETTINGS),
   text: textSettingsSchema.default(DEFAULT_TEXT_VIEWER_SETTINGS),
+  aiText: aiTextSettingsSchema.default(DEFAULT_AI_TEXT_SETTINGS),
   /**
    * Extensible map for additional file format viewers/editors
    * (e.g. docx, pptx, image, markdown).
@@ -135,6 +145,7 @@ export const DEFAULT_FILE_EXPLORER_SETTINGS: FileExplorerSettingsValues = {
   pdf: DEFAULT_PDF_SETTINGS,
   xlsx: DEFAULT_XLSX_SETTINGS,
   text: DEFAULT_TEXT_VIEWER_SETTINGS,
+  aiText: DEFAULT_AI_TEXT_SETTINGS,
   formats: {},
 };
 
@@ -307,6 +318,48 @@ export function withTextViewerSettings(
     text: {
       ...getTextViewerSettings(values),
       ...patch,
+    },
+  };
+}
+
+export function getAiTextSettings(
+  values: Partial<FileExplorerSettingsValues> | undefined
+): AiTextSettings {
+  const raw = values?.aiText;
+  return {
+    ...DEFAULT_AI_TEXT_SETTINGS,
+    ...raw,
+    mineru: {
+      ...DEFAULT_MINERU_SETTINGS,
+      ...raw?.mineru,
+    },
+    parsers: {
+      ...DEFAULT_AI_TEXT_SETTINGS.parsers,
+      ...raw?.parsers,
+    },
+  };
+}
+
+export function withAiTextSettings(
+  values: FileExplorerSettingsValues,
+  patch: Partial<Omit<AiTextSettings, "mineru">> & {
+    mineru?: Partial<MineruSettings>;
+  }
+): FileExplorerSettingsValues {
+  const current = getAiTextSettings(values);
+  return {
+    ...values,
+    aiText: {
+      ...current,
+      ...patch,
+      mineru: {
+        ...current.mineru,
+        ...patch.mineru,
+      },
+      parsers: {
+        ...current.parsers,
+        ...patch.parsers,
+      },
     },
   };
 }

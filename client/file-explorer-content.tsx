@@ -97,6 +97,7 @@ export function FileExplorerContent({ view }: { view: FileExplorerViewProps }) {
         xlsxSettings={view.xlsxSettings}
         textSettings={view.textSettings}
         formatSettings={view.formatSettings}
+        aiText={view.aiText}
         onSaveFile={view.onSaveFile}
         className="h-full w-full rounded-none border-0"
         getFileUrl={view.getFileUrl}

@@ -1,4 +1,9 @@
 import * as React from "react";
+import {
+  AiTextSurfaceSplitWrapper,
+  type AiTextBridge,
+} from "../ai-text/ai-text-context.js";
+import { AiTextMenuInjector } from "../ai-text/ai-text-menu-items.js";
 import { isInAppSavedBlobUrl } from "../blob-url-cache.js";
 import { FileSurfacePreloadContext } from "../editing/surface-mode-controls.js";
 import {
@@ -57,6 +62,9 @@ export interface FileViewerRenderProps {
   xlsxSettings?: FileSystemXlsxSettings;
   textSettings?: FileSystemTextSettings;
   formatSettings?: FileSystemFormatSettingsMap;
+  aiText?: AiTextBridge;
+  sourceUpdatedAt?: number;
+  sourceFileSize?: number;
   autoSaveEdits?: boolean;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
   onDirtyChange?: (isDirty: boolean) => void;
@@ -512,20 +520,42 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
 
   return (
     <FileSurfacePreloadContext.Provider value={handlePreloadRole}>
-      {resolvedProvider.renderer({
-        ...props,
-        src: activeSrc,
-        role: resolvedProvider.role,
-        providerId: resolvedProvider.id,
-        canSwitchRole: variant !== "stage" && hasEditorSupport,
-        onRoleChange:
-          variant !== "stage" && hasEditorSupport
-            ? handleRoleChange
-            : undefined,
-        editSession:
-          resolvedProvider.role === "editor" ? editSession : undefined,
-        extraMenuItems: combinedExtraMenuItems,
-      })}
+      <AiTextSurfaceSplitWrapper
+        kind={kind}
+        filePath={filePath}
+        fileName={props.fileName}
+        variant={variant}
+        aiText={props.aiText}
+        sourceUpdatedAt={props.sourceUpdatedAt}
+        sourceFileSize={props.sourceFileSize}
+        onSaveFile={onSaveFile}
+      >
+        <AiTextMenuInjector
+          extraMenuItems={combinedExtraMenuItems}
+          allowHideOriginal={
+            resolvedProvider.role !== "editor" ||
+            !editSession?.isDirty ||
+            autoSaveEdits
+          }
+        >
+          {(menuItems) =>
+            resolvedProvider.renderer({
+              ...props,
+              src: activeSrc,
+              role: resolvedProvider.role,
+              providerId: resolvedProvider.id,
+              canSwitchRole: variant !== "stage" && hasEditorSupport,
+              onRoleChange:
+                variant !== "stage" && hasEditorSupport
+                  ? handleRoleChange
+                  : undefined,
+              editSession:
+                resolvedProvider.role === "editor" ? editSession : undefined,
+              extraMenuItems: menuItems,
+            })
+          }
+        </AiTextMenuInjector>
+      </AiTextSurfaceSplitWrapper>
     </FileSurfacePreloadContext.Provider>
   );
 }

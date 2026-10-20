@@ -5,6 +5,7 @@ import type {
   FileOpenMode,
   TextViewerSettings,
 } from "../shared/contracts.js";
+import type { AiTextBridge } from "./ai-text/ai-text-context.js";
 import type { OpenedFileTab } from "./opened-tabs-store.js";
 import type {
   FileSaveCallbackInput,
@@ -57,6 +58,7 @@ export interface FileExplorerViewProps {
   xlsxSettings?: XlsxViewerPreferences;
   textSettings?: TextViewerSettings;
   formatSettings?: Record<string, Record<string, unknown>>;
+  aiText?: AiTextBridge;
   onRetry(): void;
   /** Resolves a blob URL for a file's bytes; rejects on failure. */
   getFileUrl(file: FileOpenRef, options?: GetFileUrlOptions): Promise<string>;
@@ -89,6 +91,7 @@ export interface FileViewerViewProps {
   xlsxSettings?: XlsxViewerPreferences;
   textSettings?: TextViewerSettings;
   formatSettings?: Record<string, Record<string, unknown>>;
+  aiText?: AiTextBridge;
   getFileUrl(file: FileOpenRef, options?: GetFileUrlOptions): Promise<string>;
   getPdfWasmUrl?(): Promise<string>;
   getXlsxWasmDataUri?(): Promise<string>;

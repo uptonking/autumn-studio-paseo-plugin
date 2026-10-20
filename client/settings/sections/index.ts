@@ -1,4 +1,5 @@
 import type { SettingsSectionDescriptor } from "../registry.js";
+import { aiTextSectionDescriptor } from "./ai-text-section.js";
 import { generalSectionDescriptor } from "./general-section.js";
 import { imageSectionDescriptor } from "./image-section.js";
 import { pdfSectionDescriptor } from "./pdf-section.js";
@@ -13,6 +14,7 @@ import { xlsxSectionDescriptor } from "./xlsx-section.js";
 const registeredSections: SettingsSectionDescriptor[] = [
   generalSectionDescriptor,
   pdfSectionDescriptor,
+  aiTextSectionDescriptor,
   xlsxSectionDescriptor,
   textSectionDescriptor,
   imageSectionDescriptor,

@@ -35,6 +35,9 @@ const SKIP_FILES = new Set([
   ".Trashes",
 ]);
 
+/** Dot-directories intentionally shown in the File Explorer tree. */
+const VISIBLE_DOT_DIRS = new Set([".autumn"]);
+
 const MAX_DEPTH = 24;
 
 /** Directory walk that skips symlinks (cycles, path escapes) and dot-directories. */
@@ -81,8 +84,15 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
       // Symlinks are skipped outright: a cycle would hang the walk, and an
       // out-of-tree link would fail safeResolve() later anyway.
       if (stats.isSymbolicLink()) continue;
-      // Dot-files (.gitignore, .env) stay visible; dot-directories stay hidden.
-      if (stats.isDirectory() && entry.startsWith(".")) continue;
+      // Dot-files (.gitignore, .env) and whitelisted dot-directories (.autumn)
+      // stay visible; other dot-directories stay hidden.
+      if (
+        stats.isDirectory() &&
+        entry.startsWith(".") &&
+        !VISIBLE_DOT_DIRS.has(entry)
+      ) {
+        continue;
+      }
 
       if (stats.isDirectory()) {
         pendingDirs.push({ fullPath, childRelPath });
