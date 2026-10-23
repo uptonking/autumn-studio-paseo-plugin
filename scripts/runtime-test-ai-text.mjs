@@ -6,173 +6,25 @@ import {
   verifyAiTextSplitPaneToggles,
 } from "./runtime-test-ai-text-chrome.mjs";
 
-export const simulatedAutumnDocs = new Map();
+import {
+  handleAiTextRpc,
+  simulatedAutumnDocs,
+} from "./runtime-test-ai-text-mocks.mjs";
 
-export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDiskFiles) {
-  if (rpcName === "ai_text.agents.list") {
-    return {
-      agents: [
-        { id: "pi", label: "pi (Default)", available: true, isDefault: true },
-        { id: "claude", label: "Claude Code", available: true },
-        { id: "codex", label: "Codex", available: true },
-      ],
-    };
-  }
-  if (rpcName === "ai_text.metadata.get") {
-    const entry = simulatedAutumnDocs.get(input.relPath);
-    if (!entry) {
-      return { metadata: null, activeContent: null };
-    }
-    const activeVersion =
-      entry.metadata.versions.find(
-        (v) => v.id === entry.metadata.activeVersionId,
-      ) ?? entry.metadata.versions[0] ?? null;
-    return {
-      metadata: entry.metadata,
-      activeContent: activeVersion
-        ? (entry.contentsById.get(activeVersion.id) ?? null)
-        : null,
-    };
-  }
-  if (rpcName === "ai_text.extract") {
-    const slug = input.relPath.replace(/\//g, "__");
-    let entry = simulatedAutumnDocs.get(input.relPath);
-    if (!entry) {
-      entry = {
-        metadata: {
-          schemaVersion: 1,
-          sourceRelPath: input.relPath,
-          sourceFileName: input.relPath.split("/").pop() ?? input.relPath,
-          formatKind: input.relPath.endsWith(".pdf") ? "pdf" : "html",
-          docFolderRelPath: `.autumn/${slug}`,
-          activeVersionId: null,
-          versions: [],
-        },
-        contentsById: new Map(),
-      };
-      simulatedAutumnDocs.set(input.relPath, entry);
-    }
+export { handleAiTextRpc, simulatedAutumnDocs };
 
-    const versionNumber = entry.metadata.versions.length + 1;
-    const parserId =
-      input.parserId ?? currentSettingsData?.aiText?.defaultParser ?? "mineru";
-    const agentId =
-      input.agentId ?? currentSettingsData?.aiText?.defaultAgent ?? "pi";
-    const id = `20261012-12000${versionNumber}_v${versionNumber}_${parserId}_${agentId}`;
-    const fileName = `${id}.md`;
-    const relPath = `.autumn/${slug}/${fileName}`;
-    const content = [
-      `# Extracted v${versionNumber} for ${input.relPath}`,
-      "",
-      `Parsed by ${parserId} + ${agentId} (run #${versionNumber}).`,
-      "",
-      "| Browser | Compliance |",
-      "| --- | --- |",
-      "| Firefox | Edition 3 |",
-      "",
-    ].join("\n");
+function assertIncludes(list, value, label) {
+  if (!list.includes(value)) {
+    throw new Error(`${label} is missing option '${value}'`);
+  }
+}
 
-    const newVersion = {
-      id,
-      versionNumber,
-      fileName,
-      relPath,
-      createdAt: new Date(1700000000000 + versionNumber * 60000).toISOString(),
-      durationMs: 320 + versionNumber * 10,
-      size: Buffer.byteLength(content, "utf8"),
-      sourceSize: 512,
-      sourceMtimeMs: 1700000000000,
-      provenance: {
-        parserId,
-        parserLabel:
-          parserId === "mineru" ? "MinerU (Free Default)" : parserId,
-        parserMode: "cloud-free",
-        agentId,
-        agentModel: `${agentId}/default`,
-        usedAgentRefinement: Boolean(
-          currentSettingsData?.aiText?.useAgentRefinement ?? true,
-        ),
-        ocrEnabled: true,
-        formulaEnabled: true,
-        tableEnabled: true,
-        language: "auto",
-        lineCount: 8,
-        headingCount: 1,
-        tableCount: 1,
-        codeBlockCount: 0,
-      },
-    };
-
-    entry.contentsById.set(id, content);
-    simulatedDiskFiles.set(relPath, {
-      content: Buffer.from(content, "utf8"),
-      contentType: "text/markdown",
-      mtime: Date.now(),
-    });
-    const nextVersions = [newVersion, ...entry.metadata.versions];
-    entry.metadata = {
-      ...entry.metadata,
-      activeVersionId: id,
-      versions: nextVersions,
-    };
-    return {
-      metadata: entry.metadata,
-      newVersion,
-      content,
-    };
-  }
-  if (rpcName === "ai_text.version.select") {
-    const entry = simulatedAutumnDocs.get(input.relPath);
-    if (!entry) {
-      throw new Error(`No metadata for ${input.relPath}`);
-    }
-    const activeVersion =
-      entry.metadata.versions.find((v) => v.id === input.versionId) ??
-      entry.metadata.versions[0] ??
-      null;
-    entry.metadata = {
-      ...entry.metadata,
-      activeVersionId: activeVersion ? activeVersion.id : null,
-    };
-    return {
-      metadata: entry.metadata,
-      activeVersion,
-      content: activeVersion
-        ? (entry.contentsById.get(activeVersion.id) ?? null)
-        : null,
-    };
-  }
-  if (rpcName === "ai_text.version.delete") {
-    const entry = simulatedAutumnDocs.get(input.relPath);
-    if (!entry) {
-      return { metadata: null, activeVersion: null, content: null };
-    }
-    entry.contentsById.delete(input.versionId);
-    const remaining = entry.metadata.versions.filter(
-      (v) => v.id !== input.versionId,
-    );
-    if (remaining.length === 0) {
-      simulatedAutumnDocs.delete(input.relPath);
-      return { metadata: null, activeVersion: null, content: null };
-    }
-    const nextActive =
-      remaining.find((v) => v.id === entry.metadata.activeVersionId) ??
-      remaining[0];
-    entry.metadata = {
-      ...entry.metadata,
-      activeVersionId: nextActive.id,
-      versions: remaining,
-    };
-    return {
-      metadata: entry.metadata,
-      activeVersion: nextActive,
-      content: entry.contentsById.get(nextActive.id) ?? null,
-    };
-  }
-  return undefined;
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function verifyAiTextSettingsSection(settingsHost) {
+
   const navAiText = settingsHost.querySelector(
     '[data-testid="file-explorer-settings-nav-ai-text"]',
   );
@@ -217,6 +69,20 @@ export async function verifyAiTextSettingsSection(settingsHost) {
     );
   }
 
+  const defaultViewerSelect = aiTextSection.querySelector(
+    '[data-testid="settings-select-Default AI Text viewer"] select',
+  );
+  if (!defaultViewerSelect || defaultViewerSelect.value !== "text") {
+    throw new Error(
+      `Expected Default AI Text viewer to default to 'text', got '${defaultViewerSelect?.value}'`,
+    );
+  }
+  const defaultViewerOptions = [
+    ...defaultViewerSelect.querySelectorAll("option"),
+  ].map((opt) => opt.value);
+  assertIncludes(defaultViewerOptions, "text", "Default AI Text viewer");
+  assertIncludes(defaultViewerOptions, "layout-blocks", "Default AI Text viewer");
+
   const parserSelect = parsingSection.querySelector(
     '[data-testid="settings-select-Text parsing service"] select',
   );
@@ -235,11 +101,179 @@ export async function verifyAiTextSettingsSection(settingsHost) {
     "azure-document-intelligence",
     "datalab",
   ]) {
-    if (!parserOptionValues.includes(expectedParser)) {
+    assertIncludes(parserOptionValues, expectedParser, "Text parsing service");
+  }
+
+  const has = (root, testId) =>
+    Boolean(root?.querySelector(`[data-testid="${testId}"]`));
+  const getSection = (title) =>
+    settingsHost.querySelector(`[data-testid="settings-section-${title}"]`);
+
+  const engineSection = getSection("MinerU Engine");
+  const extractionSection = getSection("MinerU Extraction");
+  if (!engineSection || !extractionSection) {
+    throw new Error(
+      "MinerU settings must render separate Engine and Extraction sections",
+    );
+  }
+
+  const modeSelect = engineSection.querySelector(
+    '[data-testid="settings-select-MinerU execution mode"] select',
+  );
+  if (!modeSelect || modeSelect.value !== "cloud-free") {
+    throw new Error(
+      `Expected MinerU execution mode to default to 'cloud-free', got '${modeSelect?.value}'`,
+    );
+  }
+  if (has(extractionSection, "settings-switch-Extract layout metadata")) {
+    throw new Error(
+      "Cloud-free mode must not offer layout extraction; the free API is Markdown-only",
+    );
+  }
+  if (!has(extractionSection, "settings-switch-Enable OCR")) {
+    throw new Error("Cloud-free mode must expose cloud OCR settings");
+  }
+  if (has(extractionSection, "settings-select-MinerU model tier")) {
+    throw new Error(
+      "Cloud-free mode must not expose the local model tier setting",
+    );
+  }
+  if (getSection("MinerU Advanced")) {
+    throw new Error("Cloud-free mode must not render local advanced settings");
+  }
+
+  const view = settingsHost.ownerDocument.defaultView;
+  const setMode = async (mode) => {
+    const select = settingsHost.querySelector(
+      '[data-testid="settings-select-MinerU execution mode"] select',
+    );
+    if (!select) {
+      throw new Error("MinerU execution mode select disappeared");
+    }
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      view.HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(select, mode);
+    select.dispatchEvent(new view.Event("change", { bubbles: true }));
+    await sleep(80);
+  };
+
+  await setMode("local-cli");
+  const localEngine = getSection("MinerU Engine");
+  const localExtraction = getSection("MinerU Extraction");
+  if (!has(localEngine, "settings-input-MinerU Kit command")) {
+    throw new Error("Local CLI mode must expose the MinerU Kit command");
+  }
+  if (has(localEngine, "settings-input-Local MinerU API URL")) {
+    throw new Error("Local CLI mode must not expose the local API URL");
+  }
+  if (!has(localExtraction, "settings-select-MinerU model tier")) {
+    throw new Error("Local CLI mode must expose the model tier");
+  }
+  if (!has(localExtraction, "settings-select-MinerU OCR mode")) {
+    throw new Error("Local CLI mode must expose MinerU OCR mode");
+  }
+  if (!has(localExtraction, "settings-switch-Extract layout metadata")) {
+    throw new Error("Local CLI mode must expose layout extraction");
+  }
+  if (has(localExtraction, "settings-switch-Enable OCR")) {
+    throw new Error(
+      "Local CLI mode must not show the cloud-only Enable OCR switch",
+    );
+  }
+  if (!getSection("MinerU Advanced")) {
+    throw new Error("Local CLI mode must render advanced local settings");
+  }
+
+  await setMode("local-api");
+  const apiEngine = getSection("MinerU Engine");
+  if (!has(apiEngine, "settings-input-MinerU Kit command")) {
+    throw new Error(
+      "Local API mode still needs mineru-kit as the client executable",
+    );
+  }
+  if (!has(apiEngine, "settings-input-Local MinerU API URL")) {
+    throw new Error("Local API mode must expose the local API URL");
+  }
+  if (has(getSection("MinerU Advanced"), "settings-input-Remote MinerU server URL")) {
+    throw new Error("Local API mode must not expose the remote Server URL");
+  }
+
+  await setMode("cloud-token");
+  const tokenEngine = getSection("MinerU Engine");
+  const tokenExtraction = getSection("MinerU Extraction");
+  if (!has(tokenEngine, "settings-input-MinerU API token")) {
+    throw new Error("Token mode must expose the MinerU API token");
+  }
+  if (!has(tokenEngine, "settings-input-MinerU cloud endpoint")) {
+    throw new Error("Token mode must expose the MinerU cloud endpoint");
+  }
+  if (!has(tokenExtraction, "settings-switch-Extract layout metadata")) {
+    throw new Error("Token mode must expose layout extraction");
+  }
+  if (!has(tokenExtraction, "settings-switch-Enable OCR")) {
+    throw new Error("Token mode must expose cloud OCR settings");
+  }
+  if (has(tokenExtraction, "settings-select-MinerU model tier")) {
+    throw new Error("Token mode must not expose the local model tier");
+  }
+  if (getSection("MinerU Advanced")) {
+    throw new Error("Token mode must not render local advanced settings");
+  }
+
+  await setMode("auto");
+  const autoEngine = getSection("MinerU Engine");
+  if (!has(autoEngine, "settings-input-MinerU Kit command")) {
+    throw new Error("Auto mode must expose the MinerU Kit command");
+  }
+  if (!has(autoEngine, "settings-input-Local MinerU API URL")) {
+    throw new Error("Auto mode must expose the local API URL");
+  }
+  if (!has(autoEngine, "settings-input-MinerU API token (optional)")) {
+    throw new Error("Auto mode must allow an optional cloud token");
+  }
+
+  // Restore the default so later runtime checks see the original settings.
+  await setMode("cloud-free");
+
+  const environmentSection = settingsHost.querySelector(
+    '[data-testid="settings-section-MinerU Environment"]',
+  );
+  if (!environmentSection) {
+    throw new Error("MinerU Environment section was not rendered in settings");
+  }
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (settingsHost.querySelector('[data-testid="mineru-environment-status"]')) {
+      break;
+    }
+    await sleep(50);
+  }
+  const environmentStatus = settingsHost.querySelector(
+    '[data-testid="mineru-environment-status"]',
+  );
+  if (!environmentStatus) {
+    throw new Error(
+      "MinerU Environment status card never rendered detected values",
+    );
+  }
+  const environmentText = environmentStatus.textContent ?? "";
+  for (const expected of ["4.0.12", "uv-tool", "standard"]) {
+    if (!environmentText.includes(expected)) {
       throw new Error(
-        `Missing expected parser option '${expectedParser}' in Text parsing service select`,
+        `Expected MinerU environment to show '${expected}', got '${environmentText}'`,
       );
     }
+  }
+  // Settings render outside the plugin shadow root, so Tailwind utilities do
+  // not load there. The status must use inline RN/theme styles instead.
+  if (environmentStatus.querySelectorAll("[style]").length < 2) {
+    throw new Error("MinerU Environment status rows are missing host styles");
+  }
+  if (environmentSection.querySelector("[class]")) {
+    throw new Error(
+      "MinerU Environment must not rely on plugin Tailwind classes in settings",
+    );
   }
 }
 
@@ -366,6 +400,79 @@ export async function verifyAiTextSplitViewAndMultiVersion({
       "Expected MarkdownPreview in right split pane to render Markdown pipe tables as [data-testid='markdown-table']",
     );
   }
+
+  const blocksButton = rightSplitPane.querySelector(
+    '[data-testid="ai-text-mode-blocks"]',
+  );
+  if (!blocksButton) {
+    throw new Error(
+      "Expected Blocks toggle in the AI Text toolbar when the version has layout metadata",
+    );
+  }
+  blocksButton.dispatchEvent(
+    new dom.window.MouseEvent("click", { bubbles: true }),
+  );
+  await sleep(200);
+
+  const blocksPanel = rightSplitPane.querySelector(
+    '[data-testid="ai-text-layout-blocks"]',
+  );
+  if (!blocksPanel) {
+    throw new Error("Clicking Blocks did not render the layout blocks panel");
+  }
+  if (!rightSplitPane.querySelector('[data-testid="ai-text-layout-page-1"]')) {
+    throw new Error("Layout blocks panel is missing the page 1 group");
+  }
+  if (!(blocksPanel.textContent ?? "").includes("4 blocks")) {
+    throw new Error(
+      `Expected layout blocks header to report 4 blocks, got '${blocksPanel.textContent}'`,
+    );
+  }
+
+  const textBlock = rightSplitPane.querySelector(
+    '[data-testid="ai-text-layout-block-p1-b1"]',
+  );
+  if (!textBlock) {
+    throw new Error("Layout blocks panel is missing the p1-b1 text block");
+  }
+  textBlock.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  await sleep(80);
+  if (textBlock.getAttribute("aria-pressed") !== "true") {
+    throw new Error(
+      "Clicking a layout block did not mark it as the active block",
+    );
+  }
+
+  const imageBlock = rightSplitPane.querySelector(
+    '[data-testid="ai-text-layout-block-p1-b2"]',
+  );
+  const assetImage = imageBlock?.querySelector(
+    '[data-testid="ai-text-asset-image"]',
+  );
+  if (!imageBlock || !assetImage) {
+    throw new Error(
+      "Image layout block did not render a real AiTextAssetImage thumbnail",
+    );
+  }
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (imageBlock.querySelector('[data-testid="ai-text-asset-image-loaded"]')) {
+      break;
+    }
+    await sleep(50);
+  }
+  if (!imageBlock.querySelector('[data-testid="ai-text-asset-image-loaded"]')) {
+    throw new Error(
+      "Image layout block never loaded its image asset through ai_text.asset.get",
+    );
+  }
+
+  const previewButton = rightSplitPane.querySelector(
+    '[data-testid="ai-text-mode-preview"]',
+  );
+  previewButton?.dispatchEvent(
+    new dom.window.MouseEvent("click", { bubbles: true }),
+  );
+  await sleep(80);
 
   await verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane });
 

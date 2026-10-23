@@ -37,6 +37,12 @@ const PDFTOTEXT_CANDIDATES = [
   "pdftotext",
 ];
 
+/**
+ * A multi-page scan can need several regional Vision passes (full page, then
+ * each detected column or sidebar), so 35s was not enough for dense scans.
+ */
+const VISION_OCR_TIMEOUT_MS = 120_000;
+
 async function findExecutable(candidates: readonly string[]): Promise<string | null> {
   for (const candidate of candidates) {
     if (!candidate.startsWith("/")) return candidate;
@@ -200,7 +206,10 @@ async function runMacosVisionOcr(
   const binPath = await ensureMacosVisionBinary();
   if (!binPath) return null;
   try {
-    const res = await execCommand(binPath, [pdfPath], { timeout: 35_000, signal });
+    const res = await execCommand(binPath, [pdfPath], {
+      timeout: VISION_OCR_TIMEOUT_MS,
+      signal,
+    });
     const stdout = res.stdout.trim();
     if (!stdout.startsWith("[")) return null;
     const parsed = JSON.parse(stdout) as VisionOcrLine[];

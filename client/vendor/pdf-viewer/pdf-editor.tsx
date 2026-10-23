@@ -9,6 +9,7 @@ import type { FileEditSession } from "../../editing/use-file-edit-session";
 import type { FileSurfaceRole } from "../../viewers/provider-catalog";
 import { cn } from "../lib/utils";
 import { PDFViewer, type PDFViewerProps } from "../pdf-viewer";
+import type { PDFViewerHandle } from "./types";
 import {
   type DraftPointerAction,
   PdfEditorPageOverlayView,
@@ -34,6 +35,9 @@ export interface PDFEditorProps extends PDFViewerProps {
   canSwitchRole?: boolean;
   onRoleChange?: (role: FileSurfaceRole) => void;
   editSession?: FileEditSession;
+  viewerRef?: React.Ref<PDFViewerHandle>;
+  /** Composed after editor annotations; used by the AI Text layout overlay. */
+  extraPageOverlay?: (props: PDFViewerPageOverlayProps) => React.ReactNode;
 }
 
 export function PDFEditor({
@@ -45,6 +49,8 @@ export function PDFEditor({
   editSession,
   toolbarActions,
   className,
+  viewerRef,
+  extraPageOverlay,
   ...viewerProps
 }: PDFEditorProps) {
   const [tool, setTool] = React.useState<PdfEditorTool>("select");
@@ -449,23 +455,26 @@ export function PDFEditor({
   );
 
   const renderPageOverlay = React.useCallback(
-    ({ pageNumber }: PDFViewerPageOverlayProps) => (
-      <PdfEditorPageOverlayView
-        pageNumber={pageNumber}
-        tool={tool}
-        activeColor={activeColor}
-        editState={editState}
-        draftAction={draftAction}
-        selectedAnnotationId={selectedAnnotationId}
-        onSetDraftAction={setDraftAction}
-        onSelectAnnotation={setSelectedAnnotationId}
-        onAddTextAnnotation={addTextAnnotationAt}
-        onUpdateTextAnnotation={updateTextAnnotation}
-        onMoveAnnotation={moveAnnotation}
-        onRemoveAnnotation={removeAnnotation}
-        onCommitAnnotation={commitAnnotation}
-        onToggleDeleteActivePage={toggleDeleteActivePage}
-      />
+    (props: PDFViewerPageOverlayProps) => (
+      <>
+        <PdfEditorPageOverlayView
+          pageNumber={props.pageNumber}
+          tool={tool}
+          activeColor={activeColor}
+          editState={editState}
+          draftAction={draftAction}
+          selectedAnnotationId={selectedAnnotationId}
+          onSetDraftAction={setDraftAction}
+          onSelectAnnotation={setSelectedAnnotationId}
+          onAddTextAnnotation={addTextAnnotationAt}
+          onUpdateTextAnnotation={updateTextAnnotation}
+          onMoveAnnotation={moveAnnotation}
+          onRemoveAnnotation={removeAnnotation}
+          onCommitAnnotation={commitAnnotation}
+          onToggleDeleteActivePage={toggleDeleteActivePage}
+        />
+        {extraPageOverlay?.(props)}
+      </>
     ),
     [
       activeColor,
@@ -473,6 +482,7 @@ export function PDFEditor({
       commitAnnotation,
       draftAction,
       editState,
+      extraPageOverlay,
       moveAnnotation,
       removeAnnotation,
       selectedAnnotationId,
@@ -532,6 +542,7 @@ export function PDFEditor({
       <div className="min-h-0 flex-1 overflow-hidden">
         <PDFViewer
           {...viewerProps}
+          ref={viewerRef}
           src={src}
           fileName={fileName}
           showRotateControls={false}

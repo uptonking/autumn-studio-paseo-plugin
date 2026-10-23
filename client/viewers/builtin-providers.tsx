@@ -1,9 +1,12 @@
 import * as React from "react";
+import { useAiTextSurface } from "../ai-text/ai-text-context.js";
+import { LayoutPageOverlay } from "../ai-text/layout-page-overlay.js";
 import { SurfaceModeSwitcher } from "../editing/surface-mode-controls.js";
 import { lazyWithPreload } from "../lazy-with-preload.js";
 import { Spinner } from "../vendor/components/ui/spinner.js";
 import { loadSharedPdfEngine } from "../vendor/lib/pdf-thumbnail-utils.js";
 import { cn } from "../vendor/lib/utils.js";
+import type { PDFViewerPageOverlayProps } from "../vendor/pdf-viewer/types.js";
 import { preloadPdfLib } from "../vendor/pdf-viewer/pdf-save.js";
 import { ensureXlsxWasmReady } from "../vendor/xlsx-viewer/wasm-loader.js";
 import type { FileSurfaceProviderDescriptor } from "./registry.js";
@@ -70,6 +73,35 @@ export function FileViewerLoadingFallback() {
   );
 }
 
+/**
+ * Bridges the AI Text layout into the original PDF surface: the pane owns the
+ * handle for block-to-page scrolling, and this hook supplies the per-page
+ * overlay when outlines or an active block exist.
+ */
+function useAiTextPdfBridge() {
+  const surface = useAiTextSurface();
+  const layout = surface?.layout ?? null;
+  const activeBlock = surface?.activeBlock ?? null;
+  const showOutlines = surface?.showOutlines ?? false;
+
+  const renderPageOverlay = React.useMemo(() => {
+    if (!layout || (!showOutlines && !activeBlock)) return undefined;
+    return (props: PDFViewerPageOverlayProps) => (
+      <LayoutPageOverlay
+        pageNumber={props.pageNumber}
+        layout={layout}
+        activeBlock={activeBlock}
+        showOutlines={showOutlines}
+      />
+    );
+  }, [activeBlock, layout, showOutlines]);
+
+  return {
+    viewerRef: surface?.pdfHandleRef,
+    renderPageOverlay,
+  };
+}
+
 export function registerBuiltinSurfaceProviders(
   register: (descriptor: FileSurfaceProviderDescriptor) => void,
 ): void {
@@ -99,6 +131,7 @@ export function registerBuiltinSurfaceProviders(
     }) => {
       const hasFullChrome = variant !== "stage";
       const isDialog = variant === "dialog";
+      const aiTextBridge = useAiTextPdfBridge();
       const combinedActions = hasFullChrome ? (
         <div className="flex items-center gap-1.5">
           {canSwitchRole && onRoleChange ? (
@@ -114,8 +147,10 @@ export function registerBuiltinSurfaceProviders(
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyPDFViewer
+            ref={aiTextBridge.viewerRef}
             src={src}
             fileName={fileName}
+            renderPageOverlay={aiTextBridge.renderPageOverlay}
             defaultSidebarOpen={pdfSettings?.showThumbnailsByDefault ?? false}
             defaultZoom={pdfSettings?.defaultZoom ?? "fit-width"}
             showDownload={pdfSettings?.showDownloadButton ?? true}
@@ -163,11 +198,14 @@ export function registerBuiltinSurfaceProviders(
     }) => {
       const hasFullChrome = variant !== "stage";
       const isDialog = variant === "dialog";
+      const aiTextBridge = useAiTextPdfBridge();
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyPDFEditor
             src={src}
             fileName={fileName}
+            viewerRef={aiTextBridge.viewerRef}
+            extraPageOverlay={aiTextBridge.renderPageOverlay}
             role={role}
             canSwitchRole={canSwitchRole}
             onRoleChange={onRoleChange}

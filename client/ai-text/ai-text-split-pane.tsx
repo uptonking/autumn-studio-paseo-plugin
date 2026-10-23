@@ -1,20 +1,19 @@
 import * as React from "react";
 import {
+  AlertTriangle,
   Check,
   Copy,
+  Download,
   Ellipsis,
-  Eye,
-  FileText,
   Info,
   Loader2,
   PanelLeftOpen,
-  Pencil,
   RefreshCw,
   Save,
   Sparkles,
-  Trash2,
   X,
 } from "lucide-react";
+import { sanitizeAssetRelativePath } from "../../shared/asset-paths.js";
 import type { AiTextParserProviderId } from "../../shared/contracts.js";
 import { Button } from "../vendor/components/ui/button.js";
 import {
@@ -23,21 +22,28 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../vendor/components/ui/dropdown-menu.js";
-import { cn } from "../vendor/lib/utils.js";
 import { MarkdownPreview } from "../viewers/markdown-preview.js";
 import type {
   FileSaveCallbackInput,
   FileSaveCallbackResult,
 } from "../viewers/registry.js";
 import type { FileAiTextContextValue } from "./ai-text-context.js";
+import { AiTextAssetImage } from "./ai-text-asset-image.js";
+import { AiTextLayoutBlocksPanel } from "./ai-text-layout-blocks-panel.js";
 import { AiTextMetadataPanel } from "./ai-text-metadata-panel.js";
-
-type SplitTextDisplayMode = "preview" | "raw" | "edit";
+import {
+  AiTextTaskProgress,
+  looksLikeModelProblem,
+} from "./ai-text-task-progress.js";
+import { AiTextVersionToolbar } from "./ai-text-version-toolbar.js";
+import {
+  AiTextViewModeToggle,
+  type SplitTextDisplayMode,
+} from "./ai-text-view-mode-toggle.js";
 
 export interface AiTextSplitPaneProps {
   fileName: string;
   aiTextState: FileAiTextContextValue;
-  autoSaveEdits?: boolean;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
 }
 
@@ -49,6 +55,7 @@ export function AiTextSplitPane({
   const {
     isExtracting,
     error,
+    task,
     metadata,
     activeVersion,
     activeContent,
@@ -57,12 +64,22 @@ export function AiTextSplitPane({
     sourceUpdatedAt,
     sourceFileSize,
     isOriginalHidden,
+    layout,
+    layoutStatus,
+    layoutMessage,
+    activeBlockId,
+    defaultViewer,
     onTriggerAiText,
+    onRetryExtraction,
+    onCancelExtraction,
+    onDownloadModels,
     onSelectVersion,
     onDeleteVersion,
     onCloseSplit,
     onShowOriginal,
     onUpdateActiveContent,
+    onFocusLayoutBlock,
+    getAsset,
   } = aiTextState;
 
   const isSourceStale = Boolean(
@@ -74,8 +91,13 @@ export function AiTextSplitPane({
           sourceFileSize !== activeVersion.sourceSize)),
   );
 
-  const [displayMode, setDisplayMode] =
-    React.useState<SplitTextDisplayMode>("preview");
+  const [displayMode, setDisplayMode] = React.useState<SplitTextDisplayMode>(
+    () =>
+      defaultViewer === "layout-blocks" && activeVersion?.layout
+        ? "blocks"
+        : "preview",
+  );
+  const hasUserChosenModeRef = React.useRef(false);
   const [selectedParserOverride, setSelectedParserOverride] =
     React.useState<AiTextParserProviderId>(settings.defaultParser);
   const [selectedAgentOverride, setSelectedAgentOverride] =
@@ -84,8 +106,41 @@ export function AiTextSplitPane({
   const [isDirty, setIsDirty] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [savedFeedback, setSavedFeedback] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
   const [isMetadataPanelOpen, setIsMetadataPanelOpen] = React.useState(true);
+  const savingRef = React.useRef(false);
+  const savedFeedbackTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  React.useEffect(
+    () => () => {
+      if (savedFeedbackTimerRef.current !== null) {
+        clearTimeout(savedFeedbackTimerRef.current);
+      }
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const chooseDisplayMode = React.useCallback((mode: SplitTextDisplayMode) => {
+    hasUserChosenModeRef.current = true;
+    setDisplayMode(mode);
+  }, []);
+
+  // A mode chosen for one document should not override the default viewer
+  // after the split switches to another file. Re-parsing the same document
+  // keeps the user's choice because `sourceRelPath` stays the same.
+  const sourceRelPath = metadata?.sourceRelPath ?? null;
+  React.useEffect(() => {
+    hasUserChosenModeRef.current = false;
+  }, [sourceRelPath]);
 
   React.useEffect(() => {
     setSelectedParserOverride(settings.defaultParser);
@@ -95,13 +150,52 @@ export function AiTextSplitPane({
   React.useEffect(() => {
     setDraftText(activeContent ?? "");
     setIsDirty(false);
+    setSaveError(null);
   }, [activeContent, activeVersion?.id]);
+
+  React.useEffect(() => {
+    if (hasUserChosenModeRef.current) return;
+    if (defaultViewer === "layout-blocks" && activeVersion?.layout) {
+      setDisplayMode("blocks");
+    } else if (defaultViewer === "text") {
+      setDisplayMode("preview");
+    }
+  }, [activeVersion?.id, activeVersion?.layout, defaultViewer]);
+
+  React.useEffect(() => {
+    if (displayMode === "blocks" && !activeVersion?.layout && layoutStatus !== "loading") {
+      setDisplayMode("preview");
+    }
+  }, [activeVersion?.layout, displayMode, layoutStatus]);
+
+  const canShowBlocks =
+    Boolean(activeVersion?.layout) ||
+    layoutStatus === "ready" ||
+    layoutStatus === "loading";
+
+  const renderMarkdownImage = React.useCallback(
+    (src: string, alt: string) => {
+      const assetPath = sanitizeAssetRelativePath(src);
+      if (!assetPath) return null;
+      return (
+        <AiTextAssetImage
+          assetPath={assetPath}
+          alt={alt || "Document image"}
+          loadAsset={getAsset}
+          className="max-h-96 w-full object-contain"
+        />
+      );
+    },
+    [getAsset],
+  );
 
   const versions = metadata?.versions ?? [];
 
   const handleSaveEditedMarkdown = React.useCallback(async () => {
-    if (!onSaveFile || !activeVersion || isSaving) return;
+    if (!onSaveFile || !activeVersion || savingRef.current) return;
+    savingRef.current = true;
     setIsSaving(true);
+    setSaveError(null);
     try {
       await onSaveFile({
         relPath: activeVersion.relPath,
@@ -115,11 +209,22 @@ export function AiTextSplitPane({
       onUpdateActiveContent(draftText);
       setIsDirty(false);
       setSavedFeedback(true);
-      window.setTimeout(() => setSavedFeedback(false), 1500);
+      if (savedFeedbackTimerRef.current !== null) {
+        clearTimeout(savedFeedbackTimerRef.current);
+      }
+      savedFeedbackTimerRef.current = setTimeout(() => {
+        savedFeedbackTimerRef.current = null;
+        setSavedFeedback(false);
+      }, 1500);
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to save AI text edits",
+      );
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeVersion, draftText, isSaving, onSaveFile, onUpdateActiveContent]);
+  }, [activeVersion, draftText, onSaveFile, onUpdateActiveContent]);
 
   const handleCopy = React.useCallback(() => {
     const textToCopy = displayMode === "edit" ? draftText : (activeContent ?? "");
@@ -127,9 +232,15 @@ export function AiTextSplitPane({
     navigator.clipboard?.writeText(textToCopy).then(
       () => {
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
+        if (copiedTimerRef.current !== null) {
+          clearTimeout(copiedTimerRef.current);
+        }
+        copiedTimerRef.current = setTimeout(() => {
+          copiedTimerRef.current = null;
+          setCopied(false);
+        }, 1500);
       },
-      () => {},
+      () => setSaveError("Could not copy text to the clipboard"),
     );
   }, [activeContent, displayMode, draftText]);
 
@@ -143,81 +254,14 @@ export function AiTextSplitPane({
             <span>AI Text</span>
           </span>
 
-          {versions.length > 0 ? (
-            <select
-              data-testid="ai-text-version-select"
-              aria-label="Select extracted text version"
-              value={activeVersion?.id ?? ""}
-              disabled={isExtracting}
-              onChange={(e) => onSelectVersion(e.target.value)}
-              className="h-7 min-w-[110px] max-w-[210px] flex-1 truncate rounded-md border border-border bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {versions.map((ver) => (
-                <option key={ver.id} value={ver.id}>
-                  {`v${ver.versionNumber} · ${ver.provenance.parserId} + ${ver.provenance.agentId} (${ver.fileName})`}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="truncate text-muted-foreground">{fileName}</span>
-          )}
-
-          {versions.length > 1 ? (
-            <div
-              role="group"
-              aria-label="Quick switch text version"
-              data-testid="ai-text-version-pills"
-              className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 p-0.5"
-            >
-              {versions.slice(0, 5).map((ver) => {
-                const isActive = ver.id === activeVersion?.id;
-                return (
-                  <button
-                    key={ver.id}
-                    type="button"
-                    data-testid={`ai-text-version-pill-v${ver.versionNumber}`}
-                    aria-pressed={isActive}
-                    disabled={isExtracting}
-                    title={`Switch to v${ver.versionNumber} (${ver.provenance.parserId} + ${ver.provenance.agentId})`}
-                    onClick={() => onSelectVersion(ver.id)}
-                    className={cn(
-                      "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
-                      isActive
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {`v${ver.versionNumber}`}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {versions.length > 1 ? (
-            <span
-              data-testid="ai-text-version-count"
-              className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
-            >
-              {versions.length} versions
-            </span>
-          ) : null}
-
-          {activeVersion ? (
-            <Button
-              type="button"
-              data-testid="ai-text-version-delete"
-              variant="ghost"
-              size="icon-sm"
-              disabled={isExtracting}
-              aria-label={`Delete v${activeVersion.versionNumber}`}
-              title={`Delete v${activeVersion.versionNumber} (${activeVersion.fileName})`}
-              onClick={() => onDeleteVersion(activeVersion.id)}
-              className="size-6 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="size-3" />
-            </Button>
-          ) : null}
+          <AiTextVersionToolbar
+            fileName={fileName}
+            versions={versions}
+            activeVersion={activeVersion}
+            isExtracting={isExtracting}
+            onSelectVersion={onSelectVersion}
+            onDeleteVersion={onDeleteVersion}
+          />
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
@@ -244,57 +288,12 @@ export function AiTextSplitPane({
             </Button>
           ) : null}
 
-          <div
-            role="group"
-            aria-label="AI text view mode"
-            className="inline-flex items-center rounded-md border border-border/80 bg-muted/50 p-0.5 text-[11px]"
-          >
-            <button
-              type="button"
-              data-testid="ai-text-mode-preview"
-              aria-pressed={displayMode === "preview"}
-              onClick={() => setDisplayMode("preview")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
-                displayMode === "preview"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Eye className="size-3" />
-              <span>Preview</span>
-            </button>
-            <button
-              type="button"
-              data-testid="ai-text-mode-raw"
-              aria-pressed={displayMode === "raw"}
-              onClick={() => setDisplayMode("raw")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
-                displayMode === "raw"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <FileText className="size-3" />
-              <span>Markdown</span>
-            </button>
-            <button
-              type="button"
-              data-testid="ai-text-mode-edit"
-              aria-pressed={displayMode === "edit"}
-              onClick={() => setDisplayMode("edit")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
-                displayMode === "edit"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Pencil className="size-3" />
-              <span>Edit</span>
-            </button>
-          </div>
+          <AiTextViewModeToggle
+            displayMode={displayMode}
+            canShowBlocks={canShowBlocks}
+            layoutStatus={layoutStatus}
+            onChoose={chooseDisplayMode}
+          />
 
           <Button
             type="button"
@@ -368,20 +367,13 @@ export function AiTextSplitPane({
         </div>
       </div>
 
-      {/* Extraction in-progress banner when re-parsing with existing content */}
-      {isExtracting && activeContent !== null ? (
-        <div
-          data-testid="ai-text-reparse-banner"
-          className="flex items-center gap-2 border-b bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300"
-        >
-          <Loader2 className="size-3.5 animate-spin" />
-          <span>
-            Generating new AI text version with{" "}
-            <strong>{selectedParserOverride}</strong> +{" "}
-            <strong>{selectedAgentOverride}</strong> into{" "}
-            <code>{settings.outputRootDir}/</code>…
-          </span>
-        </div>
+      {/* Extraction progress when re-parsing with existing content */}
+      {isExtracting ? (
+        <AiTextTaskProgress
+          task={task}
+          onCancel={onCancelExtraction}
+          compact
+        />
       ) : null}
 
       {/* Error banner */}
@@ -389,14 +381,31 @@ export function AiTextSplitPane({
         <div
           role="alert"
           data-testid="ai-text-error-banner"
-          className="flex items-center justify-between gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          className="flex flex-wrap items-center justify-end gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
-          <span className="truncate">{error}</span>
+          <span className="mr-auto min-w-0 flex-1 truncate" title={error}>
+            {error}
+          </span>
+          {looksLikeModelProblem(error) ? (
+            <Button
+              type="button"
+              data-testid="ai-text-download-models"
+              variant="outline"
+              size="xs"
+              disabled={isExtracting}
+              onClick={onDownloadModels}
+              className="h-6 gap-1 px-2 text-xs"
+            >
+              <Download className="size-3" />
+              <span>Download models</span>
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
             size="xs"
-            onClick={() => onTriggerAiText()}
+            disabled={isExtracting}
+            onClick={onRetryExtraction}
             className="h-6 gap-1 px-2 text-xs"
           >
             <RefreshCw className="size-3" />
@@ -405,24 +414,43 @@ export function AiTextSplitPane({
         </div>
       ) : null}
 
+      {/* Save/copy failures stay separate from extraction errors: "Retry
+          extraction" is the wrong action for a failed file write. */}
+      {saveError ? (
+        <div
+          role="alert"
+          data-testid="ai-text-save-error"
+          className="flex items-start gap-2 border-b bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          <span
+            className="mr-auto min-w-0 flex-1 whitespace-pre-wrap break-words"
+            title={saveError}
+          >
+            {saveError}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Dismiss error"
+            title="Dismiss error"
+            onClick={() => setSaveError(null)}
+          >
+            <X className="size-3" />
+          </Button>
+        </div>
+      ) : null}
+
       {/* Main Content Area */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {isExtracting && activeContent === null ? (
-          <div
-            data-testid="ai-text-extracting-state"
-            className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center"
-          >
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-foreground">
-                Extracting AI Text for “{fileName}”…
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Parser: <span className="font-medium">{settings.defaultParser}</span>{" "}
-                · Agent: <span className="font-medium">{settings.defaultAgent}</span>{" "}
-                · Output: <code>{settings.outputRootDir}/</code>
-              </p>
-            </div>
+          <div className="flex size-full flex-col items-center justify-center gap-4 p-6">
+            <AiTextTaskProgress task={task} onCancel={onCancelExtraction} />
+            <p className="text-[11px] text-muted-foreground">
+              Parser: <span className="font-medium">{selectedParserOverride}</span>{" "}
+              · Agent: <span className="font-medium">{selectedAgentOverride}</span>{" "}
+              · Output: <code>{settings.outputRootDir}/</code>
+            </p>
           </div>
         ) : activeContent === null ? (
           <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center">
@@ -444,6 +472,7 @@ export function AiTextSplitPane({
             data-testid="ai-text-editor-textarea"
             aria-label="Edit extracted AI text"
             value={draftText}
+            disabled={isSaving}
             onChange={(e) => {
               setDraftText(e.target.value);
               setIsDirty(true);
@@ -464,12 +493,48 @@ export function AiTextSplitPane({
           >
             {activeContent}
           </pre>
+        ) : displayMode === "blocks" ? (
+          layoutStatus === "ready" && layout ? (
+            <AiTextLayoutBlocksPanel
+              layout={layout}
+              activeBlockId={activeBlockId}
+              onFocusBlock={onFocusLayoutBlock}
+              loadAsset={getAsset}
+            />
+          ) : layoutStatus === "loading" ? (
+            <div className="grid size-full place-items-center">
+              <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
+                Loading layout blocks…
+              </span>
+            </div>
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <AlertTriangle className="size-5 text-muted-foreground" />
+              <p className="max-w-sm text-xs text-muted-foreground">
+                {layoutMessage ??
+                  "Layout metadata is unavailable for this version."}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onTriggerAiText()}
+                className="gap-1.5 text-xs"
+              >
+                <RefreshCw className="size-3.5" />
+                <span>Re-parse for layout</span>
+              </Button>
+            </div>
+          )
         ) : (
           <div
             data-testid="ai-text-preview-content"
             className="flex size-full min-h-0 flex-1 overflow-hidden"
           >
-            <MarkdownPreview content={activeContent} />
+            <MarkdownPreview
+              content={activeContent}
+              renderImage={renderMarkdownImage}
+            />
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import {
   AI_TEXT_PARSER_CATALOG,
   type AiTextDocumentMetadata,
+  type AiTextLayoutDocument,
   type AiTextParserProviderId,
   type AiTextSettings,
   type AiTextVersionProvenance,
@@ -17,6 +18,7 @@ import { parseWithExternalProvider } from "./document-extractors.ts";
 import {
   extractLocalDocumentWithOcr,
   parseWithMineru,
+  type MineruParseProgress,
 } from "./mineru-adapter.ts";
 
 export interface DocumentParserContext {
@@ -29,11 +31,17 @@ export interface DocumentParserContext {
   settings: AiTextSettings;
   paseo: any;
   signal?: AbortSignal;
+  onProgress?: (update: MineruParseProgress) => void;
+  onLog?: (line: string) => void;
 }
 
 export interface DocumentParserOutput {
   markdown: string;
   parserMode?: string;
+  layout?: AiTextLayoutDocument | null;
+  assets?: Array<{ path: string; data: Uint8Array }>;
+  warnings?: string[];
+  fallbackReason?: string;
 }
 
 export interface DocumentParserAdapter {
@@ -70,10 +78,16 @@ registerDocumentParser({
       buffer: ctx.buffer,
       settings: ctx.settings.mineru,
       signal: ctx.signal,
+      onProgress: ctx.onProgress,
+      onLog: ctx.onLog,
     });
     return {
       markdown: res.markdown,
       parserMode: res.modeUsed,
+      layout: res.layout,
+      assets: res.assets,
+      warnings: res.warnings,
+      ...(res.fallbackReason ? { fallbackReason: res.fallbackReason } : {}),
     };
   },
 });
@@ -117,7 +131,7 @@ for (const externalId of [
         enableTable: ctx.settings.mineru.enableTable,
         signal: ctx.signal,
       });
-      return await parseWithExternalProvider({
+      const external = await parseWithExternalProvider({
         parserId: externalId,
         fileName: ctx.fileName,
         buffer: ctx.buffer,
@@ -125,6 +139,16 @@ for (const externalId of [
         fallbackMarkdown: fallbackRes.markdown,
         signal: ctx.signal,
       });
+      return {
+        ...external,
+        ...(external.parserMode === "local-fallback"
+          ? {
+              warnings: [
+                "The external parser was not used (missing API key or the request failed); this version came from local OCR.",
+              ],
+            }
+          : {}),
+      };
     },
   });
 }
@@ -139,12 +163,17 @@ export async function runAiTextExtractionPipeline(input: {
   parserIdOverride?: AiTextParserProviderId;
   agentIdOverride?: string;
   signal?: AbortSignal;
+  onProgress?: (update: MineruParseProgress) => void;
+  onLog?: (line: string) => void;
 }): Promise<{
   metadata: AiTextDocumentMetadata;
   newVersion: AiTextVersionRecord;
   content: string;
 }> {
   const startTime = Date.now();
+  if (input.signal?.aborted) {
+    throw input.signal.reason ?? new Error("AI text extraction was cancelled");
+  }
   const [fileStats, buffer] = await Promise.all([
     stat(input.sourceAbsPath),
     readFile(input.sourceAbsPath),
@@ -165,6 +194,8 @@ export async function runAiTextExtractionPipeline(input: {
     settings: input.settings,
     paseo: input.paseo,
     signal: input.signal,
+    onProgress: input.onProgress,
+    onLog: input.onLog,
   });
 
   const agentId =
@@ -193,6 +224,9 @@ export async function runAiTextExtractionPipeline(input: {
   }
 
   const durationMs = Math.max(1, Date.now() - startTime);
+  if (input.signal?.aborted) {
+    throw input.signal.reason ?? new Error("AI text extraction was cancelled");
+  }
   const provenance: AiTextVersionProvenance = {
     parserId: parserAdapter.id,
     parserLabel: parserAdapter.label,
@@ -204,6 +238,13 @@ export async function runAiTextExtractionPipeline(input: {
     formulaEnabled: input.settings.mineru.enableFormula,
     tableEnabled: input.settings.mineru.enableTable,
     language: input.settings.mineru.language,
+    modeUsed: parsed.parserMode,
+    ...(parsed.fallbackReason
+      ? { fallbackReason: parsed.fallbackReason }
+      : {}),
+    ...(parsed.warnings && parsed.warnings.length > 0
+      ? { warnings: parsed.warnings.slice(0, 20) }
+      : {}),
   };
 
   return await appendExtractedVersion({
@@ -214,6 +255,8 @@ export async function runAiTextExtractionPipeline(input: {
     markdownContent: finalMarkdown,
     durationMs,
     provenance,
+    layout: parsed.layout ?? null,
+    assets: parsed.assets,
     outputRootDir: input.settings.outputRootDir,
   });
 }

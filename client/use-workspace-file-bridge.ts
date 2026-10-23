@@ -2,12 +2,16 @@ import { useCallback, useMemo } from "react";
 import { useRpc, useSettings } from "@getpaseo/plugin/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  cancelAiTextTask,
   DEFAULT_FILE_EXPLORER_SETTINGS,
   deleteAiTextVersion,
-  extractAiText,
   fileExplorerSettings,
+  getAiTextAsset,
+  getAiTextEnvironment,
+  getAiTextLayout,
   getAiTextMetadata,
   getAiTextSettings,
+  getAiTextTask,
   getFileContent,
   getPdfWasm,
   getTextViewerSettings,
@@ -15,6 +19,7 @@ import {
   listAiTextAgents,
   saveFileContent,
   selectAiTextVersion,
+  startAiTextTask,
   toPdfViewerZoom,
   toXlsxViewerZoom,
 } from "../shared/contracts.js";
@@ -35,7 +40,12 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   const fetchXlsxWasm = useRpc(getXlsxWasm);
   const callSaveFile = useRpc(saveFileContent);
   const callGetAiTextMetadata = useRpc(getAiTextMetadata);
-  const callExtractAiText = useRpc(extractAiText);
+  const callStartAiTextTask = useRpc(startAiTextTask);
+  const callGetAiTextTask = useRpc(getAiTextTask);
+  const callCancelAiTextTask = useRpc(cancelAiTextTask);
+  const callGetAiTextLayout = useRpc(getAiTextLayout);
+  const callGetAiTextAsset = useRpc(getAiTextAsset);
+  const callGetAiTextEnvironment = useRpc(getAiTextEnvironment);
   const callSelectAiTextVersion = useRpc(selectAiTextVersion);
   const callDeleteAiTextVersion = useRpc(deleteAiTextVersion);
   const callListAiTextAgents = useRpc(listAiTextAgents);
@@ -164,23 +174,66 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     [callGetAiTextMetadata, workspaceId],
   );
 
-  const extractAiTextForFile = useCallback(
-    async (
-      relPath: string,
-      options?: { parserId?: any; agentId?: string },
-    ) => {
-      const result = await callExtractAiText({
+  const startAiTextTaskForFile = useCallback(
+    (
+      input: Omit<
+        Parameters<AiTextBridge["startTask"]>[0],
+        "relPath"
+      > & { relPath?: string },
+    ) =>
+      callStartAiTextTask({
         workspaceId,
-        relPath,
-        ...(options?.parserId ? { parserId: options.parserId } : {}),
-        ...(options?.agentId ? { agentId: options.agentId } : {}),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["file-explorer:tree", workspaceId],
-      });
+        ...input,
+      }),
+    [callStartAiTextTask, workspaceId],
+  );
+
+  const getAiTextTaskSnapshot = useCallback(
+    async (taskId: string) => {
+      const result = await callGetAiTextTask({ taskId });
+      if (
+        result.task.status === "succeeded" ||
+        result.task.status === "failed" ||
+        result.task.status === "cancelled"
+      ) {
+        void queryClient.invalidateQueries({
+          queryKey: ["file-explorer:tree", workspaceId],
+        });
+      }
       return result;
     },
-    [callExtractAiText, queryClient, workspaceId],
+    [callGetAiTextTask, queryClient, workspaceId],
+  );
+
+  const cancelAiTextTaskForWorkspace = useCallback(
+    (taskId: string) => callCancelAiTextTask({ taskId }),
+    [callCancelAiTextTask],
+  );
+
+  const getAiTextLayoutForFile = useCallback(
+    (relPath: string, versionId: string) =>
+      callGetAiTextLayout({ workspaceId, relPath, versionId }),
+    [callGetAiTextLayout, workspaceId],
+  );
+
+  const getAiTextAssetForFile = useCallback(
+    (relPath: string, versionId: string, assetPath: string) =>
+      callGetAiTextAsset({
+        workspaceId,
+        relPath,
+        versionId,
+        assetPath,
+      }),
+    [callGetAiTextAsset, workspaceId],
+  );
+
+  const getAiTextEnvironmentForWorkspace = useCallback(
+    (options?: { refresh?: boolean }) =>
+      callGetAiTextEnvironment({
+        workspaceId,
+        ...(options?.refresh ? { refresh: true } : {}),
+      }),
+    [callGetAiTextEnvironment, workspaceId],
   );
 
   const selectAiTextVersionForFile = useCallback(
@@ -217,18 +270,28 @@ export function useWorkspaceFileBridge(workspaceId: string) {
       enabled: aiTextSettings.enabled,
       settings: aiTextSettings,
       getMetadata: getAiTextMetadataForFile,
-      extractText: extractAiTextForFile,
+      startTask: startAiTextTaskForFile,
+      getTask: getAiTextTaskSnapshot,
+      cancelTask: cancelAiTextTaskForWorkspace,
+      getLayout: getAiTextLayoutForFile,
+      getAsset: getAiTextAssetForFile,
+      getEnvironment: getAiTextEnvironmentForWorkspace,
       selectVersion: selectAiTextVersionForFile,
       deleteVersion: deleteAiTextVersionForFile,
       listAgents: listAiTextAgentsForWorkspace,
     }),
     [
       aiTextSettings,
+      cancelAiTextTaskForWorkspace,
       deleteAiTextVersionForFile,
-      extractAiTextForFile,
+      getAiTextAssetForFile,
+      getAiTextEnvironmentForWorkspace,
+      getAiTextLayoutForFile,
       getAiTextMetadataForFile,
+      getAiTextTaskSnapshot,
       listAiTextAgentsForWorkspace,
       selectAiTextVersionForFile,
+      startAiTextTaskForFile,
     ],
   );
 

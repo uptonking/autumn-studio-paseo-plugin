@@ -14,6 +14,7 @@ import {
   toAutumnDocFolderSlug,
   withAiTextSettings,
 } from "../shared/contracts.ts";
+import { getMineruModeCapabilities } from "../shared/ai-text-mineru-modes.ts";
 import {
   appendExtractedVersion,
   deleteExtractedVersion,
@@ -43,11 +44,61 @@ describe("ai-text: settings schema and format helpers", () => {
     assert.equal(parsed.aiText.defaultAgent, "pi");
     assert.equal(parsed.aiText.useAgentRefinement, true);
     assert.equal(parsed.aiText.defaultParser, "mineru");
+    assert.equal(parsed.aiText.defaultAiTextViewer, "text");
+    assert.equal(parsed.aiText.showLayoutBlockOverlays, true);
+    assert.equal(parsed.aiText.autoScrollToLayoutBlock, true);
     assert.equal(parsed.aiText.mineru.mode, "cloud-free");
+    assert.equal(parsed.aiText.mineru.tier, "standard");
+    assert.equal(parsed.aiText.mineru.ocrMode, "auto");
+    assert.equal(parsed.aiText.mineru.extractLayout, true);
+    assert.equal(parsed.aiText.mineru.kitCommand, "mineru-kit");
+    assert.equal(parsed.aiText.mineru.localApiUrl, "http://127.0.0.1:8000");
     assert.equal(parsed.aiText.mineru.enableOcr, true);
     assert.equal(parsed.aiText.mineru.enableFormula, true);
     assert.equal(parsed.aiText.mineru.enableTable, true);
     assert.equal(aiTextSettingsSchema.parse({}).openSplitViewByDefault, false);
+  });
+
+  it("maps MinerU modes to the settings each route actually uses", () => {
+    const cloudFree = getMineruModeCapabilities("cloud-free");
+    assert.equal(cloudFree.usesKit, false);
+    assert.equal(cloudFree.showsLocalExtraction, false);
+    assert.equal(cloudFree.showsCloudExtraction, true);
+    assert.equal(cloudFree.showsLayoutSwitch, false);
+    assert.equal(cloudFree.showsCloudEndpoint, true);
+    assert.equal(cloudFree.showsToken, false);
+
+    const localCli = getMineruModeCapabilities("local-cli");
+    assert.equal(localCli.usesKit, true);
+    assert.equal(localCli.usesLocalApi, false);
+    assert.equal(localCli.usesRemoteServer, true);
+    assert.equal(localCli.showsLocalExtraction, true);
+    assert.equal(localCli.showsCloudExtraction, false);
+    assert.equal(localCli.showsLayoutSwitch, true);
+    assert.equal(localCli.showsCloudEndpoint, false);
+
+    const localApi = getMineruModeCapabilities("local-api");
+    assert.equal(localApi.usesKit, true);
+    assert.equal(localApi.usesLocalApi, true);
+    assert.equal(localApi.usesRemoteServer, false);
+    assert.equal(localApi.showsLocalExtraction, true);
+    assert.equal(localApi.showsLayoutSwitch, true);
+
+    const cloudToken = getMineruModeCapabilities("cloud-token");
+    assert.equal(cloudToken.usesKit, false);
+    assert.equal(cloudToken.showsLocalExtraction, false);
+    assert.equal(cloudToken.showsCloudExtraction, true);
+    assert.equal(cloudToken.showsLayoutSwitch, true);
+    assert.equal(cloudToken.showsToken, true);
+
+    const auto = getMineruModeCapabilities("auto");
+    assert.equal(auto.usesKit, true);
+    assert.equal(auto.usesLocalApi, true);
+    assert.equal(auto.usesRemoteServer, true);
+    assert.equal(auto.showsLocalExtraction, true);
+    assert.equal(auto.showsCloudExtraction, false);
+    assert.equal(auto.showsLayoutSwitch, true);
+    assert.equal(auto.showsToken, true);
   });
 
   it("updates AI Text settings immutably via withAiTextSettings", () => {
@@ -85,6 +136,9 @@ describe("ai-text: settings schema and format helpers", () => {
       toAutumnDocFolderSlug("pdf/红楼梦研究资料选辑_1974_鲁迅_page1.pdf"),
       "pdf__红楼梦研究资料选辑_1974_鲁迅_page1.pdf",
     );
+    assert.equal(toAutumnDocFolderSlug(".."), "_");
+    assert.equal(toAutumnDocFolderSlug("."), "_");
+    assert.equal(toAutumnDocFolderSlug("a/../b.pdf"), "a_____b.pdf");
   });
 
   it("auto-opens the split only for an enabled default with cached content", () => {

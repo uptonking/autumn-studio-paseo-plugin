@@ -59,10 +59,18 @@ function parseHtmlTableRows(tableHtml: string): {
   };
 }
 
-function renderInlineMarkdown(text: string): React.ReactNode[] {
+export type MarkdownImageRenderer = (
+  src: string,
+  alt: string,
+) => React.ReactNode | null;
+
+function renderInlineMarkdown(
+  text: string,
+  renderImage?: MarkdownImageRenderer,
+): React.ReactNode[] {
   const tokens: React.ReactNode[] = [];
   const pattern =
-    /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g;
+    /(!\[[^\]]*\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -72,7 +80,13 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
       tokens.push(text.slice(lastIndex, match.index));
     }
     const raw = match[0];
-    if (raw.startsWith("`") && raw.endsWith("`")) {
+    if (raw.startsWith("![")) {
+      const closeBracket = raw.indexOf("](");
+      const alt = raw.slice(2, closeBracket);
+      const src = raw.slice(closeBracket + 2, -1);
+      const rendered = renderImage?.(src, alt);
+      tokens.push(rendered ?? alt);
+    } else if (raw.startsWith("`") && raw.endsWith("`")) {
       tokens.push(
         <code
           key={key++}
@@ -180,9 +194,11 @@ function renderTableElement(
 export function MarkdownPreview({
   content,
   className,
+  renderImage,
 }: {
   content: string;
   className?: string;
+  renderImage?: MarkdownImageRenderer;
 }) {
   const blocks = React.useMemo(() => {
     const lines = content.split(/\r?\n/);
@@ -191,6 +207,22 @@ export function MarkdownPreview({
 
     while (i < lines.length) {
       const line = lines[i] ?? "";
+
+      const imageOnlyMatch = /^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/.exec(line);
+      if (imageOnlyMatch) {
+        const alt = imageOnlyMatch[1] ?? "";
+        const src = imageOnlyMatch[2] ?? "";
+        const rendered = renderImage?.(src, alt);
+        if (rendered) {
+          elements.push(
+            <div key={`img-${i}`} className="my-3">
+              {rendered}
+            </div>,
+          );
+          i += 1;
+          continue;
+        }
+      }
 
       if (line.trim().startsWith("```")) {
         const lang = line.trim().slice(3).trim();
@@ -275,7 +307,7 @@ export function MarkdownPreview({
               : "mt-2.5 mb-1 text-sm font-semibold";
         elements.push(
           <div key={`h-${i}`} className={cn("text-foreground", sizeClass)}>
-            {renderInlineMarkdown(text)}
+            {renderInlineMarkdown(text, renderImage)}
           </div>,
         );
         i += 1;
@@ -301,7 +333,7 @@ export function MarkdownPreview({
             key={`quote-${i}`}
             className="my-2 border-l-2 border-primary/50 pl-3 text-xs leading-5 text-muted-foreground italic"
           >
-            {renderInlineMarkdown(quoteLines.join(" "))}
+            {renderInlineMarkdown(quoteLines.join(" "), renderImage)}
           </blockquote>,
         );
         continue;
@@ -321,7 +353,7 @@ export function MarkdownPreview({
             className="my-2 list-disc space-y-1 pl-5 text-xs leading-5"
           >
             {listItems.map((item, idx) => (
-              <li key={idx}>{renderInlineMarkdown(item)}</li>
+              <li key={idx}>{renderInlineMarkdown(item, renderImage)}</li>
             ))}
           </ul>,
         );
@@ -330,14 +362,14 @@ export function MarkdownPreview({
 
       elements.push(
         <p key={`p-${i}`} className="my-1.5 text-xs leading-5 text-foreground/90">
-          {renderInlineMarkdown(line)}
+          {renderInlineMarkdown(line, renderImage)}
         </p>,
       );
       i += 1;
     }
 
     return elements;
-  }, [content]);
+  }, [content, renderImage]);
 
   return (
     <div

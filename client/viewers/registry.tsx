@@ -239,6 +239,22 @@ export function preloadFileSurfaceProvider(providerId: string): Promise<void> {
   return descriptor.preload().catch(() => undefined);
 }
 
+/**
+ * Renders a provider inside its own component so provider hooks (notably the
+ * PDF overlay bridge) read `AiTextSurfaceContext` from the split wrapper.
+ * Calling `renderer(props)` directly in `RegisteredFileViewer` would run those
+ * hooks in the parent render, outside the context provider.
+ */
+function FileSurfaceRenderer({
+  renderer,
+  props,
+}: {
+  renderer: FileViewerRenderer;
+  props: ResolvedFileSurfaceRenderProps;
+}) {
+  return <>{renderer(props)}</>;
+}
+
 export function preloadFileSurfaceForKind(
   kind: FileSystemViewerKind,
   settings?: {
@@ -538,22 +554,25 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
             autoSaveEdits
           }
         >
-          {(menuItems) =>
-            resolvedProvider.renderer({
-              ...props,
-              src: activeSrc,
-              role: resolvedProvider.role,
-              providerId: resolvedProvider.id,
-              canSwitchRole: variant !== "stage" && hasEditorSupport,
-              onRoleChange:
-                variant !== "stage" && hasEditorSupport
-                  ? handleRoleChange
-                  : undefined,
-              editSession:
-                resolvedProvider.role === "editor" ? editSession : undefined,
-              extraMenuItems: menuItems,
-            })
-          }
+          {(menuItems) => (
+            <FileSurfaceRenderer
+              renderer={resolvedProvider.renderer}
+              props={{
+                ...props,
+                src: activeSrc,
+                role: resolvedProvider.role,
+                providerId: resolvedProvider.id,
+                canSwitchRole: variant !== "stage" && hasEditorSupport,
+                onRoleChange:
+                  variant !== "stage" && hasEditorSupport
+                    ? handleRoleChange
+                    : undefined,
+                editSession:
+                  resolvedProvider.role === "editor" ? editSession : undefined,
+                extraMenuItems: menuItems,
+              }}
+            />
+          )}
         </AiTextMenuInjector>
       </AiTextSurfaceSplitWrapper>
     </FileSurfacePreloadContext.Provider>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRpc } from "@getpaseo/plugin/client";
 import {
   SettingsCard,
@@ -16,12 +16,15 @@ import {
   withAiTextSettings,
   type AiTextAgentOption,
   type AiTextParserProviderId,
-  type MineruExecutionMode,
+  type AiTextViewerMode,
+  type MineruSettings,
 } from "../../../shared/contracts.js";
 import type {
   SettingsSectionComponentProps,
   SettingsSectionDescriptor,
 } from "../registry.js";
+import { AiTextMineruEnvironmentSection } from "./ai-text-mineru-environment.js";
+import { AiTextMineruFields } from "./ai-text-mineru-fields.js";
 
 const FALLBACK_AGENT_OPTIONS: readonly AiTextAgentOption[] = [
   { id: "pi", label: "pi (Default)", available: true, isDefault: true },
@@ -39,29 +42,18 @@ const PARSER_SELECT_OPTIONS: readonly {
   value: entry.id,
 }));
 
-const MINERU_MODE_OPTIONS: readonly {
+const AI_TEXT_VIEWER_OPTIONS: readonly {
   label: string;
-  value: MineruExecutionMode;
+  value: AiTextViewerMode;
 }[] = [
-  { label: "Free Cloud API (Zero-config default)", value: "cloud-free" },
-  { label: "MinerU Cloud API v4 (API Token)", value: "cloud-token" },
-  { label: "Local MinerU CLI (mineru)", value: "local-cli" },
-];
-
-const OCR_LANGUAGE_OPTIONS: readonly { label: string; value: string }[] = [
-  { label: "Auto-detect (Default)", value: "auto" },
-  { label: "English (en)", value: "en" },
-  { label: "Chinese (ch)", value: "ch" },
-  { label: "Japanese (ja)", value: "ja" },
-  { label: "Korean (ko)", value: "ko" },
-  { label: "German (de)", value: "de" },
-  { label: "French (fr)", value: "fr" },
-  { label: "Spanish (es)", value: "es" },
-];
+    { label: "Text (Default)", value: "text" },
+    { label: "Layout Blocks", value: "layout-blocks" },
+  ];
 
 export function AiTextSettingsSection({
   values,
   disabled,
+  theme,
   updateValues,
 }: SettingsSectionComponentProps) {
   const { general } = values;
@@ -70,13 +62,18 @@ export function AiTextSettingsSection({
   const subControlsDisabled = controlsDisabled || !aiText.enabled;
 
   const fetchAgents = useRpc(listAiTextAgents);
+  const fetchAgentsRef = useRef(fetchAgents);
+  fetchAgentsRef.current = fetchAgents;
   const [discoveredAgents, setDiscoveredAgents] = useState<
     readonly AiTextAgentOption[]
   >(FALLBACK_AGENT_OPTIONS);
 
   useEffect(() => {
+    // Discovery only needs to run when the section mounts. The RPC handle is
+    // not guaranteed to keep a stable identity across renders, and re-fetching
+    // would replace the agent list on every render.
     let cancelled = false;
-    fetchAgents({})
+    fetchAgentsRef.current({})
       .then((res) => {
         if (!cancelled && res.agents.length > 0) {
           setDiscoveredAgents(res.agents);
@@ -88,7 +85,34 @@ export function AiTextSettingsSection({
     return () => {
       cancelled = true;
     };
-  }, [fetchAgents]);
+  }, []);
+
+  const handleDefaultAiTextViewerChange = useCallback(
+    (defaultAiTextViewer: AiTextViewerMode) => {
+      updateValues((current) =>
+        withAiTextSettings(current, { defaultAiTextViewer }),
+      );
+    },
+    [updateValues],
+  );
+
+  const handleShowLayoutOutlinesChange = useCallback(
+    (showLayoutBlockOverlays: boolean) => {
+      updateValues((current) =>
+        withAiTextSettings(current, { showLayoutBlockOverlays }),
+      );
+    },
+    [updateValues],
+  );
+
+  const handleAutoScrollToBlockChange = useCallback(
+    (autoScrollToLayoutBlock: boolean) => {
+      updateValues((current) =>
+        withAiTextSettings(current, { autoScrollToLayoutBlock }),
+      );
+    },
+    [updateValues],
+  );
 
   const agentSelectOptions = useMemo(() => {
     const options: { label: string; value: string }[] = [];
@@ -97,7 +121,7 @@ export function AiTextSettingsSection({
       if (seen.has(agent.id)) continue;
       seen.add(agent.id);
       options.push({
-        label: agent.label,
+        label: agent.label || agent.id,
         value: agent.id,
       });
     }
@@ -153,80 +177,11 @@ export function AiTextSettingsSection({
     [updateValues],
   );
 
-  const handleMineruModeChange = useCallback(
-    (mode: MineruExecutionMode) => {
+  const updateMineruSettings = useCallback(
+    (patch: Partial<MineruSettings>) => {
       updateValues((current) =>
         withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, mode },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruOcrChange = useCallback(
-    (enableOcr: boolean) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, enableOcr },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruFormulaChange = useCallback(
-    (enableFormula: boolean) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, enableFormula },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruTableChange = useCallback(
-    (enableTable: boolean) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, enableTable },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruTokenChange = useCallback(
-    (apiToken: string) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, apiToken },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruCliChange = useCallback(
-    (cliCommand: string) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: {
-            ...getAiTextSettings(current).mineru,
-            cliCommand: cliCommand.trim() || "mineru",
-          },
-        }),
-      );
-    },
-    [updateValues],
-  );
-
-  const handleMineruLanguageChange = useCallback(
-    (language: string) => {
-      updateValues((current) =>
-        withAiTextSettings(current, {
-          mineru: { ...getAiTextSettings(current).mineru, language },
+          mineru: { ...getAiTextSettings(current).mineru, ...patch },
         }),
       );
     },
@@ -290,6 +245,15 @@ export function AiTextSettingsSection({
             onValueChange={handleEnabledChange}
             testID="file-explorer-setting-ai-text-enabled"
           />
+          <SettingsSelect
+            label="Default AI Text viewer"
+            hint="Which AI Text pane opens by default: rendered Markdown text or the layout blocks used for PDF-to-text highlighting. Blocks fall back to Text when a version has no layout metadata."
+            value={aiText.defaultAiTextViewer}
+            options={AI_TEXT_VIEWER_OPTIONS}
+            disabled={subControlsDisabled}
+            onValueChange={handleDefaultAiTextViewerChange}
+            testID="file-explorer-setting-ai-text-default-viewer"
+          />
           <SettingsSwitch
             label="Open split view by default"
             hint="When a PDF already has extracted AI text, open it with the original PDF on the left and the AI text on the right. Off by default."
@@ -297,6 +261,22 @@ export function AiTextSettingsSection({
             disabled={subControlsDisabled}
             onValueChange={handleOpenSplitViewByDefaultChange}
             testID="file-explorer-setting-ai-text-open-split-default"
+          />
+          <SettingsSwitch
+            label="Show layout block outlines on the PDF"
+            hint="Draw subtle boxes around every extracted block while the AI Text split is open. The selected block is always highlighted in amber."
+            value={aiText.showLayoutBlockOverlays}
+            disabled={subControlsDisabled}
+            onValueChange={handleShowLayoutOutlinesChange}
+            testID="file-explorer-setting-ai-text-layout-outlines"
+          />
+          <SettingsSwitch
+            label="Auto-scroll PDF to the selected block"
+            hint="Scroll the original PDF to the page and area of the block you click in the Blocks view."
+            value={aiText.autoScrollToLayoutBlock}
+            disabled={subControlsDisabled}
+            onValueChange={handleAutoScrollToBlockChange}
+            testID="file-explorer-setting-ai-text-layout-autoscroll"
           />
           <SettingsSelect
             label="Default AI agent"
@@ -332,45 +312,10 @@ export function AiTextSettingsSection({
             onValueChange={handleDefaultParserChange}
             testID="file-explorer-setting-ai-text-parser"
           />
-          {aiText.defaultParser === "mineru" ? (
-            <>
-              <SettingsSelect
-                label="MinerU execution mode"
-                hint="Free Cloud API works out of the box without an API key. Switch to Cloud API v4 for authenticated batch runs or Local CLI to use a local mineru binary."
-                value={aiText.mineru.mode}
-                options={MINERU_MODE_OPTIONS}
-                disabled={subControlsDisabled}
-                onValueChange={handleMineruModeChange}
-                testID="file-explorer-setting-mineru-mode"
-              />
-              {aiText.mineru.mode === "cloud-token" ? (
-                <SettingsInput
-                  label="MinerU API token"
-                  hint="Bearer token from mineru.net API management console."
-                  initialValue={aiText.mineru.apiToken}
-                  placeholder="Paste MinerU API token"
-                  secureTextEntry
-                  disabled={subControlsDisabled}
-                  onChangeText={handleMineruTokenChange}
-                  testID="file-explorer-setting-mineru-token"
-                />
-              ) : null}
-              {aiText.mineru.mode === "local-cli" ? (
-                <SettingsInput
-                  label="MinerU CLI command"
-                  hint="Local executable name or path (e.g. mineru or magic-pdf)."
-                  initialValue={aiText.mineru.cliCommand}
-                  placeholder="mineru"
-                  disabled={subControlsDisabled}
-                  onChangeText={handleMineruCliChange}
-                  testID="file-explorer-setting-mineru-cli"
-                />
-              ) : null}
-            </>
-          ) : null}
           {isExternalCloudParser ? (
             <>
               <SettingsInput
+                key={`key-${aiText.defaultParser}`}
                 label="Parser API key"
                 hint={`API key for ${aiText.defaultParser}. Falls back to local extraction when empty.`}
                 initialValue={activeExternalConfig.apiKey}
@@ -381,6 +326,7 @@ export function AiTextSettingsSection({
                 testID="file-explorer-setting-external-parser-key"
               />
               <SettingsInput
+                key={`url-${aiText.defaultParser}`}
                 label="Parser endpoint URL"
                 hint="Optional custom endpoint URL (required for Azure Document Intelligence resource URL)."
                 initialValue={activeExternalConfig.endpointUrl}
@@ -391,41 +337,23 @@ export function AiTextSettingsSection({
               />
             </>
           ) : null}
-          <SettingsSelect
-            label="Document OCR language"
-            hint="Primary language hint for OCR and layout recognition."
-            value={aiText.mineru.language}
-            options={OCR_LANGUAGE_OPTIONS}
-            disabled={subControlsDisabled}
-            onValueChange={handleMineruLanguageChange}
-            testID="file-explorer-setting-mineru-language"
-          />
-          <SettingsSwitch
-            label="Enable OCR"
-            hint="Run optical character recognition on scanned PDF pages and images."
-            value={aiText.mineru.enableOcr}
-            disabled={subControlsDisabled}
-            onValueChange={handleMineruOcrChange}
-            testID="file-explorer-setting-mineru-ocr"
-          />
-          <SettingsSwitch
-            label="Formula recognition"
-            hint="Convert mathematical equations into LaTeX blocks in extracted Markdown."
-            value={aiText.mineru.enableFormula}
-            disabled={subControlsDisabled}
-            onValueChange={handleMineruFormulaChange}
-            testID="file-explorer-setting-mineru-formula"
-          />
-          <SettingsSwitch
-            label="Table recognition"
-            hint="Preserve multi-column tables as structured Markdown tables."
-            value={aiText.mineru.enableTable}
-            disabled={subControlsDisabled}
-            onValueChange={handleMineruTableChange}
-            testID="file-explorer-setting-mineru-table"
-          />
         </SettingsCard>
       </SettingsSection>
+
+      {aiText.defaultParser === "mineru" ? (
+        <>
+          <AiTextMineruFields
+            mineru={aiText.mineru}
+            disabled={subControlsDisabled}
+            onUpdate={updateMineruSettings}
+          />
+          <AiTextMineruEnvironmentSection
+            tier={aiText.mineru.tier}
+            enabled={aiText.enabled}
+            theme={theme}
+          />
+        </>
+      ) : null}
     </>
   );
 }

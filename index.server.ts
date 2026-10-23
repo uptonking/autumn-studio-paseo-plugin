@@ -1,12 +1,16 @@
 import { readFile, stat } from "fs/promises";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import {
+  cancelAiTextTask,
   DEFAULT_AI_TEXT_SETTINGS,
   deleteAiTextVersion,
-  extractAiText,
   fileExplorerSettings,
+  getAiTextAsset,
+  getAiTextEnvironment,
+  getAiTextLayout,
   getAiTextMetadata,
   getAiTextSettings,
+  getAiTextTask,
   getFileContent,
   getFileTree,
   getPdfWasm,
@@ -14,6 +18,7 @@ import {
   listAiTextAgents,
   saveFileContent,
   selectAiTextVersion,
+  startAiTextTask,
 } from "./shared/contracts.js";
 import {
   deleteExtractedVersion,
@@ -21,9 +26,12 @@ import {
   selectActiveVersion,
 } from "./server/ai-text/metadata-store.js";
 import {
-  discoverAiTextAgents,
-  runAiTextExtractionPipeline,
-} from "./server/ai-text/parser-registry.js";
+  readExtractedVersionAsset,
+  readExtractedVersionLayout,
+} from "./server/ai-text/version-artifacts.js";
+import { getMineruEnvironment } from "./server/ai-text/environment.js";
+import { discoverAiTextAgents } from "./server/ai-text/parser-registry.js";
+import { createAiTextTaskStore } from "./server/ai-text/task-store.js";
 import { atomicWriteFile, safeResolve, workspaceRoot } from "./server/paths.js";
 import { contentTypeFor, scanWorkspaceTree } from "./server/scan.js";
 
@@ -46,6 +54,7 @@ async function locate(paseo: unknown, workspaceId: string, relPath: string) {
 
 export default function contribute(server: PluginServerContext) {
   const settingsHandle = server.registerSettings(fileExplorerSettings);
+  const aiTextTasks = createAiTextTaskStore();
 
   async function resolveAiTextSettings() {
     try {
@@ -160,21 +169,91 @@ export default function contribute(server: PluginServerContext) {
   );
 
   server.handle(
-    extractAiText,
-    async ({ workspaceId, relPath, parserId, agentId }, { paseo }) => {
-      const root = await workspaceRoot(paseo, workspaceId);
-      const sourceAbsPath = await safeResolve(root, relPath);
+    startAiTextTask,
+    async (
+      { workspaceId, relPath, kind, parserId, agentId, tier, source },
+      { paseo },
+    ) => {
+      if (kind === "parse" && !workspaceId) {
+        throw new Error("workspaceId is required to parse a file");
+      }
+      const root = workspaceId
+        ? await workspaceRoot(paseo, workspaceId)
+        : undefined;
+      const sourceAbsPath =
+        root && relPath ? await safeResolve(root, relPath) : undefined;
       const aiSettings = await resolveAiTextSettings();
-      return await runAiTextExtractionPipeline({
+      return aiTextTasks.start({
         paseo,
-        workspaceId,
+        workspaceId: workspaceId ?? "",
+        relPath,
         workspaceRootPath: root,
-        sourceRelPath: relPath,
         sourceAbsPath,
+        kind,
         settings: aiSettings,
-        parserIdOverride: parserId,
-        agentIdOverride: agentId,
+        parserId,
+        agentId,
+        tier,
+        source,
       });
+    },
+  );
+
+  server.handle(getAiTextTask, async ({ taskId }) => {
+    const task = aiTextTasks.get(taskId);
+    if (!task) {
+      throw new Error("AI Text task not found or expired");
+    }
+    return { task };
+  });
+
+  server.handle(cancelAiTextTask, async ({ taskId }) => ({
+    cancelled: aiTextTasks.cancel(taskId),
+  }));
+
+  server.handle(
+    getAiTextLayout,
+    async ({ workspaceId, relPath, versionId }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await readExtractedVersionLayout(
+        root,
+        relPath,
+        versionId,
+        aiSettings.outputRootDir,
+      );
+    },
+  );
+
+  server.handle(
+    getAiTextAsset,
+    async (
+      { workspaceId, relPath, versionId, assetPath },
+      { paseo },
+    ) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await readExtractedVersionAsset(
+        root,
+        relPath,
+        versionId,
+        assetPath,
+        aiSettings.outputRootDir,
+      );
+    },
+  );
+
+  server.handle(
+    getAiTextEnvironment,
+    async ({ refresh }) => {
+      const aiSettings = await resolveAiTextSettings();
+      const environment = await getMineruEnvironment({
+        kitCommand: aiSettings.mineru.kitCommand,
+        localApiUrl: aiSettings.mineru.localApiUrl,
+        tier: aiSettings.mineru.tier,
+        refresh: refresh ?? false,
+      });
+      return { environment };
     },
   );
 

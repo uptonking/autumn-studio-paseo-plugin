@@ -6,6 +6,12 @@ import {
   aiTextParserProviderIdSchema,
   aiTextVersionRecordSchema,
 } from "./ai-text-settings.ts";
+import { aiTextLayoutDocumentSchema } from "./ai-text-layout.ts";
+import {
+  aiTextEnvironmentSchema,
+  aiTextTaskKindSchema,
+  aiTextTaskSnapshotSchema,
+} from "./ai-text-task.ts";
 
 /**
  * Workspace files as a nested tree. Folder paths carry a trailing slash
@@ -119,19 +125,89 @@ export const getAiTextMetadata = defineRpc({
   }),
 });
 
-/** Runs the configured parser + agent to create a new versioned Markdown file inside `.autumn/`. */
-export const extractAiText = defineRpc({
-  name: "ai_text.extract",
+/**
+ * Starts a long-running AI Text job. Parsing can take minutes when a local
+ * MinerU model download or OCR pass is involved, so callers poll `task.get`
+ * instead of holding one RPC open.
+ */
+export const startAiTextTask = defineRpc({
+  name: "ai_text.task.start",
+  input: z.object({
+    /** Required for `parse`; optional for global repairs started from settings. */
+    workspaceId: z.string().optional(),
+    relPath: z.string().optional(),
+    kind: aiTextTaskKindSchema,
+    parserId: aiTextParserProviderIdSchema.optional(),
+    agentId: z.string().optional(),
+    tier: z.string().optional(),
+    source: z.string().optional(),
+  }),
+  output: z.object({
+    taskId: z.string(),
+  }),
+});
+
+/** Snapshot of a running or finished AI Text task. */
+export const getAiTextTask = defineRpc({
+  name: "ai_text.task.get",
+  input: z.object({
+    taskId: z.string(),
+  }),
+  output: z.object({
+    task: aiTextTaskSnapshotSchema,
+  }),
+});
+
+/** Cancels a running task and terminates any child process it owns. */
+export const cancelAiTextTask = defineRpc({
+  name: "ai_text.task.cancel",
+  input: z.object({
+    taskId: z.string(),
+  }),
+  output: z.object({
+    cancelled: z.boolean(),
+  }),
+});
+
+/** Loads the stored layout blocks for one extracted version. */
+export const getAiTextLayout = defineRpc({
+  name: "ai_text.layout.get",
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
-    parserId: aiTextParserProviderIdSchema.optional(),
-    agentId: z.string().optional(),
+    versionId: z.string(),
   }),
   output: z.object({
-    metadata: aiTextDocumentMetadataSchema,
-    newVersion: aiTextVersionRecordSchema,
-    content: z.string(),
+    versionId: z.string(),
+    layout: aiTextLayoutDocumentSchema.nullable(),
+    message: z.string().optional(),
+  }),
+});
+
+/** Returns one version image asset as base64 for a blob URL. */
+export const getAiTextAsset = defineRpc({
+  name: "ai_text.asset.get",
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    versionId: z.string(),
+    assetPath: z.string(),
+  }),
+  output: z.object({
+    mimeType: z.string(),
+    base64: z.string(),
+  }),
+});
+
+/** Detects the local MinerU install, models, uv, and local API daemon. */
+export const getAiTextEnvironment = defineRpc({
+  name: "ai_text.environment.get",
+  input: z.object({
+    workspaceId: z.string().optional(),
+    refresh: z.boolean().optional(),
+  }),
+  output: z.object({
+    environment: aiTextEnvironmentSchema,
   }),
 });
 
@@ -166,5 +242,7 @@ export const deleteAiTextVersion = defineRpc({
 });
 
 export * from "./settings.ts";
+export * from "./ai-text-layout.ts";
+export * from "./ai-text-task.ts";
 
 

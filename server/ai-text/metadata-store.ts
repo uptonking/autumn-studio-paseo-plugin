@@ -1,16 +1,52 @@
-import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, join, posix } from "node:path";
+import {
+  readFile,
+  rm,
+  rmdir,
+  stat,
+  unlink,
+} from "node:fs/promises";
+import { basename, join, posix } from "node:path";
 import {
   aiTextDocumentMetadataSchema,
+  aiTextLayoutDocumentSchema,
   computeMarkdownStructureStats,
   toAutumnDocFolderSlug,
   type AiTextDocumentMetadata,
+  type AiTextLayoutDocument,
+  type AiTextVersionAssetsRef,
+  type AiTextVersionLayoutRef,
   type AiTextVersionProvenance,
   type AiTextVersionRecord,
 } from "../../shared/contracts.ts";
 import { safeResolve } from "../paths.ts";
+import {
+  writeFileAtomically,
+  writeVersionAssets,
+  type ExtractedAssetInput,
+} from "./version-assets.ts";
 
 const METADATA_FILE_NAME = "metadata.json";
+
+/**
+ * Generated version ids are timestamp + counter + sanitized parser/agent
+ * tokens. Rejecting anything else keeps every derived artifact path inside the
+ * document folder, even when `metadata.json` was edited by hand.
+ */
+const VERSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export type { ExtractedAssetInput } from "./version-assets.ts";
+
+function versionArtifactPaths(docFolderRelPath: string, versionId: string) {
+  const mdFileName = `${versionId}.md`;
+  const layoutFileName = `${versionId}.layout.json`;
+  return {
+    mdFileName,
+    mdRelPath: `${docFolderRelPath}/${mdFileName}`,
+    layoutFileName,
+    layoutRelPath: `${docFolderRelPath}/${layoutFileName}`,
+    assetsDirName: `${versionId}.assets`,
+  };
+}
 
 function sanitizeOutputRootDir(outputRootDir?: string): string {
   const trimmed = (outputRootDir ?? ".autumn")
@@ -48,32 +84,6 @@ function formatTimestampCompact(date: Date): string {
 
 function sanitizeToken(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 32) || "default";
-}
-
-async function writeNewOrExistingFileAtomically(
-  filePath: string,
-  data: Buffer | string,
-): Promise<{ size: number; mtimeMs: number }> {
-  const dir = dirname(filePath);
-  await mkdir(dir, { recursive: true });
-  const base = basename(filePath);
-  const tempPath = join(
-    dir,
-    `.${base}.paseo-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`,
-  );
-  const buf = typeof data === "string" ? Buffer.from(data, "utf8") : data;
-  try {
-    await writeFile(tempPath, buf, { mode: 0o644 });
-    await rename(tempPath, filePath);
-  } catch (err) {
-    await unlink(tempPath).catch(() => undefined);
-    throw err;
-  }
-  const updatedStats = await stat(filePath);
-  return {
-    size: updatedStats.size,
-    mtimeMs: updatedStats.mtimeMs,
-  };
 }
 
 export interface AutumnDocPaths {
@@ -149,15 +159,72 @@ export async function readDocumentMetadata(
 
   const validVersions: AiTextVersionRecord[] = [];
   for (const version of parsedResult.data.versions) {
+    if (!VERSION_ID_PATTERN.test(version.id)) continue;
+    const artifactPaths = versionArtifactPaths(
+      paths.docFolderRelPath,
+      version.id,
+    );
+    if (
+      version.fileName !== artifactPaths.mdFileName ||
+      version.relPath !== artifactPaths.mdRelPath
+    ) {
+      continue;
+    }
     try {
-      const absMdPath = await safeResolve(workspaceRootPath, version.relPath);
+      const absMdPath = await safeResolve(
+        workspaceRootPath,
+        artifactPaths.mdRelPath,
+      );
       const st = await stat(absMdPath);
-      if (st.isFile()) {
-        validVersions.push({
-          ...version,
-          size: st.size,
-        });
+      if (!st.isFile()) continue;
+
+      // Derive layout and asset locations from the version id instead of
+      // trusting the stored refs: a stale or hand-edited metadata file must
+      // never point reads or deletes at another workspace path.
+      let layout = version.layout
+        ? {
+            ...version.layout,
+            fileName: artifactPaths.layoutFileName,
+            relPath: artifactPaths.layoutRelPath,
+          }
+        : null;
+      if (layout) {
+        try {
+          const absLayoutPath = await safeResolve(
+            workspaceRootPath,
+            artifactPaths.layoutRelPath,
+          );
+          const layoutStats = await stat(absLayoutPath);
+          if (!layoutStats.isFile()) layout = null;
+        } catch {
+          layout = null;
+        }
       }
+
+      let assets = version.assets
+        ? { ...version.assets, dirName: artifactPaths.assetsDirName }
+        : null;
+      if (assets) {
+        try {
+          const absAssetsDir = await safeResolve(
+            workspaceRootPath,
+            `${paths.docFolderRelPath}/${artifactPaths.assetsDirName}`,
+          );
+          const assetStats = await stat(absAssetsDir);
+          if (!assetStats.isDirectory()) assets = null;
+        } catch {
+          assets = null;
+        }
+      }
+
+      validVersions.push({
+        ...version,
+        fileName: artifactPaths.mdFileName,
+        relPath: artifactPaths.mdRelPath,
+        size: st.size,
+        layout: layout ?? null,
+        assets: assets ?? null,
+      });
     } catch {
       // Skip deleted version files
     }
@@ -206,6 +273,8 @@ export async function appendExtractedVersion(input: {
   markdownContent: string;
   durationMs: number;
   provenance: AiTextVersionProvenance;
+  layout?: AiTextLayoutDocument | null;
+  assets?: ExtractedAssetInput[];
   outputRootDir?: string;
   now?: Date;
 }): Promise<{
@@ -234,11 +303,11 @@ export async function appendExtractedVersion(input: {
   const parserToken = sanitizeToken(input.provenance.parserId);
   const agentToken = sanitizeToken(input.provenance.agentId);
   const versionId = `${ts}_v${nextVersionNumber}_${parserToken}_${agentToken}`;
-  const mdFileName = `${versionId}.md`;
-  const mdRelPath = `${paths.docFolderRelPath}/${mdFileName}`;
+  const artifactPaths = versionArtifactPaths(paths.docFolderRelPath, versionId);
+  const { mdFileName, mdRelPath } = artifactPaths;
   const mdAbsPath = join(paths.docFolderAbsPath, mdFileName);
 
-  const written = await writeNewOrExistingFileAtomically(
+  const written = await writeFileAtomically(
     mdAbsPath,
     input.markdownContent,
   );
@@ -246,10 +315,52 @@ export async function appendExtractedVersion(input: {
   // Verify containment via safeResolve
   await safeResolve(input.workspaceRootPath, mdRelPath);
 
+  const warnings = [...(input.provenance.warnings ?? [])];
+
+  let assetsRef: AiTextVersionAssetsRef | null = null;
+  if (input.assets && input.assets.length > 0) {
+    assetsRef = await writeVersionAssets({
+      workspaceRootPath: input.workspaceRootPath,
+      docFolderAbsPath: paths.docFolderAbsPath,
+      docFolderRelPath: paths.docFolderRelPath,
+      assetsDirName: artifactPaths.assetsDirName,
+      assets: input.assets,
+      warnings,
+    });
+  }
+
+  let layoutRef: AiTextVersionLayoutRef | null = null;
+  if (input.layout && input.layout.blocks.length > 0) {
+    const { layoutFileName, layoutRelPath } = artifactPaths;
+    try {
+      const layoutAbsPath = join(paths.docFolderAbsPath, layoutFileName);
+      const serialized = aiTextLayoutDocumentSchema.parse(input.layout);
+      await writeFileAtomically(
+        layoutAbsPath,
+        `${JSON.stringify(serialized)}\n`,
+      );
+      await safeResolve(input.workspaceRootPath, layoutRelPath);
+      layoutRef = {
+        fileName: layoutFileName,
+        relPath: layoutRelPath,
+        blockCount: serialized.blockCount,
+        pageCount: serialized.pageCount,
+        source: serialized.source,
+      };
+    } catch (error) {
+      warnings.push(
+        `Layout metadata could not be stored: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   const stats = computeMarkdownStructureStats(input.markdownContent);
   const enrichedProvenance: AiTextVersionProvenance = {
     ...stats,
     ...input.provenance,
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 
   const newVersion: AiTextVersionRecord = {
@@ -263,6 +374,8 @@ export async function appendExtractedVersion(input: {
     sourceSize: input.sourceSize,
     sourceMtimeMs: input.sourceMtimeMs,
     provenance: enrichedProvenance,
+    layout: layoutRef,
+    assets: assetsRef,
   };
 
   const nextVersions = [newVersion, ...existingVersions].sort(
@@ -279,7 +392,7 @@ export async function appendExtractedVersion(input: {
     versions: nextVersions,
   };
 
-  await writeNewOrExistingFileAtomically(
+  await writeFileAtomically(
     paths.metadataAbsPath,
     `${JSON.stringify(nextMetadata, null, 2)}\n`,
   );
@@ -334,7 +447,7 @@ export async function selectActiveVersion(
     activeVersionId: target?.id ?? null,
   };
 
-  await writeNewOrExistingFileAtomically(
+  await writeFileAtomically(
     paths.metadataAbsPath,
     `${JSON.stringify(updatedMetadata, null, 2)}\n`,
   );
@@ -384,12 +497,36 @@ export async function deleteExtractedVersion(
     (v) => v.id === versionId,
   );
   if (targetToDelete) {
+    const artifactPaths = versionArtifactPaths(
+      paths.docFolderRelPath,
+      targetToDelete.id,
+    );
     try {
       const absMdPath = await safeResolve(
         workspaceRootPath,
-        targetToDelete.relPath,
+        artifactPaths.mdRelPath,
       );
       await unlink(absMdPath);
+    } catch {
+      // Ignore if already removed
+    }
+    // Remove every derived artifact even when the record lost its optional
+    // refs, so half-written or hand-edited metadata cannot leave files behind.
+    try {
+      const absLayoutPath = await safeResolve(
+        workspaceRootPath,
+        artifactPaths.layoutRelPath,
+      );
+      await unlink(absLayoutPath);
+    } catch {
+      // Ignore if already removed
+    }
+    try {
+      const absAssetsDir = await safeResolve(
+        workspaceRootPath,
+        `${paths.docFolderRelPath}/${artifactPaths.assetsDirName}`,
+      );
+      await rm(absAssetsDir, { recursive: true, force: true });
     } catch {
       // Ignore if already removed
     }
@@ -398,6 +535,8 @@ export async function deleteExtractedVersion(
   const remaining = current.metadata.versions.filter((v) => v.id !== versionId);
   if (remaining.length === 0) {
     await unlink(paths.metadataAbsPath).catch(() => undefined);
+    // Removing the last version should not leave an empty `.autumn/<slug>/`.
+    await rmdir(paths.docFolderAbsPath).catch(() => undefined);
     return { metadata: null, activeVersion: null, content: null };
   }
 
@@ -411,7 +550,7 @@ export async function deleteExtractedVersion(
     versions: remaining,
   };
 
-  await writeNewOrExistingFileAtomically(
+  await writeFileAtomically(
     paths.metadataAbsPath,
     `${JSON.stringify(updatedMetadata, null, 2)}\n`,
   );
@@ -430,4 +569,3 @@ export async function deleteExtractedVersion(
     content,
   };
 }
-

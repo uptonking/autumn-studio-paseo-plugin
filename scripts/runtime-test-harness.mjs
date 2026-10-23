@@ -6,6 +6,7 @@ import {
   handleAiTextRpc,
   verifyAiTextSettingsSection,
 } from "./runtime-test-ai-text.mjs";
+import { createSettingsInput } from "./runtime-test-settings-input.mjs";
 
 export const PLUGIN_DIR = join(fileURLToPath(new URL("../", import.meta.url)));
 
@@ -89,16 +90,27 @@ globalThis.fetch = async (input, init) => {
 export const pluginRequire = createRequire(join(PLUGIN_DIR, "package.json"));
 export const React = pluginRequire("react");
 
+// React Native accepts style arrays and falsy entries; React DOM does not.
+const flattenStyle = (style) => {
+  if (Array.isArray(style)) {
+    return style.reduce(
+      (acc, item) => Object.assign(acc, flattenStyle(item)),
+      {},
+    );
+  }
+  return style && typeof style === "object" ? style : {};
+};
+
 const View = ({ testID, style, children, ...rest }) =>
   React.createElement(
     "div",
-    { ...rest, "data-testid": testID, style },
+    { ...rest, "data-testid": testID, style: flattenStyle(style) },
     children,
   );
 const Text = ({ testID, style, numberOfLines: _numberOfLines, children, ...rest }) =>
   React.createElement(
     "span",
-    { ...rest, "data-testid": testID, style },
+    { ...rest, "data-testid": testID, style: flattenStyle(style) },
     children,
   );
 const ScrollView = ({
@@ -113,7 +125,10 @@ const ScrollView = ({
     {
       ...rest,
       "data-testid": testID,
-      style: { ...style, ...contentContainerStyle },
+      style: Object.assign(
+        flattenStyle(style),
+        flattenStyle(contentContainerStyle),
+      ),
     },
     children,
   );
@@ -139,10 +154,11 @@ const Pressable = ({
           ? String(Boolean(accessibilityState.selected))
           : undefined,
       "data-testid": testID,
-      style:
+      style: flattenStyle(
         typeof style === "function"
           ? style({ pressed: false, hovered: false })
           : style,
+      ),
       onClick: disabled ? undefined : onPress,
     },
     typeof children === "function"
@@ -326,19 +342,23 @@ export const sdkClient = {
     }
     return { tree: fakeTree, truncated: false };
   },
-  useSettings: () => ({
-    status: "ready",
-    values: currentSettingsData,
-    revision: "rev-1",
-    saving: false,
-    saveError: null,
-    save: async (nextValues) => {
-      currentSettingsData = nextValues;
-      return true;
-    },
-    reset: async () => true,
-    reload: async () => {},
-  }),
+  useSettings: () => {
+    const [values, setValues] = React.useState(currentSettingsData);
+    return {
+      status: "ready",
+      values,
+      revision: "rev-1",
+      saving: false,
+      saveError: null,
+      save: async (nextValues) => {
+        currentSettingsData = nextValues;
+        setValues(nextValues);
+        return true;
+      },
+      reset: async () => true,
+      reload: async () => {},
+    };
+  },
   useToast: () => ({ show() {}, error() {} }),
   copyText: async () => {},
 };
@@ -419,6 +439,7 @@ export const sdkClientUi = {
       ),
     );
   },
+  SettingsInput: createSettingsInput(React),
   SettingsAction: ({ label, title, hint, description, actionLabel, onPress }) => {
     const displayLabel = label ?? title;
     const displayHint = hint ?? description;

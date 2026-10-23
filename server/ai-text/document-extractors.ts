@@ -307,6 +307,11 @@ export async function parseWithExternalProvider(input: {
     };
   }
 
+  // A network hang should end the task, not hold it until the user cancels.
+  const requestSignal = input.signal
+    ? AbortSignal.any([input.signal, AbortSignal.timeout(300_000)])
+    : AbortSignal.timeout(300_000);
+
   try {
     if (input.parserId === "datalab") {
       const endpoint =
@@ -322,7 +327,7 @@ export async function parseWithExternalProvider(input: {
         method: "POST",
         headers: { "X-Api-Key": apiKey },
         body: form,
-        signal: input.signal,
+        signal: requestSignal,
       });
       if (res.ok) {
         const json = (await res.json()) as { markdown?: string };
@@ -344,7 +349,7 @@ export async function parseWithExternalProvider(input: {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}` },
         body: form,
-        signal: input.signal,
+        signal: requestSignal,
       });
       if (res.ok) {
         const json = (await res.json()) as { markdown?: string };
@@ -364,7 +369,7 @@ export async function parseWithExternalProvider(input: {
               "Content-Type": "application/octet-stream",
             },
             body: new Uint8Array(input.buffer),
-            signal: input.signal,
+            signal: requestSignal,
           },
         );
         if (res.ok) {
@@ -378,7 +383,10 @@ export async function parseWithExternalProvider(input: {
         }
       }
     }
-  } catch {
+  } catch (error) {
+    if (input.signal?.aborted) {
+      throw input.signal.reason ?? error;
+    }
     // Fall back to local extraction when offline or endpoint unreachable
   }
 

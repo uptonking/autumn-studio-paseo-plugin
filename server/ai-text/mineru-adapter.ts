@@ -1,9 +1,9 @@
 import dns from "node:dns";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, extname, join } from "node:path";
-import { execCommand } from "@getpaseo/plugin/server";
+import { basename, join } from "node:path";
 import type { MineruSettings } from "../../shared/contracts.ts";
+import type { AiTextLayoutDocument } from "../../shared/ai-text-layout.ts";
 import {
   extractDocxMarkdownFromBuffer,
   extractHtmlMarkdownFromBuffer,
@@ -12,6 +12,16 @@ import {
   extractPdfStreamsPureJs,
   extractPdfWithPopplerAndVision,
 } from "./pdf-local-ocr.ts";
+import { buildProcessError, runProcess } from "./command-runner.ts";
+import { resolveExecutable } from "./executable.ts";
+import { getMineruEnvironment } from "./environment.ts";
+import { normalizeMineruMiddleJson } from "./layout-normalizer.ts";
+import {
+  parseMineruZipBuffer,
+  runMineruCloudFree,
+  runMineruCloudToken,
+  type CloudTokenResult,
+} from "./mineru-cloud.ts";
 
 try {
   dns.setDefaultResultOrder("ipv4first");
@@ -19,30 +29,51 @@ try {
   // Ignore if unsupported by runtime
 }
 
+const MAX_LOCAL_MARKDOWN_BYTES = 32 * 1024 * 1024;
+const MAX_LOCAL_ZIP_BYTES = 512 * 1024 * 1024;
+
+export interface MineruAsset {
+  /** Version-relative POSIX path such as `images/abc.jpg`. */
+  path: string;
+  data: Uint8Array;
+}
+
 export interface MineruParseResult {
   markdown: string;
+  layout: AiTextLayoutDocument | null;
+  assets: MineruAsset[];
   modeUsed: string;
+  warnings: string[];
+  fallbackReason?: string;
 }
 
-function toAsciiSafeFileName(fileName: string): string {
-  const ext = extname(fileName) || ".pdf";
-  const stem = basename(fileName, ext)
-    .replace(/[^A-Za-z0-9._-]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return `${stem || "document"}${ext}`;
+export interface MineruParseProgress {
+  phase?: string;
+  message?: string;
+  percent?: number | null;
 }
 
-function normalizeMineruLanguage(lang: string | undefined): string {
-  const trimmed = (lang ?? "").trim();
-  if (!trimmed || trimmed === "auto") {
-    return "ch";
-  }
-  return trimmed;
+export interface MineruParseInput {
+  filePath: string;
+  fileName?: string;
+  buffer: Buffer;
+  settings: MineruSettings;
+  signal?: AbortSignal;
+  onProgress?: (update: MineruParseProgress) => void;
+  onLog?: (line: string) => void;
 }
 
-function withStepTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal {
-  const timeoutSignal = AbortSignal.timeout(ms);
-  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+function emptyLocalResult(
+  markdown: string,
+  modeUsed: string,
+): MineruParseResult {
+  return {
+    markdown,
+    layout: null,
+    assets: [],
+    modeUsed,
+    warnings: [],
+  };
 }
 
 /**
@@ -98,308 +129,393 @@ export async function extractLocalDocumentWithOcr(input: {
       signal: input.signal,
     });
     if (pdfRes) {
-      return pdfRes;
+      return emptyLocalResult(pdfRes.markdown, pdfRes.modeUsed);
     }
   }
-  return {
-    markdown: extractLocalDocumentFallback(input.buffer, input.fileName),
-    modeUsed: "local-fallback",
-  };
+  return emptyLocalResult(
+    extractLocalDocumentFallback(input.buffer, input.fileName),
+    "local-fallback",
+  );
 }
 
-async function runMineruCloudFree(
-  filePath: string,
-  fileName: string,
-  buffer: Buffer,
-  settings: MineruSettings,
-  signal?: AbortSignal,
-): Promise<string> {
-  const baseUrl = settings.apiBaseUrl.replace(/\/+$/, "");
-  const safeFileName = toAsciiSafeFileName(fileName);
-  const initRes = await fetch(`${baseUrl}/api/v1/agent/parse/file`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      file_name: safeFileName,
-      enable_ocr: settings.enableOcr,
-      enable_formula: settings.enableFormula,
-      enable_table: settings.enableTable,
-      language: normalizeMineruLanguage(settings.language),
-    }),
-    signal: withStepTimeout(signal, 10_000),
-  });
-  if (!initRes.ok) {
-    throw new Error(`MinerU free API init failed (HTTP ${initRes.status})`);
-  }
-  const initJson = (await initRes.json()) as {
-    code?: number;
-    msg?: string;
-    data?: { task_id?: string; file_url?: string };
-  };
-  const taskId = initJson?.data?.task_id;
-  const uploadUrl = initJson?.data?.file_url;
-  if (!taskId || !uploadUrl) {
-    throw new Error(
-      initJson?.msg || `MinerU free API did not return task_id for ${filePath}`,
-    );
+export function tokenizeArgs(raw: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  let hasToken = false;
+
+  for (const char of raw) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      hasToken = true;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      } else {
+        current += char;
+      }
+      hasToken = true;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      hasToken = true;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (hasToken) {
+        args.push(current);
+        current = "";
+        hasToken = false;
+      }
+      continue;
+    }
+    current += char;
+    hasToken = true;
   }
 
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    body: new Uint8Array(buffer),
-    signal: withStepTimeout(signal, 15_000),
-  });
-  if (!putRes.ok) {
-    throw new Error(`MinerU OSS file upload failed (HTTP ${putRes.status})`);
-  }
-
-  const maxPolls = 25;
-  for (let attempt = 0; attempt < maxPolls; attempt++) {
-    const pollRes = await fetch(`${baseUrl}/api/v1/agent/parse/${taskId}`, {
-      method: "GET",
-      signal: withStepTimeout(signal, 8_000),
-    });
-    if (!pollRes.ok) {
-      throw new Error(`MinerU task poll failed (HTTP ${pollRes.status})`);
-    }
-    const pollJson = (await pollRes.json()) as {
-      data?: {
-        state?: string;
-        markdown_url?: string;
-        full_md?: string;
-        err_msg?: string;
-      };
-    };
-    const state = pollJson?.data?.state;
-    if (state === "done") {
-      if (typeof pollJson.data?.full_md === "string" && pollJson.data.full_md) {
-        return pollJson.data.full_md;
-      }
-      const mdUrl = pollJson.data?.markdown_url;
-      if (!mdUrl) {
-        throw new Error("MinerU completed without a markdown_url");
-      }
-      const mdRes = await fetch(mdUrl, {
-        signal: withStepTimeout(signal, 8_000),
-      });
-      if (!mdRes.ok) {
-        throw new Error(`Failed to fetch MinerU markdown (HTTP ${mdRes.status})`);
-      }
-      return await mdRes.text();
-    }
-    if (state === "failed") {
-      throw new Error(pollJson?.data?.err_msg || "MinerU parsing failed");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error("MinerU parsing timed out waiting for completion");
+  if (escaped) current += "\\";
+  if (hasToken) args.push(current);
+  return args;
 }
 
-async function runMineruCloudToken(
-  fileName: string,
-  buffer: Buffer,
-  settings: MineruSettings,
-  signal?: AbortSignal,
-): Promise<string> {
-  const token = settings.apiToken.trim();
-  if (!token) {
-    throw new Error(
-      "MinerU API token is required when MinerU mode is set to Cloud API v4 (Token).",
-    );
-  }
-  const baseUrl = settings.apiBaseUrl.replace(/\/+$/, "");
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-  const safeFileName = toAsciiSafeFileName(fileName);
-  const batchRes = await fetch(`${baseUrl}/api/v4/file-urls/batch`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      enable_formula: settings.enableFormula,
-      enable_table: settings.enableTable,
-      language: normalizeMineruLanguage(settings.language),
-      files: [{ name: safeFileName, is_ocr: settings.enableOcr }],
-    }),
-    signal: withStepTimeout(signal, 10_000),
-  });
-  if (!batchRes.ok) {
-    throw new Error(`MinerU v4 batch init failed (HTTP ${batchRes.status})`);
-  }
-  const batchJson = (await batchRes.json()) as {
-    msg?: string;
-    data?: { batch_id?: string; file_urls?: string[] };
-  };
-  const batchId = batchJson?.data?.batch_id;
-  const uploadUrl = batchJson?.data?.file_urls?.[0];
-  if (!batchId || !uploadUrl) {
-    throw new Error(
-      batchJson?.msg || "MinerU v4 API did not return batch_id and file_urls",
-    );
-  }
-
-  const putRes = await fetch(uploadUrl, {
-    method: "PUT",
-    body: new Uint8Array(buffer),
-    signal: withStepTimeout(signal, 15_000),
-  });
-  if (!putRes.ok) {
-    throw new Error(`MinerU v4 upload failed (HTTP ${putRes.status})`);
-  }
-
-  const maxPolls = 25;
-  for (let attempt = 0; attempt < maxPolls; attempt++) {
-    const pollRes = await fetch(
-      `${baseUrl}/api/v4/extract-results/batch/${batchId}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        signal: withStepTimeout(signal, 8_000),
-      },
-    );
-    if (!pollRes.ok) {
-      throw new Error(`MinerU v4 poll failed (HTTP ${pollRes.status})`);
-    }
-    const pollJson = (await pollRes.json()) as {
-      data?: {
-        extract_result?: Array<{
-          state?: string;
-          full_md?: string;
-          markdown_url?: string;
-          full_zip_url?: string;
-          err_msg?: string;
-        }>;
-      };
-    };
-    const item = pollJson?.data?.extract_result?.[0];
-    if (item?.state === "done") {
-      if (typeof item.full_md === "string" && item.full_md) {
-        return item.full_md;
-      }
-      if (item.markdown_url) {
-        const mdRes = await fetch(item.markdown_url, {
-          signal: withStepTimeout(signal, 8_000),
-        });
-        if (mdRes.ok) return await mdRes.text();
-      }
-      if (item.full_zip_url) {
-        return `# ${fileName}\n\nMinerU v4 extraction archive: ${item.full_zip_url}\n`;
-      }
-    }
-    if (item?.state === "failed") {
-      throw new Error(item.err_msg || "MinerU v4 task failed");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error("MinerU v4 batch task timed out");
-}
-
-async function findFirstMarkdownFile(dir: string): Promise<string | null> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
-      return full;
-    }
-    if (entry.isDirectory()) {
-      const nested = await findFirstMarkdownFile(full);
-      if (nested) return nested;
-    }
-  }
-  return null;
-}
-
-async function runMineruLocalCli(
-  filePath: string,
-  settings: MineruSettings,
-  signal?: AbortSignal,
-): Promise<string> {
-  const tempOut = await mkdtemp(join(tmpdir(), "paseo-mineru-"));
-  const cmd = settings.cliCommand.trim() || "mineru";
-  try {
-    await execCommand(cmd, ["-p", filePath, "-o", tempOut], {
-      timeout: 180_000,
-      signal,
-    });
-    const mdPath = await findFirstMarkdownFile(tempOut);
-    if (!mdPath) {
-      throw new Error(`MinerU CLI (${cmd}) did not produce a .md output file`);
-    }
-    return await readFile(mdPath, "utf8");
-  } finally {
-    await rm(tempOut, { recursive: true, force: true }).catch(() => undefined);
-  }
-}
-
-export async function parseWithMineru(input: {
+export function buildMineruKitArgs(input: {
   filePath: string;
-  fileName?: string;
-  buffer: Buffer;
+  outputPath: string;
+  format: "markdown" | "zip";
   settings: MineruSettings;
-  signal?: AbortSignal;
-}): Promise<MineruParseResult> {
-  const fileName = input.fileName || basename(input.filePath);
-  const mode = input.settings.mode || "cloud-free";
+  useLocalApi: boolean;
+}): string[] {
+  const { settings } = input;
+  const args = [
+    "parse",
+    input.filePath,
+    "-o",
+    input.outputPath,
+    "-f",
+    input.format,
+  ];
 
-  if (mode === "local-cli") {
-    try {
-      const markdown = await runMineruLocalCli(
-        input.filePath,
-        input.settings,
-        input.signal,
-      );
-      return { markdown, modeUsed: "local-cli" };
-    } catch {
-      return await extractLocalDocumentWithOcr({
-        filePath: input.filePath,
-        fileName,
-        buffer: input.buffer,
-        enableOcr: input.settings.enableOcr,
-        enableTable: input.settings.enableTable,
-        signal: input.signal,
-      });
-    }
+  if (settings.tier) args.push("--tier", settings.tier);
+  if (settings.ocrMode) args.push("--ocr-mode", settings.ocrMode);
+  if (settings.pages.trim()) args.push("--pages", settings.pages.trim());
+  if (settings.disableImageAnalysis) args.push("--disable-image-analysis");
+
+  const remoteUrl = input.useLocalApi
+    ? settings.localApiUrl.trim()
+    : settings.remoteUrl.trim();
+  if (remoteUrl) args.push("--remote-url", remoteUrl);
+  if (remoteUrl && !input.useLocalApi && settings.remoteApiKey.trim()) {
+    args.push("--api-key", settings.remoteApiKey.trim());
+  }
+  args.push(...tokenizeArgs(settings.extraArgs));
+  return args;
+}
+
+async function runMineruKit(
+  input: MineruParseInput,
+  useLocalApi: boolean,
+): Promise<MineruParseResult> {
+  const { settings } = input;
+  const requestedCommand = settings.kitCommand.trim() || "mineru-kit";
+  const command = await resolveExecutable(requestedCommand);
+  if (!command) {
+    throw new Error(
+      `MinerU Kit CLI "${requestedCommand}" was not found. Install it with "uv tool install mineru" or set an absolute path in AI Text Mode settings.`,
+    );
   }
 
-  if (mode === "cloud-token" && input.settings.apiToken.trim()) {
-    try {
-      const markdown = await runMineruCloudToken(
-        fileName,
-        input.buffer,
-        input.settings,
-        input.signal,
-      );
-      return { markdown, modeUsed: "cloud-token" };
-    } catch {
-      return await extractLocalDocumentWithOcr({
-        filePath: input.filePath,
-        fileName,
-        buffer: input.buffer,
-        enableOcr: input.settings.enableOcr,
-        enableTable: input.settings.enableTable,
-        signal: input.signal,
-      });
-    }
-  }
-
+  const tempDir = await mkdtemp(join(tmpdir(), "paseo-mineru-"));
+  const wantsLayout = settings.extractLayout;
+  const outputPath = join(tempDir, wantsLayout ? "result.zip" : "result.md");
   try {
-    const markdown = await runMineruCloudFree(
-      input.filePath,
+    input.onProgress?.({
+      phase: "Preparing",
+      message: `Starting ${useLocalApi ? "MinerU local API" : "MinerU Kit"}`,
+    });
+    const result = await runProcess({
+      command,
+      args: buildMineruKitArgs({
+        filePath: input.filePath,
+        outputPath,
+        format: wantsLayout ? "zip" : "markdown",
+        settings,
+        useLocalApi,
+      }),
+      timeoutMs: settings.timeoutMs,
+      signal: input.signal,
+      onLog: input.onLog,
+    });
+    if (result.aborted) {
+      throw new Error("MinerU parsing was cancelled");
+    }
+    if (result.code !== 0) {
+      throw new Error(buildProcessError("mineru-kit parse", result));
+    }
+
+    if (!wantsLayout) {
+      const info = await stat(outputPath);
+      if (info.size > MAX_LOCAL_MARKDOWN_BYTES) {
+        throw new Error("MinerU Markdown output exceeds the 32MB limit");
+      }
+      const markdown = await readFile(outputPath, "utf8");
+      return {
+        markdown,
+        layout: null,
+        assets: [],
+        modeUsed: useLocalApi ? "local-api" : "local-cli",
+        warnings: [],
+      };
+    }
+
+    input.onProgress?.({
+      phase: "Extracting layout",
+      message: "Reading MinerU layout blocks and images",
+    });
+    const outputInfo = await stat(outputPath);
+    if (outputInfo.size > MAX_LOCAL_ZIP_BYTES) {
+      throw new Error("MinerU archive exceeds the 512MB limit");
+    }
+    const zipBytes = new Uint8Array(await readFile(outputPath));
+    const parsedZip = parseMineruZipBuffer(zipBytes);
+    if (!parsedZip) {
+      throw new Error(
+        "MinerU produced an archive without a readable markdown.md",
+      );
+    }
+    const warnings = [...parsedZip.warnings];
+    const layout = parsedZip.middleJson
+      ? normalizeMineruMiddleJson({
+          middleJson: parsedZip.middleJson,
+          source: useLocalApi ? "mineru-local-api" : "mineru-kit",
+          parserId: "mineru",
+        })
+      : null;
+    if (!layout) {
+      warnings.push(
+        "MinerU archive had no usable layout geometry; Blocks view is unavailable for this version",
+      );
+    }
+    return {
+      markdown: parsedZip.markdown,
+      layout,
+      assets: parsedZip.assets,
+      modeUsed: useLocalApi ? "local-api" : "local-cli",
+      warnings,
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+async function resolveAutoModes(settings: MineruSettings): Promise<string[]> {
+  const environment = await getMineruEnvironment({
+    kitCommand: settings.kitCommand,
+    localApiUrl: settings.localApiUrl,
+    tier: settings.tier,
+  });
+  const modes: string[] = [];
+  if (environment.kit?.available && environment.models?.tierReady) {
+    modes.push("local-cli");
+  }
+  // Keep the local API as a second local route: a ready CLI can still fail on
+  // a per-document problem, and the daemon may load models differently.
+  if (environment.localApi?.reachable) {
+    modes.push("local-api");
+  }
+  if (settings.apiToken.trim()) modes.push("cloud-token");
+  modes.push("cloud-free");
+  return modes;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason ?? new Error("AI text extraction was cancelled");
+}
+
+async function runConfiguredMode(
+  input: MineruParseInput,
+  mode: string,
+): Promise<MineruParseResult> {
+  throwIfAborted(input.signal);
+  if (mode === "local-cli") {
+    return await runMineruKit(input, false);
+  }
+  if (mode === "local-api") {
+    if (!input.settings.localApiUrl.trim()) {
+      throw new Error(
+        'Local MinerU API mode needs a URL such as "http://127.0.0.1:8000".',
+      );
+    }
+    return await runMineruKit(input, true);
+  }
+  if (mode === "cloud-token" || mode === "cloud-free") {
+    if (!input.settings.apiBaseUrl.trim()) {
+      throw new Error("MinerU cloud endpoint is empty.");
+    }
+  }
+  if (mode === "cloud-token") {
+    const fileName = input.fileName || basename(input.filePath);
+    const wantsLayout = input.settings.extractLayout;
+    const cloud = await runMineruCloudToken(
       fileName,
       input.buffer,
       input.settings,
       input.signal,
     );
-    return { markdown, modeUsed: "cloud-free" };
-  } catch {
-    return await extractLocalDocumentWithOcr({
-      filePath: input.filePath,
-      fileName,
-      buffer: input.buffer,
-      enableOcr: input.settings.enableOcr,
-      enableTable: input.settings.enableTable,
-      signal: input.signal,
-    });
+    if (cloud.zipBytes) {
+      const parsedZip = parseMineruZipBuffer(cloud.zipBytes);
+      if (parsedZip) {
+        const layout =
+          wantsLayout && parsedZip.middleJson
+            ? normalizeMineruMiddleJson({
+                middleJson: parsedZip.middleJson,
+                source: "mineru-cloud",
+                parserId: "mineru",
+              })
+            : null;
+        return {
+          markdown: parsedZip.markdown,
+          layout,
+          assets: parsedZip.assets,
+          modeUsed: "cloud-token",
+          warnings: [
+            ...cloud.warnings,
+            ...parsedZip.warnings,
+            ...(wantsLayout && !layout
+              ? [
+                  "MinerU archive had no usable layout geometry; Blocks view is unavailable for this version",
+                ]
+              : []),
+          ],
+        };
+      }
+      cloud.warnings.push(
+        "MinerU archive could not be read; using Markdown only",
+      );
+    }
+    if (!cloud.markdown.trim()) {
+      throw new Error(
+        "MinerU returned an unreadable archive and no Markdown fallback",
+      );
+    }
+    return {
+      markdown: cloud.markdown,
+      layout: null,
+      assets: [],
+      modeUsed: "cloud-token",
+      warnings: cloud.warnings,
+    };
+  }
+
+  const fileName = input.fileName || basename(input.filePath);
+  const markdown = await runMineruCloudFree(
+    input.filePath,
+    fileName,
+    input.buffer,
+    input.settings,
+    input.signal,
+  );
+  return {
+    markdown,
+    layout: null,
+    assets: [],
+    modeUsed: "cloud-free",
+    warnings: [
+      "The free MinerU API returns Markdown without layout geometry. Use MinerU Kit or the token API to enable Blocks.",
+    ],
+  };
+}
+
+async function runLocalFallback(
+  input: MineruParseInput,
+  fallbackReason: string,
+  warnings: string[],
+): Promise<MineruParseResult> {
+  throwIfAborted(input.signal);
+  const fileName = input.fileName || basename(input.filePath);
+  const local = await extractLocalDocumentWithOcr({
+    filePath: input.filePath,
+    fileName,
+    buffer: input.buffer,
+    enableOcr: input.settings.enableOcr,
+    enableTable: input.settings.enableTable,
+    signal: input.signal,
+  });
+  return {
+    ...local,
+    warnings: [...warnings, fallbackReason],
+    fallbackReason,
+  };
+}
+
+export async function parseWithMineru(
+  input: MineruParseInput,
+): Promise<MineruParseResult> {
+  throwIfAborted(input.signal);
+  const requestedMode = input.settings.mode || "cloud-free";
+  const warnings: string[] = [];
+
+  if (requestedMode === "auto") {
+    // Detection is an optimization, not a prerequisite: a failed probe must
+    // still leave the cloud routes usable.
+    let detected: string[] = [];
+    try {
+      detected = await resolveAutoModes(input.settings);
+    } catch (error) {
+      warnings.push(
+        `Local MinerU detection failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    const candidates = [
+      ...detected,
+      ...(input.settings.apiToken.trim() ? ["cloud-token"] : []),
+      "cloud-free",
+    ].filter((mode, index, list) => list.indexOf(mode) === index);
+
+    for (const mode of candidates) {
+      throwIfAborted(input.signal);
+      try {
+        input.onProgress?.({
+          phase: "Preparing",
+          message: `Trying ${mode}`,
+        });
+        return await runConfiguredMode(input, mode);
+      } catch (error) {
+        throwIfAborted(input.signal);
+        warnings.push(
+          `${mode} failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    return await runLocalFallback(
+      input,
+      "All MinerU routes failed; used local OCR fallback",
+      warnings,
+    );
+  }
+
+  try {
+    return await runConfiguredMode(input, requestedMode);
+  } catch (error) {
+    throwIfAborted(input.signal);
+    const reason = `${requestedMode} failed: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    return await runLocalFallback(
+      input,
+      `${reason}. Used local OCR fallback.`,
+      warnings,
+    );
   }
 }

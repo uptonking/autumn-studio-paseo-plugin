@@ -72,7 +72,7 @@ export function AiTextMetadataPanel({
     for (const agent of availableAgents) {
       if (!agent.id || seen.has(agent.id)) continue;
       seen.add(agent.id);
-      list.push({ id: agent.id, label: agent.id });
+      list.push({ id: agent.id, label: agent.label || agent.id });
     }
     for (const fallbackId of [
       "pi",
@@ -148,6 +148,15 @@ export function AiTextMetadataPanel({
             {statsSummary}
           </span>
         ) : null}
+        {activeVersion.layout ? (
+          <span
+            data-testid="ai-text-provenance-layout"
+            className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300"
+          >
+            {activeVersion.layout.blockCount} blocks ·{" "}
+            {activeVersion.layout.pageCount} pages
+          </span>
+        ) : null}
         {isSourceStale ? (
           <button
             type="button"
@@ -171,6 +180,21 @@ export function AiTextMetadataPanel({
         </span>
       </div>
 
+      {activeVersion.provenance.fallbackReason ||
+      (activeVersion.provenance.warnings?.length ?? 0) > 0 ? (
+        <div
+          data-testid="ai-text-provenance-warnings"
+          className="flex flex-col gap-0.5 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-[10px] text-amber-800 dark:text-amber-200"
+        >
+          {activeVersion.provenance.fallbackReason ? (
+            <span>Fallback: {activeVersion.provenance.fallbackReason}</span>
+          ) : null}
+          {activeVersion.provenance.warnings?.map((warning, index) => (
+            <span key={index}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           data-testid="ai-text-provenance-path"
@@ -191,7 +215,7 @@ export function AiTextMetadataPanel({
         >
           {AI_TEXT_PARSER_CATALOG.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.id}
+              {p.label}
             </option>
           ))}
         </select>

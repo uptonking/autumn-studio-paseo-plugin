@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  aiTextVersionAssetsRefSchema,
+  aiTextVersionLayoutRefSchema,
+} from "./ai-text-layout.ts";
 
 export const aiTextParserProviderIdSchema = z.enum([
   "mineru",
@@ -27,17 +31,43 @@ export function getExternalParserConfig(
 }
 
 export const mineruExecutionModeSchema = z.enum([
-  "cloud-free",
-  "cloud-token",
+  "auto",
   "local-cli",
+  "local-api",
+  "cloud-token",
+  "cloud-free",
 ]);
 export type MineruExecutionMode = z.infer<typeof mineruExecutionModeSchema>;
+
+export const mineruTierSchema = z.enum([
+  "flash",
+  "basic",
+  "standard",
+  "advanced",
+]);
+export type MineruTier = z.infer<typeof mineruTierSchema>;
+
+export const mineruOcrModeSchema = z.enum(["auto", "txt", "ocr"]);
+export type MineruOcrMode = z.infer<typeof mineruOcrModeSchema>;
 
 export const mineruSettingsSchema = z.object({
   mode: mineruExecutionModeSchema.default("cloud-free"),
   apiBaseUrl: z.string().default("https://mineru.net"),
   apiToken: z.string().default(""),
-  cliCommand: z.string().default("mineru"),
+  /** `mineru-kit` executable name or absolute path (MinerU v4). */
+  kitCommand: z.string().default("mineru-kit"),
+  localApiUrl: z.string().default("http://127.0.0.1:8000"),
+  tier: mineruTierSchema.default("standard"),
+  ocrMode: mineruOcrModeSchema.default("auto"),
+  /** Optional page range such as `1-5,8`; empty parses every page. */
+  pages: z.string().default(""),
+  disableImageAnalysis: z.boolean().default(false),
+  /** Optional remote parse endpoint passed to `mineru-kit --remote-url`. */
+  remoteUrl: z.string().default(""),
+  remoteApiKey: z.string().default(""),
+  extraArgs: z.string().default(""),
+  timeoutMs: z.number().int().min(10_000).max(7_200_000).default(900_000),
+  extractLayout: z.boolean().default(true),
   enableOcr: z.boolean().default(true),
   enableFormula: z.boolean().default(true),
   enableTable: z.boolean().default(true),
@@ -49,16 +79,32 @@ export const DEFAULT_MINERU_SETTINGS: MineruSettings = {
   mode: "cloud-free",
   apiBaseUrl: "https://mineru.net",
   apiToken: "",
-  cliCommand: "mineru",
+  kitCommand: "mineru-kit",
+  localApiUrl: "http://127.0.0.1:8000",
+  tier: "standard",
+  ocrMode: "auto",
+  pages: "",
+  disableImageAnalysis: false,
+  remoteUrl: "",
+  remoteApiKey: "",
+  extraArgs: "",
+  timeoutMs: 900_000,
+  extractLayout: true,
   enableOcr: true,
   enableFormula: true,
   enableTable: true,
   language: "auto",
 };
 
+export const aiTextViewerModeSchema = z.enum(["text", "layout-blocks"]);
+export type AiTextViewerMode = z.infer<typeof aiTextViewerModeSchema>;
+
 export const aiTextSettingsSchema = z.object({
   enabled: z.boolean().default(true),
   openSplitViewByDefault: z.boolean().default(false),
+  defaultAiTextViewer: aiTextViewerModeSchema.default("text"),
+  showLayoutBlockOverlays: z.boolean().default(true),
+  autoScrollToLayoutBlock: z.boolean().default(true),
   defaultAgent: z.string().default("pi"),
   useAgentRefinement: z.boolean().default(true),
   defaultParser: aiTextParserProviderIdSchema.default("mineru"),
@@ -71,6 +117,9 @@ export type AiTextSettings = z.infer<typeof aiTextSettingsSchema>;
 export const DEFAULT_AI_TEXT_SETTINGS: AiTextSettings = {
   enabled: true,
   openSplitViewByDefault: false,
+  defaultAiTextViewer: "text",
+  showLayoutBlockOverlays: true,
+  autoScrollToLayoutBlock: true,
   defaultAgent: "pi",
   useAgentRefinement: true,
   defaultParser: "mineru",
@@ -94,6 +143,11 @@ export const aiTextVersionProvenanceSchema = z.object({
   headingCount: z.number().int().min(0).optional(),
   tableCount: z.number().int().min(0).optional(),
   codeBlockCount: z.number().int().min(0).optional(),
+  /** Concrete MinerU route used after `auto` resolution. */
+  modeUsed: z.string().optional(),
+  /** Set when the configured parser failed and a fallback ran instead. */
+  fallbackReason: z.string().optional(),
+  warnings: z.array(z.string()).optional(),
 });
 export type AiTextVersionProvenance = z.infer<
   typeof aiTextVersionProvenanceSchema
@@ -153,6 +207,10 @@ export const aiTextVersionRecordSchema = z.object({
   sourceSize: z.number().min(0),
   sourceMtimeMs: z.number(),
   provenance: aiTextVersionProvenanceSchema,
+  /** Present when the parser produced page geometry. */
+  layout: aiTextVersionLayoutRefSchema.nullable().optional(),
+  /** Present when the parser produced figure/table images. */
+  assets: aiTextVersionAssetsRefSchema.nullable().optional(),
 });
 export type AiTextVersionRecord = z.infer<typeof aiTextVersionRecordSchema>;
 
@@ -293,7 +351,12 @@ export function toAutumnDocFolderSlug(relPath: string): string {
   const safe = normalized
     .split("/")
     .filter(Boolean)
-    .map((segment) => segment.replace(/[^\p{L}\p{N}._-]/gu, "_"))
+    .map((segment) => {
+      // `.` and `..` are valid characters but not valid folder segments:
+      // joining them would let the doc folder escape `.autumn/`.
+      if (segment === "." || segment === "..") return "_";
+      return segment.replace(/[^\p{L}\p{N}._-]/gu, "_");
+    })
     .join("__");
   return safe || "document";
 }
