@@ -222,7 +222,7 @@ describe("contracts: fileExplorerSettings", () => {
     assert.deepEqual(parsed, custom);
     assert.equal(fileExplorerSettings.id, "preferences");
     assert.equal(fileExplorerSettings.scope, "host");
-    assert.equal(fileExplorerSettings.version, 1);
+    assert.equal(fileExplorerSettings.version, 2);
   });
 
   it("maps PdfDefaultZoom and XlsxDefaultZoom values", () => {

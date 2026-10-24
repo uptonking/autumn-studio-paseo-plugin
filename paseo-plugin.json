@@ -1,6 +1,6 @@
 {
-  "id": "file-explorer",
-  "description": "Tree-based file navigator with rich previews (PDF, images) — desktop/web only",
+  "id": "autumn-studio-paseo-plugin",
+  "description": "Autumn Studio file explorer \u2014 rich previews (PDF, images) and AI text extraction (MinerU/Docling) \u2014 desktop/web only",
   "requirements": {
     "paseo": ">=0.11.0"
   },

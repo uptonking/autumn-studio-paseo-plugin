@@ -11,13 +11,6 @@ export function formatTaskElapsed(ms: number): string {
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
-export function looksLikeModelProblem(message: string | null): boolean {
-  if (!message) return false;
-  return /model|download|missing|not found|no such file|checkpoint|tier/i.test(
-    message,
-  );
-}
-
 export function AiTextTaskProgress({
   task,
   onCancel,
@@ -30,7 +23,7 @@ export function AiTextTaskProgress({
   const [logsOpen, setLogsOpen] = React.useState(false);
   const phase = task?.phase ?? "Starting";
   const message = task?.message ?? "Preparing the AI text task…";
-  const isModelDownload = task?.kind === "models.download";
+  const isOperation = task?.kind === "engine.operation";
 
   return (
     <div
@@ -60,10 +53,10 @@ export function AiTextTaskProgress({
       <p className="truncate text-[11px] text-muted-foreground" title={message}>
         {message}
       </p>
-      {isModelDownload ? (
+      {isOperation ? (
         <p className="text-[11px] text-muted-foreground">
-          The first local run downloads MinerU models and can take several
-          minutes. Keep this pane open; you can cancel safely.
+          Engine setup can take several minutes while packages and models
+          download. Keep this pane open; you can cancel safely.
         </p>
       ) : null}
 

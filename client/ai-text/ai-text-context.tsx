@@ -3,7 +3,6 @@ import {
   DEFAULT_AI_TEXT_SETTINGS,
   isAiTextSupportedFormat,
   shouldAutoOpenAiTextSplit,
-  type AiTextAgentOption,
   type AiTextDocumentMetadata,
   type AiTextLayoutBlock,
   type AiTextLayoutDocument,
@@ -22,7 +21,6 @@ import type {
   AiTextLayoutStatus,
   FileAiTextContextValue,
 } from "./ai-text-types.js";
-import { DEFAULT_SPLIT_PANE_AGENTS } from "./ai-text-types.js";
 import { useAiTextLayout } from "./use-ai-text-layout.js";
 import { useAiTextTask } from "./use-ai-text-task.js";
 
@@ -73,6 +71,7 @@ export function AiTextSurfaceSplitWrapper({
   sourceUpdatedAt,
   sourceFileSize,
   onSaveFile,
+  onOpenSettings,
   children,
 }: {
   kind: string;
@@ -83,6 +82,7 @@ export function AiTextSurfaceSplitWrapper({
   sourceUpdatedAt?: number;
   sourceFileSize?: number;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
+  onOpenSettings?(): void;
   children: React.ReactNode;
 }) {
   const settings = aiText?.settings ?? DEFAULT_AI_TEXT_SETTINGS;
@@ -100,9 +100,6 @@ export function AiTextSurfaceSplitWrapper({
     null,
   );
   const [activeContent, setActiveContent] = React.useState<string | null>(null);
-  const [availableAgents, setAvailableAgents] = React.useState<
-    readonly AiTextAgentOption[]
-  >(DEFAULT_SPLIT_PANE_AGENTS);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const stopResizeRef = React.useRef<(() => void) | null>(null);
   const autoOpenedFilePathRef = React.useRef<string | null>(null);
@@ -110,9 +107,6 @@ export function AiTextSurfaceSplitWrapper({
   const lastExtractOptionsRef = React.useRef<AiTextExtractOptions | undefined>(
     undefined,
   );
-  const runExtractionRef = React.useRef<
-    ((options?: AiTextExtractOptions) => void) | null
-  >(null);
 
   const currentFilePathRef = React.useRef<string | undefined>(filePath);
   currentFilePathRef.current = filePath;
@@ -120,7 +114,6 @@ export function AiTextSurfaceSplitWrapper({
   // The bridge object is recreated whenever settings change. Depend on its
   // stable callbacks instead so editing a setting does not reset an open split.
   const getMetadata = aiText?.getMetadata;
-  const listAgents = aiText?.listAgents;
   const openSplitViewByDefaultRef = React.useRef(
     Boolean(settings.openSplitViewByDefault),
   );
@@ -134,7 +127,6 @@ export function AiTextSurfaceSplitWrapper({
     runTask,
     cancel: cancelExtraction,
     resetTaskState,
-    requestRetryAfterModelDownload,
   } = useAiTextTask(aiText);
 
   const activeVersion = React.useMemo(() => {
@@ -163,21 +155,6 @@ export function AiTextSurfaceSplitWrapper({
     autoScrollToLayoutBlock: settings.autoScrollToLayoutBlock,
     pdfHandleRef,
   });
-
-  React.useEffect(() => {
-    if (!enabled || !supported || !listAgents) return;
-    let cancelled = false;
-    listAgents()
-      .then((agents) => {
-        if (!cancelled && Array.isArray(agents) && agents.length > 0) {
-          setAvailableAgents(agents);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, listAgents, supported]);
 
   React.useEffect(() => {
     autoOpenedFilePathRef.current = null;
@@ -238,7 +215,6 @@ export function AiTextSurfaceSplitWrapper({
     async (options?: AiTextExtractOptions) => {
       if (!aiText || !filePath) return;
       lastExtractOptionsRef.current = options;
-      requestRetryAfterModelDownload(false);
       const targetPath = filePath;
       void LazyAiTextSplitPane.preload();
       setIsSplitOpen(true);
@@ -254,34 +230,8 @@ export function AiTextSurfaceSplitWrapper({
         },
       );
     },
-    [aiText, clearActiveBlock, filePath, requestRetryAfterModelDownload, runTask],
+    [aiText, clearActiveBlock, filePath, runTask],
   );
-
-  runExtractionRef.current = (options) => {
-    void runExtraction(options);
-  };
-
-  const handleDownloadModels = React.useCallback(() => {
-    if (!aiText || isExtracting) return;
-    requestRetryAfterModelDownload(true);
-    void runTask(
-      {
-        kind: "models.download",
-        options: { tier: settings.mineru.tier },
-      },
-      {
-        onModelDownloadSucceeded: () => {
-          runExtractionRef.current?.(lastExtractOptionsRef.current);
-        },
-      },
-    );
-  }, [
-    aiText,
-    isExtracting,
-    requestRetryAfterModelDownload,
-    runTask,
-    settings.mineru.tier,
-  ]);
 
   const handleRetryExtraction = React.useCallback(() => {
     void runExtraction(lastExtractOptionsRef.current);
@@ -293,7 +243,7 @@ export function AiTextSurfaceSplitWrapper({
       if (isExtracting) return;
       void LazyAiTextSplitPane.preload();
 
-      // If split view is already open, clicking "AI text again" always runs a new parse
+      // If split view is already open, clicking "AI text again" always runs a new parse.
       if (isSplitOpen) {
         void runExtraction(options);
         return;
@@ -302,8 +252,7 @@ export function AiTextSurfaceSplitWrapper({
       // If split view is closed and we already have parsed versions in .autumn/,
       // open the split view with the active cached version immediately.
       if (
-        !options?.parserId &&
-        !options?.agentId &&
+        !options?.profileId &&
         metadata &&
         metadata.versions.length > 0 &&
         activeContent !== null
@@ -434,7 +383,6 @@ export function AiTextSurfaceSplitWrapper({
       metadata,
       activeVersion,
       activeContent,
-      availableAgents,
       settings,
       sourceUpdatedAt,
       sourceFileSize,
@@ -443,14 +391,13 @@ export function AiTextSurfaceSplitWrapper({
       layoutMessage,
       activeBlockId,
       activeBlock,
-      defaultViewer: settings.defaultAiTextViewer,
+      defaultViewerId: settings.defaultViewerId,
       showLayoutBlockOverlays: settings.showLayoutBlockOverlays,
       autoScrollToLayoutBlock: settings.autoScrollToLayoutBlock,
       pdfHandleRef,
       onTriggerAiText: handleTriggerAiText,
       onRetryExtraction: handleRetryExtraction,
       onCancelExtraction: cancelExtraction,
-      onDownloadModels: handleDownloadModels,
       onSelectVersion: (versionId: string) => {
         void handleSelectVersion(versionId);
       },
@@ -470,7 +417,6 @@ export function AiTextSurfaceSplitWrapper({
       activeBlockId,
       activeContent,
       activeVersion,
-      availableAgents,
       cancelExtraction,
       clearActiveBlock,
       enabled,
@@ -478,7 +424,6 @@ export function AiTextSurfaceSplitWrapper({
       focusBlock,
       handleCloseSplit,
       handleDeleteVersion,
-      handleDownloadModels,
       handleHideOriginal,
       handleRetryExtraction,
       handleSelectVersion,
@@ -572,6 +517,7 @@ export function AiTextSurfaceSplitWrapper({
                   fileName={fileName ?? filePath ?? "document"}
                   aiTextState={contextValue}
                   onSaveFile={onSaveFile}
+                  onOpenSettings={onOpenSettings}
                 />
               </React.Suspense>
             </div>

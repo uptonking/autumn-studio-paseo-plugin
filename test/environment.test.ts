@@ -8,7 +8,7 @@ import {
   parseModelRepos,
   parseModelsShowOutput,
   parseModelsVerifyOutput,
-} from "../server/ai-text/environment.ts";
+} from "../server/ai-text/engines/mineru/environment.ts";
 
 /**
  * Captured from `mineru-kit models show` on MinerU 4.0.12 with no models

@@ -418,6 +418,7 @@ export function FileViewerContent({ view }: { view: FileViewerViewProps }) {
             }
             sourceFileSize={activeTab.size}
             onSaveFile={view.onSaveFile ? handleSaveFile : undefined}
+            onOpenSettings={view.onOpenSettings}
             onDirtyChange={
               view.onTabDirtyChange ? handleActiveTabDirtyChange : undefined
             }

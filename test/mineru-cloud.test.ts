@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { strToU8, zipSync } from "fflate";
-import { parseMineruZipBuffer } from "../server/ai-text/mineru-cloud.ts";
+import { parseMineruZipBuffer } from "../server/ai-text/engines/mineru/cloud.ts";
 
 const MIDDLE_JSON = JSON.stringify({
   schema: "docvortex.middle",

@@ -21,7 +21,27 @@ import {
   readExtractedVersionAsset,
   readExtractedVersionLayout,
 } from "../server/ai-text/version-artifacts.ts";
-import type { AiTextLayoutDocument } from "../shared/ai-text-layout.ts";
+import type { AiTextLayoutDocument } from "../shared/ai-text/layout.ts";
+import { DEFAULT_AI_TEXT_EXTRACTION } from "../shared/ai-text/profiles.ts";
+import type { AiTextVersionProvenance } from "../shared/ai-text/settings.ts";
+
+function sampleProvenance(
+  overrides: Partial<AiTextVersionProvenance> = {},
+): AiTextVersionProvenance {
+  return {
+    profileId: "mineru-auto",
+    profileName: "MinerU Auto",
+    profileFingerprint: "fingerprint",
+    requestedEngineId: "mineru",
+    effectiveEngineId: "mineru",
+    engineLabel: "MinerU",
+    route: "local-cli",
+    extraction: DEFAULT_AI_TEXT_EXTRACTION,
+    refinement: { mode: "local", didRun: false },
+    warnings: [],
+    ...overrides,
+  };
+}
 
 const SAMPLE_LAYOUT: AiTextLayoutDocument = {
   schemaVersion: 1,
@@ -97,14 +117,7 @@ describe("ai-text artifacts: layout and assets", () => {
       sourceMtimeMs: 1700000000000,
       markdownContent: "# Guide\n\nHello layout\n",
       durationMs: 120,
-      provenance: {
-        parserId: "mineru",
-        parserLabel: "MinerU",
-        agentId: "pi",
-        usedAgentRefinement: false,
-        modeUsed: "local-cli",
-        warnings: [],
-      },
+      provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
       assets: [
         { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },
@@ -113,7 +126,7 @@ describe("ai-text artifacts: layout and assets", () => {
     });
 
     const version = appended.newVersion;
-    assert.equal(version.provenance.modeUsed, "local-cli");
+    assert.equal(version.provenance.route, "local-cli");
     assert.equal(version.provenance.warnings?.length, 1);
     assert.match(version.provenance.warnings![0]!, /unsafe asset path/);
     assert.equal(version.layout?.blockCount, 2);
@@ -163,12 +176,7 @@ describe("ai-text artifacts: layout and assets", () => {
       sourceMtimeMs: 1700000000000,
       markdownContent: "# Plain\n",
       durationMs: 10,
-      provenance: {
-        parserId: "mineru",
-        parserLabel: "MinerU",
-        agentId: "pi",
-        usedAgentRefinement: false,
-      },
+      provenance: sampleProvenance(),
     });
 
     const result = await readExtractedVersionLayout(
@@ -191,12 +199,7 @@ describe("ai-text artifacts: layout and assets", () => {
       sourceMtimeMs: 1700000000000,
       markdownContent: "# Nested\n",
       durationMs: 10,
-      provenance: {
-        parserId: "mineru",
-        parserLabel: "MinerU",
-        agentId: "pi",
-        usedAgentRefinement: false,
-      },
+      provenance: sampleProvenance(),
       assets: [
         { path: "images/nested/deep/pixel.png", data: new Uint8Array(PIXEL_PNG) },
         { path: "images/nested/deep/pixel.png", data: new Uint8Array(PIXEL_PNG) },
@@ -227,12 +230,7 @@ describe("ai-text artifacts: layout and assets", () => {
       sourceMtimeMs: 1700000000000,
       markdownContent: "# Removable\n",
       durationMs: 10,
-      provenance: {
-        parserId: "mineru",
-        parserLabel: "MinerU",
-        agentId: "pi",
-        usedAgentRefinement: false,
-      },
+      provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
       assets: [
         { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },
@@ -277,12 +275,7 @@ describe("ai-text artifacts: layout and assets", () => {
       sourceMtimeMs: 1700000000000,
       markdownContent: "# Tamper\n",
       durationMs: 10,
-      provenance: {
-        parserId: "mineru",
-        parserLabel: "MinerU",
-        agentId: "pi",
-        usedAgentRefinement: false,
-      },
+      provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
       assets: [
         { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },

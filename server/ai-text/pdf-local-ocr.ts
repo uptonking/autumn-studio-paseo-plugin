@@ -43,6 +43,13 @@ const PDFTOTEXT_CANDIDATES = [
  */
 const VISION_OCR_TIMEOUT_MS = 120_000;
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new Error("Local text extraction was cancelled");
+}
+
 async function findExecutable(candidates: readonly string[]): Promise<string | null> {
   for (const candidate of candidates) {
     if (!candidate.startsWith("/")) return candidate;
@@ -205,6 +212,7 @@ async function runMacosVisionOcr(
 ): Promise<string | null> {
   const binPath = await ensureMacosVisionBinary();
   if (!binPath) return null;
+  throwIfAborted(signal);
   try {
     const res = await execCommand(binPath, [pdfPath], {
       timeout: VISION_OCR_TIMEOUT_MS,
@@ -216,6 +224,7 @@ async function runMacosVisionOcr(
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
     return formatVisionOcrLinesToMarkdown(parsed, fileName, cleanCodeBlocks);
   } catch {
+    throwIfAborted(signal);
     return null;
   }
 }
@@ -292,6 +301,7 @@ export async function extractPdfWithPopplerAndVision(input: {
   enableTable?: boolean;
   signal?: AbortSignal;
 }): Promise<LocalPdfExtractionResult | null> {
+  throwIfAborted(input.signal);
   let tempDir: string | null = null;
   let pdfPath = input.filePath;
   try {
@@ -307,6 +317,7 @@ export async function extractPdfWithPopplerAndVision(input: {
       pdfPath = join(tempDir, input.fileName || "document.pdf");
       await writeFile(pdfPath, input.buffer);
     }
+    throwIfAborted(input.signal);
 
     let salvagedCodeBlocks: string[] = [];
     const pdftotextBin = await findExecutable(PDFTOTEXT_CANDIDATES);
@@ -333,16 +344,19 @@ export async function extractPdfWithPopplerAndVision(input: {
           }
         }
       } catch {
-        // Fall through to pure-JS stream or Vision OCR
+        // Cancellation must not be mistaken for "pdftotext unavailable".
+        throwIfAborted(input.signal);
       }
     }
 
+    throwIfAborted(input.signal);
     const pureJsText = extractPdfStreamsPureJs(input.buffer, input.fileName);
     if (pureJsText) {
       return { markdown: pureJsText, modeUsed: "local-pdf-stream" };
     }
 
     if (input.enableOcr !== false) {
+      throwIfAborted(input.signal);
       const visionMd = await runMacosVisionOcr(
         pdfPath,
         input.fileName,

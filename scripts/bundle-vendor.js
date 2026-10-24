@@ -36,6 +36,40 @@ function resolveTool(pkgName) {
 const esbuild = resolveTool("esbuild");
 const ts = resolveTool("typescript");
 
+// react-dom is bundled into ui-vendor.js (the host app does not provide it to
+// plugin bundles) while react stays external and comes from the host app.
+// react-dom >= 19.1 throws minified React error #527 at module init unless its
+// version exactly equals the host's React version, so the two must be pinned
+// together: when a paseo checkout sits next to this plugin, fail the build
+// instead of shipping a vendor bundle that breaks at runtime.
+function checkReactDomMatchesHost() {
+  const pluginRequire = createRequire(path.join(pluginDir, "package.json"));
+  const reactDomVersion = JSON.parse(
+    fs.readFileSync(
+      path.join(path.dirname(pluginRequire.resolve("react-dom")), "package.json"),
+      "utf8",
+    ),
+  ).version;
+  const hostAppPackagePath = path.resolve(pluginDir, "../../paseo/packages/app/package.json");
+  if (!fs.existsSync(hostAppPackagePath)) {
+    console.log(
+      `⚠ No paseo checkout found next to this plugin; skipping the react-dom ↔ host react check (react-dom ${reactDomVersion}).`,
+    );
+    return;
+  }
+  const hostReactVersion = JSON.parse(fs.readFileSync(hostAppPackagePath, "utf8")).dependencies
+    .react;
+  if (reactDomVersion !== hostReactVersion) {
+    throw new Error(
+      `Bundled react-dom ${reactDomVersion} does not match the host app's react ${hostReactVersion} (${path.relative(pluginDir, hostAppPackagePath)}). ` +
+        `react-dom throws "Incompatible React versions" (minified React error #527) unless both versions are exactly equal. ` +
+        `Set react-dom in package.json to ${hostReactVersion}, run npm install, then reload the plugin.`,
+    );
+  }
+  console.log(`✓ react-dom ${reactDomVersion} matches host app react ${hostReactVersion}`);
+}
+checkReactDomMatchesHost();
+
 const HOST_EXTERNAL_RE =
   /^(react|react\/jsx-runtime|react-native|@tanstack\/react-query|zod|@getpaseo\/plugin)(\/|$)/;
 

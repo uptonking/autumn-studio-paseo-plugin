@@ -2,7 +2,7 @@ import * as React from "react";
 import type {
   AiTextTaskKind,
   AiTextTaskSnapshot,
-} from "../../shared/ai-text-task.js";
+} from "../../shared/contracts.js";
 import type {
   AiTextBridge,
   AiTextTaskStartOptions,
@@ -24,13 +24,14 @@ export interface AiTextTaskRunInput {
 
 export interface AiTextTaskRunCallbacks {
   onParseResult?(result: NonNullable<AiTextTaskSnapshot["parseResult"]>): void;
-  onModelDownloadSucceeded?(): void;
+  /** Fired for engine operations so the settings card can refresh its status. */
+  onOperationSucceeded?(task: AiTextTaskSnapshot): void;
 }
 
 /**
  * Owns one AI Text task at a time: starts it, polls the server snapshot, and
- * exposes progress plus cancel. Parse and model-download tasks share the same
- * lifecycle, so the split pane renders the same progress card for both.
+ * exposes progress plus cancel. Parses and engine setup operations share the
+ * same lifecycle, so both render the same progress card.
  */
 export function useAiTextTask(bridge: AiTextBridge | undefined) {
   const [task, setTask] = React.useState<AiTextTaskSnapshot | null>(null);
@@ -38,7 +39,6 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
   const [error, setError] = React.useState<string | null>(null);
   const generationRef = React.useRef(0);
   const activeTaskIdRef = React.useRef<string | null>(null);
-  const retryAfterModelDownloadRef = React.useRef(false);
   /**
    * `isExtracting` is state and can be stale within the same tick, so a second
    * click could start a duplicate task before React re-renders. This ref is the
@@ -53,7 +53,6 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
   const resetTaskState = React.useCallback(() => {
     generationRef.current += 1;
     activeTaskIdRef.current = null;
-    retryAfterModelDownloadRef.current = false;
     isRunningRef.current = false;
     setIsExtracting(false);
     setTask(null);
@@ -80,12 +79,19 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
         const started = await startTask({
           kind: input.kind,
           ...(input.targetPath ? { relPath: input.targetPath } : {}),
-          ...(input.options.parserId
-            ? { parserId: input.options.parserId }
+          ...(input.options.profileId
+            ? { profileId: input.options.profileId }
             : {}),
-          ...(input.options.agentId ? { agentId: input.options.agentId } : {}),
-          ...(input.options.tier ? { tier: input.options.tier } : {}),
-          ...(input.options.source ? { source: input.options.source } : {}),
+          ...(input.options.engineId
+            ? { engineId: input.options.engineId }
+            : {}),
+          ...(input.options.operationId
+            ? { operationId: input.options.operationId }
+            : {}),
+          ...(input.options.config ? { config: input.options.config } : {}),
+          ...(input.options.operationOptions
+            ? { operationOptions: input.options.operationOptions }
+            : {}),
         });
         activeTaskIdRef.current = started.taskId;
 
@@ -112,21 +118,11 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
                   "The AI text task finished without a result. Try again.",
                 );
               }
-            }
-            if (input.kind === "models.download") {
-              const shouldRetry = retryAfterModelDownloadRef.current;
-              retryAfterModelDownloadRef.current = false;
-              if (shouldRetry) {
-                // The callback may start the parse task; release the guard first.
-                isRunningRef.current = false;
-                callbacks?.onModelDownloadSucceeded?.();
-              }
+            } else {
+              callbacks?.onOperationSucceeded?.(snapshot.task);
             }
           } else if (snapshot.task.status === "failed") {
-            retryAfterModelDownloadRef.current = false;
             setError(snapshot.task.error ?? "AI Text task failed");
-          } else {
-            retryAfterModelDownloadRef.current = false;
           }
           return;
         }
@@ -152,13 +148,6 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
     void cancelTask(taskId).catch(() => undefined);
   }, [cancelTask]);
 
-  const requestRetryAfterModelDownload = React.useCallback(
-    (value: boolean) => {
-      retryAfterModelDownloadRef.current = value;
-    },
-    [],
-  );
-
   return {
     task,
     isExtracting,
@@ -167,6 +156,5 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
     runTask,
     cancel,
     resetTaskState,
-    requestRetryAfterModelDownload,
   };
 }

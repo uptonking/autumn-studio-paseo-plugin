@@ -1,4 +1,4 @@
-# paseo-file-explorer plugin
+# autumn-studio-paseo-plugin
 
 An intuitive file explorer and file viewer/editor for Paseo — desktop/web only. 
 Built with react , Tailwind CSS v4, and modularized extend-ui components, isolated from the host UI inside a Shadow DOM island.
@@ -17,53 +17,75 @@ Built with react , Tailwind CSS v4, and modularized extend-ui components, isolat
 
 Click **AI Text Mode** on a PDF to extract Markdown into `.autumn/` and open a
 split view with the original page on the left and the extraction on the right.
-**Default AI Text viewer** in settings chooses whether the right pane starts as
-rendered **Text** or **Layout Blocks**.
+The sticky bottom panel shows the version's provenance, a **Profile** select,
+and **Re-parse**. Switching profiles and re-parsing creates a new version; older
+versions stay selectable.
 
-When the extraction includes layout metadata, the right toolbar gains a
-**Blocks** toggle. Blocks are grouped by page, filterable by type and text, and
-clicking one highlights its area on the PDF. Image, chart, and scanned-table
-blocks show the image MinerU exported; a placeholder appears only when the
-archive contains no image.
+The right toolbar is generated from the viewer registry: **Text** (rendered
+Markdown), **Blocks** (page-grouped layout, enabled only when the version has
+geometry), **Source** (raw Markdown), and **Edit** (edit and save the stored
+version). **Default AI Text viewer** in settings chooses the initial pane and
+lists only viewers that make sense as a default. An unknown viewer id falls
+back to Text.
 
-### MinerU setup
+### Parsing profiles
 
-The parser settings support these MinerU paths:
+A profile is a named recipe: engine, route, engine config, extraction switches,
+and refinement. Exactly one profile ships ready to use: **MinerU · Cloud Free**
+— the plugin bundles no local engine, and the free MinerU API needs no token
+and no install — and it stays permanent so a valid default always exists.
+Create and edit profiles in **AI Text → Profiles**; presets cover every MinerU route (Auto, Cloud Free,
+Cloud token, Local mineru-kit, Local API), Docling Standard/VLM, and offline
+text extraction.
 
-| Mode | Use it for |
-| --- | --- |
-| `auto` | Prefer ready local Kit models, then a local API daemon, then cloud. |
-| `local-cli` | Run `mineru-kit` on this machine. |
-| `local-api` | Call a local API daemon (`mineru-kit api-server` or `mineru-api`), default `http://127.0.0.1:8000`. |
-| `cloud-token` | MinerU Cloud API v4 with an API token; returns layout and images. |
-| `cloud-free` | Free cloud API; Markdown only, so Blocks stays unavailable. |
+The profile editor renders engine fields from the engine descriptor and hides
+extraction switches the engine cannot honor. Each version records a profile
+fingerprint; the bottom panel shows **Profile changed** when a profile was
+edited after the version was parsed, and **Profile removed** when it was
+deleted.
 
-Local modes show **MinerU model tier**, **MinerU OCR mode**, and **Extract layout
-metadata**; `cloud-token` also exposes **Extract layout metadata**, while
-`cloud-free` hides it because the free response has no geometry. The local Kit
-CLI has no separate Enable OCR, formula, or table switches: `--ocr-mode`
-controls OCR, and formula/table recognition is part of the layout pipeline.
-Those three switches appear only for the cloud modes, where the API accepts
-them as request options. `local-api` still uses `mineru-kit` as the client that
-talks to the daemon.
+### Engines & setup
 
-Install the v4 CLI with uv and fetch models once:
+**AI Text → Engines & Setup** probes each engine, reports versions and route
+status, and runs engine lifecycle operations as cancellable tasks: install
+(pinned to the installed version by default, or a typed release), update
+(shown only when a newer release exists on the configured package index),
+uninstall, model download, and model cache clearing. Engines render as tabs
+in fixed catalog order (MinerU, Docling, then others) with one panel at a
+time — a status dot per tab carries health without reshuffling the order.
+The panel shows engine and model-cache disk usage with an
+open-in-file-manager action and lists the profiles using the engine.
+Operations are descriptor-driven; adding an engine does not add UI code.
 
-```bash
-uv tool install mineru
-mineru-kit models download --tier standard
-```
+| Engine | Routes | Notes |
+| --- | --- | --- |
+| `mineru` | `auto`, `local-cli`, `local-api`, `cloud-token`, `cloud-free` | Layout-aware extraction with OCR, formulas, tables, and geometry. Install `mineru-kit` with `uv tool install mineru`. |
+| `docling` | `standard`, `vlm` | Docling 2.x layout/table pipeline or VLM pipeline. Install with `uv tool install docling`; models download on first parse. |
+| `local-ocr` | `auto` | Built-in PDF text layer plus on-device OCR. No install, no layout geometry. Used as the automatic fallback. |
 
-The first local parse loads models and can take minutes. The split pane shows
-the current phase, elapsed time, a collapsible log tail, and a **Cancel** button.
-Failures offer **Retry**, and model-related failures offer **Download models**
-before retrying.
+MinerU `auto` prefers ready local models, then a local API daemon, then cloud.
+`cloud-free` returns Markdown only, so Blocks stays unavailable. `cloud-token`
+accepts an API token in the profile. Docling `standard` passes `--ocr`,
+`--table-mode`, and `--enrich-formula`; `vlm` passes `--vlm-model`. Docling has
+no page-range support; clear the page range or use a MinerU profile.
 
-**MinerU Environment** shows what was detected on this machine: Kit and
-`mineru` versions, uv, install kind, model repositories, and the local API
-daemon. **Download / repair models** runs `mineru-kit models download` for the
-selected tier. **Reinstall MinerU CLI** appears only for uv-tool installs and
-runs `uv tool install --reinstall mineru` as a cancellable task.
+If a profile's engine fails, the pipeline falls back to local text extraction
+and records the requested engine, effective engine, and reason in provenance.
+Cancel still wins: an aborted run does not fall back.
+
+### Refinement
+
+Refinement runs after parsing:
+
+- `none` — store the engine output as-is.
+- `local` (default for MinerU, shown as "Auto formatting") — repairs
+  whitespace, heading, list, table, and code-fence spacing without a model.
+- `agent` — opt-in Paseo agent pass with the profile prompt preset
+  (`faithful`, `tables`, or `custom`), model, and a 5-minute cap. Agents run
+  auto-archived. Timeouts, refusals, empty output, and output shorter than 30%
+  of the source fall back to auto formatting with a visible warning.
+
+Inputs above 150,000 characters skip the agent pass.
 
 ### Storage
 
@@ -73,11 +95,24 @@ Each version writes next to its Markdown inside `.autumn/<doc-slug>/`:
 - `<versionId>.layout.json` — normalized page and block geometry.
 - `<versionId>.assets/images/<name>` — exported images, served lazily to the
   renderer through a base64 RPC and capped at 20 MB per file.
+- `metadata.json` — schema version 2, version records, active version, and
+  provenance (profile, fingerprint, engines, route, extraction, refinement).
 
-Deleting a version removes all three. Versions extracted before layout support
-open as Text; re-parse them to enable Blocks. Layout metadata is capped at 64 MB
-per version and image assets at 512 MB per extraction; individual images over
-20 MB are skipped because the asset RPC could not serve them.
+Version ids are timestamp + counter + profile slug. Deleting a version removes
+its artifacts. Versions written by the pre-profile schema are read and
+normalized to provenance v2. Layout metadata is capped at 64 MB per version and
+image assets at 512 MB per extraction; individual images over 20 MB are skipped
+because the asset RPC could not serve them.
+
+**AI Text → Advanced** configures the output root and storage: the root can be
+a workspace folder (default `.autumn`, visible in the file tree) or an absolute
+path outside the workspace (namespaced per workspace id, hidden from the tree).
+The storage dashboard lists every document with version count, disk size,
+engines, and last-parsed time — sortable and filterable, with a Recalculate
+button that always re-walks the disk and a per-row reveal in the OS file
+manager. Advanced also selects the package index used by engine installs,
+updates, and release checks: official PyPI by default, with common mirrors
+(Aliyun, Douban, Huawei Cloud, TUNA, USTC) or a custom simple-index URL.
 
 ## Build & Verification
 
@@ -89,6 +124,17 @@ npm test                   # node:test unit suite (test/*.test.ts)
 npm run check              # typecheck + unit tests + real Paseo plugin compiler
 npm run test:runtime       # jsdom runtime test against the compiled client bundle
 ```
+
+### react-dom version pin
+
+The host app supplies `react` to plugin bundles but not `react-dom`, so this
+plugin bundles its own copy into `ui-vendor.js`. react-dom ≥ 19.1 throws
+"Incompatible React versions" (minified React error #527) at module init unless
+its version exactly equals the host's React version. Keep `react-dom` in
+package.json pinned to the paseo checkout's `packages/app/package.json` `react`
+version. `scripts/bundle-vendor.js` compares the two and fails the build with
+fix instructions when they drift — so after upgrading the Paseo app, rerun
+`npm install` (or `npm run build:vendor`) in this plugin and reload it.
 
 ## License
 

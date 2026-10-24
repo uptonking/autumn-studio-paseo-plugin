@@ -7,7 +7,7 @@ import {
   deleteAiTextVersion,
   fileExplorerSettings,
   getAiTextAsset,
-  getAiTextEnvironment,
+  getAiTextEngineEnvironment,
   getAiTextLayout,
   getAiTextMetadata,
   getAiTextSettings,
@@ -16,7 +16,6 @@ import {
   getPdfWasm,
   getTextViewerSettings,
   getXlsxWasm,
-  listAiTextAgents,
   saveFileContent,
   selectAiTextVersion,
   startAiTextTask,
@@ -45,10 +44,9 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   const callCancelAiTextTask = useRpc(cancelAiTextTask);
   const callGetAiTextLayout = useRpc(getAiTextLayout);
   const callGetAiTextAsset = useRpc(getAiTextAsset);
-  const callGetAiTextEnvironment = useRpc(getAiTextEnvironment);
+  const callGetAiTextEngineEnvironment = useRpc(getAiTextEngineEnvironment);
   const callSelectAiTextVersion = useRpc(selectAiTextVersion);
   const callDeleteAiTextVersion = useRpc(deleteAiTextVersion);
-  const callListAiTextAgents = useRpc(listAiTextAgents);
   const settingsState = useSettings(fileExplorerSettings);
   const settings =
     settingsState.status === "ready"
@@ -227,13 +225,17 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     [callGetAiTextAsset, workspaceId],
   );
 
-  const getAiTextEnvironmentForWorkspace = useCallback(
-    (options?: { refresh?: boolean }) =>
-      callGetAiTextEnvironment({
-        workspaceId,
+  const getAiTextEngineEnvironmentForWorkspace = useCallback(
+    (
+      engineId: string,
+      options?: { config?: Record<string, unknown>; refresh?: boolean },
+    ) =>
+      callGetAiTextEngineEnvironment({
+        engineId,
+        ...(options?.config ? { config: options.config } : {}),
         ...(options?.refresh ? { refresh: true } : {}),
       }),
-    [callGetAiTextEnvironment, workspaceId],
+    [callGetAiTextEngineEnvironment],
   );
 
   const selectAiTextVersionForFile = useCallback(
@@ -257,14 +259,6 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     [callDeleteAiTextVersion, queryClient, workspaceId],
   );
 
-  const listAiTextAgentsForWorkspace = useCallback(
-    async () => {
-      const res = await callListAiTextAgents({ workspaceId });
-      return res.agents;
-    },
-    [callListAiTextAgents, workspaceId],
-  );
-
   const aiText = useMemo<AiTextBridge>(
     () => ({
       enabled: aiTextSettings.enabled,
@@ -275,21 +269,19 @@ export function useWorkspaceFileBridge(workspaceId: string) {
       cancelTask: cancelAiTextTaskForWorkspace,
       getLayout: getAiTextLayoutForFile,
       getAsset: getAiTextAssetForFile,
-      getEnvironment: getAiTextEnvironmentForWorkspace,
+      getEngineEnvironment: getAiTextEngineEnvironmentForWorkspace,
       selectVersion: selectAiTextVersionForFile,
       deleteVersion: deleteAiTextVersionForFile,
-      listAgents: listAiTextAgentsForWorkspace,
     }),
     [
       aiTextSettings,
       cancelAiTextTaskForWorkspace,
       deleteAiTextVersionForFile,
       getAiTextAssetForFile,
-      getAiTextEnvironmentForWorkspace,
+      getAiTextEngineEnvironmentForWorkspace,
       getAiTextLayoutForFile,
       getAiTextMetadataForFile,
       getAiTextTaskSnapshot,
-      listAiTextAgentsForWorkspace,
       selectAiTextVersionForFile,
       startAiTextTaskForFile,
     ],

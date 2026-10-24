@@ -1,9 +1,9 @@
 import * as React from "react";
-import { Bot, FileText, RefreshCw, X } from "lucide-react";
+import { Bot, FileText, RefreshCw, Settings2, X } from "lucide-react";
 import {
-  AI_TEXT_PARSER_CATALOG,
-  type AiTextAgentOption,
-  type AiTextParserProviderId,
+  computeAiTextProfileFingerprint,
+  getAiTextProfile,
+  type AiTextProfile,
   type AiTextVersionRecord,
 } from "../../shared/contracts.js";
 import { Button } from "../vendor/components/ui/button.js";
@@ -41,104 +41,96 @@ function formatStructureStatsSummary(version: AiTextVersionRecord): string | nul
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-export interface AiTextMetadataPanelProps {
-  activeVersion: AiTextVersionRecord;
-  isSourceStale: boolean;
-  isExtracting: boolean;
-  availableAgents: readonly AiTextAgentOption[];
-  selectedParserOverride: AiTextParserProviderId;
-  selectedAgentOverride: string;
-  onChangeParserOverride(next: AiTextParserProviderId): void;
-  onChangeAgentOverride(next: string): void;
-  onTriggerAiText(options?: AiTextExtractOptions): void;
-  onClose(): void;
+function refinementLabel(provenance: AiTextVersionRecord["provenance"]): string {
+  const { refinement } = provenance;
+  if (refinement.mode === "none") return "Refinement off";
+  if (refinement.mode === "local") return "Auto formatting";
+  // The profile asked for an agent but parser output was stored instead.
+  if (!refinement.didRun) return "Auto formatting (agent skipped)";
+  const agent = refinement.agentId?.trim() || "agent";
+  const model = refinement.model ? ` · ${refinement.model}` : "";
+  return `Agent ${agent}${model}`;
 }
 
-export function AiTextMetadataPanel({
-  activeVersion,
-  isSourceStale,
-  isExtracting,
-  availableAgents,
-  selectedParserOverride,
-  selectedAgentOverride,
-  onChangeParserOverride,
-  onChangeAgentOverride,
-  onTriggerAiText,
-  onClose,
-}: AiTextMetadataPanelProps) {
-  const agentOptions = React.useMemo(() => {
-    const seen = new Set<string>();
-    const list: { id: string; label: string }[] = [];
-    for (const agent of availableAgents) {
-      if (!agent.id || seen.has(agent.id)) continue;
-      seen.add(agent.id);
-      list.push({ id: agent.id, label: agent.label || agent.id });
-    }
-    for (const fallbackId of [
-      "pi",
-      "claude",
-      "codex",
-      "autumn-studio",
-      "opencode",
-      "copilot",
-    ]) {
-      if (!seen.has(fallbackId)) {
-        seen.add(fallbackId);
-        list.push({ id: fallbackId, label: fallbackId });
-      }
-    }
-    return list;
-  }, [availableAgents]);
+const CHIP =
+  "inline-flex items-center gap-1 rounded border border-border/70 bg-background px-1.5 py-0.5 font-medium text-foreground";
+const MUTED_CHIP = "rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium";
 
-  const statsSummary = formatStructureStatsSummary(activeVersion);
+function VersionProvenance({
+  version,
+  profiles,
+  isSourceStale,
+  onReparse,
+}: {
+  version: AiTextVersionRecord;
+  profiles: readonly AiTextProfile[];
+  isSourceStale: boolean;
+  onReparse(): void;
+}) {
+  const provenance = version.provenance;
+  const activeProfile = getAiTextProfile(profiles, provenance.profileId);
+  const profileChanged = activeProfile
+    ? computeAiTextProfileFingerprint(activeProfile) !==
+      provenance.profileFingerprint
+    : true;
+  const statsSummary = formatStructureStatsSummary(version);
+  const routeSuffix = provenance.route ? ` · ${provenance.route}` : "";
 
   return (
-    <div
-      data-testid="ai-text-metadata-panel"
-      role="region"
-      aria-label="AI text metadata"
-      className="mx-2 mb-2 flex shrink-0 flex-col gap-1.5 rounded-lg border border-border/80 bg-popover/95 px-2.5 py-2 text-[11px] text-muted-foreground shadow-lg backdrop-blur-sm"
-    >
+    <>
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           data-testid="ai-text-provenance-version"
           className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
         >
-          v{activeVersion.versionNumber}
+          v{version.versionNumber}
         </span>
         <span
-          data-testid="ai-text-provenance-parser"
-          className="inline-flex items-center gap-1 rounded border border-border/70 bg-background px-1.5 py-0.5 font-medium text-foreground"
+          data-testid="ai-text-provenance-profile"
+          title={`Fingerprint ${provenance.profileFingerprint}`}
+          className={CHIP}
         >
           <FileText className="size-3 text-muted-foreground" />
+          <span>{provenance.profileName}</span>
+        </span>
+        {profileChanged ? (
+          <span
+            data-testid="ai-text-provenance-profile-changed"
+            title={
+              activeProfile
+                ? "This profile was edited after this version was parsed."
+                : provenance.profileFingerprint
+                  ? "This version's profile no longer exists in settings."
+                  : "This version predates parsing profiles."
+            }
+            className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+          >
+            {activeProfile
+              ? "Profile changed"
+              : provenance.profileFingerprint
+                ? "Profile removed"
+                : "Legacy version"}
+          </span>
+        ) : null}
+        <span data-testid="ai-text-provenance-engine" className={CHIP}>
           <span>
-            Parser: {activeVersion.provenance.parserLabel}
-            {activeVersion.provenance.parserMode
-              ? ` (${activeVersion.provenance.parserMode})`
-              : ""}
+            {provenance.engineLabel}
+            {routeSuffix}
+            {provenance.engineVersion ? ` · ${provenance.engineVersion}` : ""}
           </span>
         </span>
-        <span
-          data-testid="ai-text-provenance-agent"
-          className="inline-flex items-center gap-1 rounded border border-border/70 bg-background px-1.5 py-0.5 font-medium text-foreground"
-        >
+        <span data-testid="ai-text-provenance-refinement" className={CHIP}>
           <Bot className="size-3 text-muted-foreground" />
-          <span>Agent: {activeVersion.provenance.agentId}</span>
+          <span>{refinementLabel(provenance)}</span>
         </span>
-        {activeVersion.provenance.ocrEnabled ? (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-            OCR
-          </span>
+        {provenance.extraction.ocr ? (
+          <span className={MUTED_CHIP}>OCR</span>
         ) : null}
-        {activeVersion.provenance.formulaEnabled ? (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-            LaTeX
-          </span>
+        {provenance.extraction.formula ? (
+          <span className={MUTED_CHIP}>LaTeX</span>
         ) : null}
-        {activeVersion.provenance.tableEnabled ? (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-            Tables
-          </span>
+        {provenance.extraction.tables ? (
+          <span className={MUTED_CHIP}>Tables</span>
         ) : null}
         {statsSummary ? (
           <span
@@ -148,25 +140,19 @@ export function AiTextMetadataPanel({
             {statsSummary}
           </span>
         ) : null}
-        {activeVersion.layout ? (
+        {version.layout ? (
           <span
             data-testid="ai-text-provenance-layout"
             className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300"
           >
-            {activeVersion.layout.blockCount} blocks ·{" "}
-            {activeVersion.layout.pageCount} pages
+            {version.layout.blockCount} blocks · {version.layout.pageCount} pages
           </span>
         ) : null}
         {isSourceStale ? (
           <button
             type="button"
             data-testid="ai-text-provenance-stale"
-            onClick={() =>
-              onTriggerAiText({
-                parserId: selectedParserOverride,
-                agentId: selectedAgentOverride,
-              })
-            }
+            onClick={onReparse}
             title="Source file was modified after this text version was extracted. Click to re-parse."
             className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
           >
@@ -175,75 +161,115 @@ export function AiTextMetadataPanel({
           </button>
         ) : null}
         <span className="ml-auto whitespace-nowrap tabular-nums">
-          {formatShortTimestamp(activeVersion.createdAt)} ·{" "}
-          {activeVersion.durationMs}ms
+          {formatShortTimestamp(version.createdAt)} · {version.durationMs}ms
         </span>
       </div>
 
-      {activeVersion.provenance.fallbackReason ||
-      (activeVersion.provenance.warnings?.length ?? 0) > 0 ? (
+      {provenance.fallbackReason ||
+      (provenance.warnings?.length ?? 0) > 0 ||
+      provenance.refinement.fallbackReason ? (
         <div
           data-testid="ai-text-provenance-warnings"
           className="flex flex-col gap-0.5 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-[10px] text-amber-800 dark:text-amber-200"
         >
-          {activeVersion.provenance.fallbackReason ? (
-            <span>Fallback: {activeVersion.provenance.fallbackReason}</span>
+          {provenance.fallbackReason ? (
+            <span>Fallback: {provenance.fallbackReason}</span>
           ) : null}
-          {activeVersion.provenance.warnings?.map((warning, index) => (
+          {provenance.refinement.fallbackReason ? (
+            <span>Refinement: {provenance.refinement.fallbackReason}</span>
+          ) : null}
+          {provenance.warnings?.map((warning, index) => (
             <span key={index}>{warning}</span>
           ))}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {version.relPath ? (
         <span
           data-testid="ai-text-provenance-path"
-          className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground"
-          title={activeVersion.relPath}
+          className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
+          title={version.relPath}
         >
-          {activeVersion.relPath}
+          {version.relPath}
         </span>
+      ) : null}
+    </>
+  );
+}
+
+export interface AiTextMetadataPanelProps {
+  activeVersion: AiTextVersionRecord | null;
+  isSourceStale: boolean;
+  isExtracting: boolean;
+  profiles: readonly AiTextProfile[];
+  selectedProfileId: string;
+  defaultProfileId: string;
+  onSelectProfile(profileId: string): void;
+  onTriggerAiText(options?: AiTextExtractOptions): void;
+  onClose(): void;
+  onOpenSettings?(): void;
+}
+
+export function AiTextMetadataPanel({
+  activeVersion,
+  isSourceStale,
+  isExtracting,
+  profiles,
+  selectedProfileId,
+  defaultProfileId,
+  onSelectProfile,
+  onTriggerAiText,
+  onClose,
+  onOpenSettings,
+}: AiTextMetadataPanelProps) {
+  const reparse = React.useCallback(() => {
+    onTriggerAiText(
+      selectedProfileId ? { profileId: selectedProfileId } : undefined,
+    );
+  }, [onTriggerAiText, selectedProfileId]);
+
+  return (
+    <div
+      data-testid="ai-text-metadata-panel"
+      role="region"
+      aria-label="AI text metadata"
+      className="mx-2 mb-2 flex shrink-0 flex-col gap-1.5 rounded-lg border border-border/80 bg-popover/95 px-2.5 py-2 text-[11px] text-muted-foreground shadow-lg backdrop-blur-sm"
+    >
+      {activeVersion ? (
+        <VersionProvenance
+          version={activeVersion}
+          profiles={profiles}
+          isSourceStale={isSourceStale}
+          onReparse={reparse}
+        />
+      ) : (
+        <span className="font-medium text-foreground">
+          Choose a parsing profile, then extract text.
+        </span>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5">
         <select
-          data-testid="ai-text-reparse-parser-select"
-          aria-label="Parser for next AI text run"
-          value={selectedParserOverride}
-          disabled={isExtracting}
-          onChange={(e) =>
-            onChangeParserOverride(e.target.value as AiTextParserProviderId)
-          }
-          className="h-6 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground outline-none"
+          data-testid="ai-text-reparse-profile-select"
+          aria-label="Profile for the next AI text run"
+          value={selectedProfileId}
+          disabled={isExtracting || profiles.length === 0}
+          onChange={(event) => onSelectProfile(event.target.value)}
+          className="h-6 max-w-56 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground outline-none"
         >
-          {AI_TEXT_PARSER_CATALOG.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <select
-          data-testid="ai-text-reparse-agent-select"
-          aria-label="Agent for next AI text run"
-          value={selectedAgentOverride}
-          disabled={isExtracting}
-          onChange={(e) => onChangeAgentOverride(e.target.value)}
-          className="h-6 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground outline-none"
-        >
-          {agentOptions.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+              {profile.id === defaultProfileId ? " (default)" : ""}
             </option>
           ))}
         </select>
         <button
           type="button"
           data-testid="ai-text-reparse-run-button"
-          disabled={isExtracting}
-          onClick={() =>
-            onTriggerAiText({
-              parserId: selectedParserOverride,
-              agentId: selectedAgentOverride,
-            })
-          }
-          title="Run AI text again with selected parser and agent"
+          disabled={isExtracting || !selectedProfileId}
+          onClick={reparse}
+          title="Run AI text again with the selected profile"
           className="inline-flex h-6 items-center gap-1 rounded border border-border/80 bg-background px-1.5 text-[10px] font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
         >
           <RefreshCw
@@ -251,6 +277,20 @@ export function AiTextMetadataPanel({
           />
           <span>Re-parse</span>
         </button>
+        {onOpenSettings ? (
+          <Button
+            type="button"
+            data-testid="ai-text-open-settings"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Open AI Text settings"
+            title="Open AI Text settings"
+            onClick={onOpenSettings}
+            className="size-6 text-muted-foreground hover:text-foreground"
+          >
+            <Settings2 className="size-3" />
+          </Button>
+        ) : null}
         <Button
           type="button"
           data-testid="ai-text-metadata-close"

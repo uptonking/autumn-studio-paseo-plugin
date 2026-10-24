@@ -7,7 +7,7 @@ import { textSectionDescriptor } from "./text-section.js";
 import { xlsxSectionDescriptor } from "./xlsx-section.js";
 
 /**
- * Ordered registry of settings sections for `paseo-file-explorer`.
+ * Ordered registry of settings sections for `autumn-studio-paseo-plugin`.
  * Future file viewers/editors (e.g. Office DOCX/PPTX, Images)
  * can add a section descriptor here without changing the settings page shell.
  */

@@ -3,15 +3,15 @@ import { z } from "zod";
 import {
   aiTextAgentOptionSchema,
   aiTextDocumentMetadataSchema,
-  aiTextParserProviderIdSchema,
   aiTextVersionRecordSchema,
-} from "./ai-text-settings.ts";
-import { aiTextLayoutDocumentSchema } from "./ai-text-layout.ts";
+} from "./ai-text/settings.ts";
+import { aiTextLayoutDocumentSchema } from "./ai-text/layout.ts";
+import { aiTextEngineDescriptorSchema } from "./ai-text/engines.ts";
 import {
-  aiTextEnvironmentSchema,
+  aiTextEngineEnvironmentSchema,
   aiTextTaskKindSchema,
   aiTextTaskSnapshotSchema,
-} from "./ai-text-task.ts";
+} from "./ai-text/task.ts";
 
 /**
  * Workspace files as a nested tree. Folder paths carry a trailing slash
@@ -127,23 +127,50 @@ export const getAiTextMetadata = defineRpc({
 
 /**
  * Starts a long-running AI Text job. Parsing can take minutes when a local
- * MinerU model download or OCR pass is involved, so callers poll `task.get`
- * instead of holding one RPC open.
+ * model download or OCR pass is involved, so callers poll `task.get` instead of
+ * holding one RPC open.
  */
 export const startAiTextTask = defineRpc({
   name: "ai_text.task.start",
   input: z.object({
-    /** Required for `parse`; optional for global repairs started from settings. */
+    /** Required for `parse`; optional for global operations started from settings. */
     workspaceId: z.string().optional(),
     relPath: z.string().optional(),
     kind: aiTextTaskKindSchema,
-    parserId: aiTextParserProviderIdSchema.optional(),
-    agentId: z.string().optional(),
-    tier: z.string().optional(),
-    source: z.string().optional(),
+    /** Parse: profile to run. Omitted falls back to the default profile. */
+    profileId: z.string().optional(),
+    /** Engine operation target. */
+    engineId: z.string().optional(),
+    operationId: z.string().optional(),
+    /** Engine config override for operations (defaults to the matching profile). */
+    config: z.record(z.string(), z.unknown()).optional(),
+    operationOptions: z.record(z.string(), z.string()).optional(),
   }),
   output: z.object({
     taskId: z.string(),
+  }),
+});
+
+/** Registered extraction engines and their JSON-safe descriptors. */
+export const listAiTextEngines = defineRpc({
+  name: "ai_text.engines.list",
+  input: z.object({}),
+  output: z.object({
+    engines: z.array(aiTextEngineDescriptorSchema),
+  }),
+});
+
+/** Detects one engine's CLI, models, and routes. */
+export const getAiTextEngineEnvironment = defineRpc({
+  name: "ai_text.engine.environment.get",
+  input: z.object({
+    engineId: z.string(),
+    /** Optional config override; omitted uses the first profile for the engine. */
+    config: z.record(z.string(), z.unknown()).optional(),
+    refresh: z.boolean().optional(),
+  }),
+  output: z.object({
+    environment: aiTextEngineEnvironmentSchema,
   }),
 });
 
@@ -199,18 +226,6 @@ export const getAiTextAsset = defineRpc({
   }),
 });
 
-/** Detects the local MinerU install, models, uv, and local API daemon. */
-export const getAiTextEnvironment = defineRpc({
-  name: "ai_text.environment.get",
-  input: z.object({
-    workspaceId: z.string().optional(),
-    refresh: z.boolean().optional(),
-  }),
-  output: z.object({
-    environment: aiTextEnvironmentSchema,
-  }),
-});
-
 /** Switches the active extracted Markdown version for a file in `.autumn/<doc-slug>/metadata.json`. */
 export const selectAiTextVersion = defineRpc({
   name: "ai_text.version.select",
@@ -241,8 +256,74 @@ export const deleteAiTextVersion = defineRpc({
   }),
 });
 
+export const aiTextStorageStatsRowSchema = z.object({
+  sourceRelPath: z.string(),
+  /** Doc folder path relative to the output base (reveal key). */
+  docFolderRelPath: z.string(),
+  /** Absolute doc folder path for display. */
+  docFolderDisplayPath: z.string(),
+  versionCount: z.number().int().min(0),
+  activeVersionId: z.string().nullable(),
+  totalBytes: z.number().min(0),
+  markdownBytes: z.number().min(0),
+  assetBytes: z.number().min(0),
+  lastParsedAt: z.string().nullable(),
+  engines: z.array(z.string()),
+});
+export type AiTextStorageStatsRow = z.infer<
+  typeof aiTextStorageStatsRowSchema
+>;
+
+/**
+ * Recomputed per document under the output root: versions, sizes, and which
+ * engines produced them. Never cached server-side; `refresh` is kept in the
+ * contract so a future cache has a forced-recalculate path from day one.
+ */
+export const listAiTextStorageStats = defineRpc({
+  name: "ai_text.stats.list",
+  input: z.object({
+    workspaceId: z.string(),
+    refresh: z.boolean().optional(),
+  }),
+  output: z.object({
+    outputRootDisplayPath: z.string(),
+    generatedAt: z.string(),
+    truncated: z.boolean(),
+    rows: z.array(aiTextStorageStatsRowSchema),
+  }),
+});
+
+/**
+ * Opens a plugin-managed folder in the OS file manager. Targets are keyed, not
+ * raw paths: the server resolves each target from its own knowledge (output
+ * base, engine detection) so the client can never ask it to open an arbitrary
+ * location.
+ */
+export const revealAiTextPath = defineRpc({
+  name: "ai_text.path.reveal",
+  input: z.object({
+    kind: z.enum(["output-root", "doc-folder", "engine-tool", "engine-models"]),
+    workspaceId: z.string().optional(),
+    /** doc-folder only: doc folder path relative to the output base. */
+    docPath: z.string().optional(),
+    /** engine-tool / engine-models only. */
+    engineId: z.string().optional(),
+  }),
+  output: z.object({
+    opened: z.boolean(),
+    message: z.string(),
+  }),
+});
+
 export * from "./settings.ts";
-export * from "./ai-text-layout.ts";
-export * from "./ai-text-task.ts";
+export * from "./ai-text/layout.ts";
+export * from "./ai-text/task.ts";
+export * from "./ai-text/engines.ts";
+export * from "./ai-text/engine-configs.ts";
+export * from "./ai-text/engine-catalog.ts";
+export * from "./ai-text/output-root.ts";
+export * from "./ai-text/profiles.ts";
+export * from "./ai-text/refinement.ts";
+export * from "./ai-text/viewers.ts";
 
 

@@ -1,25 +1,25 @@
 import { randomUUID } from "node:crypto";
 import type {
-  AiTextEnvironment,
   AiTextTaskKind,
   AiTextTaskSnapshot,
-} from "../../shared/ai-text-task.ts";
-import type {
-  AiTextParserProviderId,
-  AiTextSettings,
-} from "../../shared/ai-text-settings.ts";
-import { mineruTierSchema } from "../../shared/ai-text-settings.ts";
-import { buildProcessError, runProcess } from "./command-runner.ts";
-import { getMineruEnvironment } from "./environment.ts";
-import { resolveExecutable } from "./executable.ts";
-import { runAiTextExtractionPipeline } from "./parser-registry.ts";
+} from "../../shared/ai-text/task.ts";
+import {
+  resolveAiTextProfile,
+  type AiTextProfile,
+} from "../../shared/ai-text/profiles.ts";
+import type { AiTextSettings } from "../../shared/ai-text/settings.ts";
+import {
+  detectEngineEnvironment,
+  listAiTextEngineDescriptors,
+  resolveEngineConfig,
+  runEngineOperation,
+} from "./engine-registry.ts";
+import { runAiTextPipeline } from "./pipeline.ts";
 
 const MAX_LOG_LINES = 40;
 const MAX_LOG_LINE_LENGTH = 500;
 const MAX_TASKS = 40;
 const TERMINAL_TASK_TTL_MS = 10 * 60 * 1000;
-const MODELS_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
-const REINSTALL_TIMEOUT_MS = 10 * 60 * 1000;
 
 interface TaskRecord {
   snapshot: AiTextTaskSnapshot;
@@ -41,10 +41,11 @@ export interface StartAiTextTaskInput {
   sourceAbsPath?: string;
   kind: AiTextTaskKind;
   settings: AiTextSettings;
-  parserId?: AiTextParserProviderId;
-  agentId?: string;
-  tier?: string;
-  source?: string;
+  profileId?: string;
+  engineId?: string;
+  operationId?: string;
+  config?: Record<string, unknown>;
+  operationOptions?: Record<string, string>;
 }
 
 export interface AiTextTaskStore {
@@ -97,6 +98,23 @@ function snapshotElapsed(record: TaskRecord): number {
   return Math.max(0, end - started);
 }
 
+function operationProfile(
+  settings: AiTextSettings,
+  engineId: string,
+): AiTextProfile | null {
+  // Prefer the profile the user parses with by default — the same policy the
+  // settings tab uses for detection — falling back to any profile for the
+  // engine when no default targets it.
+  const forEngine = settings.profiles.filter(
+    (profile) => profile.engineId === engineId,
+  );
+  return (
+    forEngine.find((profile) => profile.id === settings.defaultProfileId) ??
+    forEngine[0] ??
+    null
+  );
+}
+
 export function createAiTextTaskStore(): AiTextTaskStore {
   const records = new Map<string, TaskRecord>();
   const runningParseKeys = new Set<string>();
@@ -122,7 +140,6 @@ export function createAiTextTaskStore(): AiTextTaskStore {
   function updateSnapshot(record: TaskRecord): void {
     record.snapshot = {
       ...record.snapshot,
-      phase: record.snapshot.phase,
       message: record.message,
       progressPercent: record.progressPercent,
       logTail: [...record.logLines],
@@ -163,7 +180,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
         status === "succeeded"
           ? record.snapshot.kind === "parse"
             ? "AI text version created"
-            : "Task completed"
+            : "Engine operation completed"
           : (error ?? record.message),
     };
     if (record.kind === "parse" && record.relPath) {
@@ -171,67 +188,92 @@ export function createAiTextTaskStore(): AiTextTaskStore {
     }
   }
 
-  async function runModelsDownload(
+  async function executeParse(
     record: TaskRecord,
-    settings: AiTextSettings,
-    requestedTier: string,
-    requestedSource: string,
+    input: StartAiTextTaskInput,
   ): Promise<void> {
-    const tier = mineruTierSchema.safeParse(requestedTier);
-    // The RPC accepts a string, but only known tiers and simple source names
-    // may reach the argv.
-    const source = /^[a-z][a-z0-9-]{0,31}$/.test(requestedSource)
-      ? requestedSource
-      : "auto";
-    const kitCommand = settings.mineru.kitCommand.trim() || "mineru-kit";
-    const kitPath = await resolveExecutable(kitCommand);
-    if (!kitPath) {
-      throw new Error(
-        `MinerU Kit CLI "${kitCommand}" was not found. Install it with "uv tool install mineru".`,
-      );
+    if (!input.relPath || !input.workspaceRootPath) {
+      throw new Error("Missing file path for parsing");
     }
-    record.snapshot.phase = "Downloading models";
+    record.snapshot.phase = "Preparing";
     updateSnapshot(record);
-    const result = await runProcess({
-      command: kitPath,
-      args: [
-        "models",
-        "download",
-        "--tier",
-        tier.success ? tier.data : settings.mineru.tier,
-        "--source",
-        source,
-      ],
-      timeoutMs: MODELS_DOWNLOAD_TIMEOUT_MS,
+    const result = await runAiTextPipeline({
+      paseo: input.paseo,
+      workspaceRootPath: input.workspaceRootPath,
+      workspaceId: input.workspaceId,
+      sourceRelPath: input.relPath,
+      sourceAbsPath:
+        input.sourceAbsPath ?? `${input.workspaceRootPath}/${input.relPath}`,
+      settings: input.settings,
+      profileId: input.profileId,
       signal: record.controller.signal,
+      onProgress: (update) => {
+        if (update.phase) record.snapshot.phase = update.phase;
+        if (update.message) record.message = update.message;
+        if (update.percent !== undefined) {
+          record.progressPercent = update.percent;
+        }
+        updateSnapshot(record);
+      },
       onLog: (line) => addLog(record, line),
     });
-    if (result.aborted) throw new Error("Model download was cancelled");
-    if (result.code !== 0) {
-      throw new Error(buildProcessError("mineru-kit models download", result));
+    if (record.controller.signal.aborted) {
+      throw new Error("AI text extraction was cancelled");
     }
+    record.snapshot = {
+      ...record.snapshot,
+      profileId: result.newVersion.provenance.profileId,
+      profileName: result.newVersion.provenance.profileName,
+      engineId: result.newVersion.provenance.effectiveEngineId,
+      parseResult: result,
+    };
+    finish(record, "succeeded", null);
   }
 
-  async function runReinstall(record: TaskRecord): Promise<void> {
-    const uvPath = await resolveExecutable("uv");
-    if (!uvPath) {
-      throw new Error(
-        'uv was not found. Reinstall manually with "uv tool install --reinstall mineru".',
-      );
+  async function executeOperation(
+    record: TaskRecord,
+    input: StartAiTextTaskInput,
+  ): Promise<void> {
+    const engineId = input.engineId?.trim();
+    const operationId = input.operationId?.trim();
+    if (!engineId || !operationId) {
+      throw new Error("engineId and operationId are required for an engine operation");
     }
-    record.snapshot.phase = "Reinstalling";
+    const profile = operationProfile(input.settings, engineId);
+    const config = resolveEngineConfig(
+      engineId,
+      input.config ?? profile?.config ?? {},
+    );
+    record.snapshot = {
+      ...record.snapshot,
+      engineId,
+      operationId,
+    };
+    record.snapshot.phase = "Preparing";
     updateSnapshot(record);
-    const result = await runProcess({
-      command: uvPath,
-      args: ["tool", "install", "--reinstall", "mineru"],
-      timeoutMs: REINSTALL_TIMEOUT_MS,
+    const indexUrl = input.settings.pypiIndexUrl.trim();
+    await runEngineOperation({
+      engineId,
+      operationId,
+      config,
+      options: input.operationOptions ?? {},
+      indexUrl,
       signal: record.controller.signal,
       onLog: (line) => addLog(record, line),
     });
-    if (result.aborted) throw new Error("Reinstall was cancelled");
-    if (result.code !== 0) {
-      throw new Error(buildProcessError("uv tool install", result));
+    if (record.controller.signal.aborted) {
+      throw new Error("Engine operation was cancelled");
     }
+    record.snapshot.phase = "Checking environment";
+    updateSnapshot(record);
+    const environment = await detectEngineEnvironment({
+      engineId,
+      config,
+      indexUrl,
+      refresh: true,
+    });
+    record.snapshot = { ...record.snapshot, environment };
+    finish(record, "succeeded", null);
   }
 
   async function execute(
@@ -242,66 +284,13 @@ export function createAiTextTaskStore(): AiTextTaskStore {
     updateSnapshot(record);
     try {
       if (record.kind === "parse") {
-        if (!input.relPath || !input.workspaceRootPath) {
-          throw new Error("Missing file path for parsing");
-        }
-        record.snapshot.phase = "Preparing";
-        updateSnapshot(record);
-        const result = await runAiTextExtractionPipeline({
-          paseo: input.paseo,
-          workspaceId: input.workspaceId,
-          workspaceRootPath: input.workspaceRootPath,
-          sourceRelPath: input.relPath,
-          sourceAbsPath:
-            input.sourceAbsPath ?? `${input.workspaceRootPath}/${input.relPath}`,
-          settings: input.settings,
-          parserIdOverride: input.parserId,
-          agentIdOverride: input.agentId,
-          signal: record.controller.signal,
-          onProgress: (update) => {
-            if (update.phase) record.snapshot.phase = update.phase;
-            if (update.message) record.message = update.message;
-            if (update.percent !== undefined) {
-              record.progressPercent = update.percent;
-            }
-            updateSnapshot(record);
-          },
-          onLog: (line) => addLog(record, line),
-        });
-        if (record.controller.signal.aborted) {
-          throw new Error("AI text extraction was cancelled");
-        }
-        record.snapshot = {
-          ...record.snapshot,
-          parseResult: result,
-        };
-        finish(record, "succeeded", null);
-        return;
-      }
-
-      if (record.kind === "models.download") {
-        await runModelsDownload(
-          record,
-          input.settings,
-          input.tier?.trim() || input.settings.mineru.tier,
-          input.source?.trim() || "auto",
-        );
+        await executeParse(record, input);
       } else {
-        await runReinstall(record);
+        await executeOperation(record, input);
       }
-
-      const environment: AiTextEnvironment = await getMineruEnvironment({
-        kitCommand: input.settings.mineru.kitCommand,
-        localApiUrl: input.settings.mineru.localApiUrl,
-        tier: input.settings.mineru.tier,
-        refresh: true,
-      });
-      record.snapshot = { ...record.snapshot, environment };
-      finish(record, "succeeded", null);
     } catch (error) {
       const cancelled = record.controller.signal.aborted;
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       finish(
         record,
         cancelled ? "cancelled" : "failed",
@@ -324,6 +313,13 @@ export function createAiTextTaskStore(): AiTextTaskStore {
         runningParseKeys.add(key);
       }
 
+      const resolvedProfile =
+        input.kind === "parse"
+          ? resolveAiTextProfile(input.settings.profiles, {
+              profileId: input.profileId,
+              defaultProfileId: input.settings.defaultProfileId,
+            })
+          : null;
       const id = `aitask_${randomUUID()}`;
       const record: TaskRecord = {
         snapshot: {
@@ -338,6 +334,12 @@ export function createAiTextTaskStore(): AiTextTaskStore {
           finishedAt: null,
           elapsedMs: 0,
           error: null,
+          profileId: resolvedProfile?.id ?? input.profileId ?? null,
+          profileName: resolvedProfile?.name ?? null,
+          engineId:
+            resolvedProfile?.engineId ?? input.engineId ?? null,
+          operationId: input.operationId ?? null,
+          engineIds: listAiTextEngineDescriptors().map((engine) => engine.id),
         },
         controller: new AbortController(),
         workspaceId: input.workspaceId,
@@ -357,12 +359,6 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       prune();
       const record = records.get(taskId);
       if (!record) return null;
-      if (record.finishedAtMs !== null) {
-        return {
-          ...record.snapshot,
-          elapsedMs: snapshotElapsed(record),
-        };
-      }
       return {
         ...record.snapshot,
         elapsedMs: snapshotElapsed(record),

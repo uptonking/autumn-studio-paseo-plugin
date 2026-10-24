@@ -67,6 +67,7 @@ export interface FileViewerRenderProps {
   sourceFileSize?: number;
   autoSaveEdits?: boolean;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
+  onOpenSettings?(): void;
   onDirtyChange?: (isDirty: boolean) => void;
   extraMenuItems?: React.ReactNode;
   toolbarActions?: React.ReactNode;
@@ -545,6 +546,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
         sourceUpdatedAt={props.sourceUpdatedAt}
         sourceFileSize={props.sourceFileSize}
         onSaveFile={onSaveFile}
+        onOpenSettings={props.onOpenSettings}
       >
         <AiTextMenuInjector
           extraMenuItems={combinedExtraMenuItems}

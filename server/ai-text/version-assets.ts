@@ -12,7 +12,7 @@ import {
   MAX_SERVED_ASSET_BYTES,
   sanitizeAssetRelativePath,
 } from "../../shared/asset-paths.ts";
-import { safeResolve } from "../paths.ts";
+import { resolveOutputArtifactPath } from "./metadata-paths.ts";
 
 /** One image is rejected above what the asset RPC can serve. */
 export const MAX_ASSET_BYTES = MAX_SERVED_ASSET_BYTES;
@@ -51,7 +51,8 @@ export async function writeFileAtomically(
 }
 
 export async function writeVersionAssets(input: {
-  workspaceRootPath: string;
+  /** Output base the doc folder lives under (workspace root or absolute root). */
+  artifactBaseAbsPath: string;
   docFolderAbsPath: string;
   docFolderRelPath: string;
   assetsDirName: string;
@@ -96,8 +97,8 @@ export async function writeVersionAssets(input: {
         ...safePath.split("/").slice(0, -1),
       );
       await mkdir(assetParentAbsPath, { recursive: true });
-      const resolvedParent = await safeResolve(
-        input.workspaceRootPath,
+      const resolvedParent = await resolveOutputArtifactPath(
+        input.artifactBaseAbsPath,
         assetParentRelPath,
       );
       await writeFileAtomically(

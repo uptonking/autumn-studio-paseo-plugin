@@ -12,12 +12,29 @@ export async function verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane })
   );
   if (
     !metadataPanel ||
-    !(metadataPanel.textContent ?? "").includes("MinerU") ||
-    !(metadataPanel.textContent ?? "").includes("pi")
+    !(metadataPanel.textContent ?? "").includes("MinerU · Cloud Free") ||
+    !(metadataPanel.textContent ?? "").includes("Auto formatting")
   ) {
     throw new Error(
-      "AI text metadata panel in right split pane did not display parser and agent metadata",
+      "AI text metadata panel in right split pane did not display the profile and refinement provenance",
     );
+  }
+
+  const profileSelect = metadataPanel.querySelector(
+    '[data-testid="ai-text-reparse-profile-select"]',
+  );
+  if (
+    !profileSelect ||
+    ![...profileSelect.querySelectorAll("option")].some(
+      (option) => option.value === "mineru-cloud-free",
+    )
+  ) {
+    throw new Error(
+      "AI text metadata panel did not offer the configured profiles for re-parsing",
+    );
+  }
+  if (!metadataPanel.querySelector('[data-testid="ai-text-reparse-run-button"]')) {
+    throw new Error("AI text metadata panel is missing the Re-parse button");
   }
 
   // Close the metadata panel; it must disappear from the AI text view.

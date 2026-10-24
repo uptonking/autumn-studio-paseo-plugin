@@ -402,6 +402,7 @@ export function FileSystem({
               aiText={aiText}
               getFileUrl={getFileUrl}
               loadPreviewImageUrl={loadPreviewImageUrl}
+              onOpenSettings={onOpenSettings}
               onSaveFile={onSaveFile ? handleSaveFile : undefined}
               pageUrlCache={pageUrlCache}
               pdfSettings={pdfSettings}

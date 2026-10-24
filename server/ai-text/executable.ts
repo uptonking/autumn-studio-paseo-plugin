@@ -11,6 +11,31 @@ function expandHome(value: string): string {
   return value;
 }
 
+/** Resolves `~`-prefixed paths for settings that accept absolute locations. */
+export function expandHomePath(value: string): string {
+  return expandHome(value);
+}
+
+/**
+ * uv tool installs live under `<tool-dir>/uv/tools/<pkg>/bin/<cmd>`. Deriving
+ * the package directory from the resolved executable honors a custom tool dir
+ * (UV_TOOL_DIR) instead of assuming `~/.local/share/uv`.
+ */
+export function uvToolDirFromExecutablePath(
+  resolvedPath: string | null,
+): string | null {
+  if (!resolvedPath) return null;
+  const normalized = resolvedPath.replace(/\\/g, "/");
+  const marker = "/uv/tools/";
+  const index = normalized.indexOf(marker);
+  if (index < 0) return null;
+  const packageName = normalized
+    .slice(index + marker.length)
+    .split("/")[0];
+  if (!packageName) return null;
+  return normalized.slice(0, index + marker.length + packageName.length);
+}
+
 function candidateNames(command: string): string[] {
   if (process.platform !== "win32") return [command];
   const extensions = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM")

@@ -1,12 +1,10 @@
 import type * as React from "react";
 import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
 import type {
-  AiTextAgentOption,
   AiTextDocumentMetadata,
-  AiTextEnvironment,
+  AiTextEngineEnvironment,
   AiTextLayoutBlock,
   AiTextLayoutDocument,
-  AiTextParserProviderId,
   AiTextSettings,
   AiTextTaskKind,
   AiTextTaskSnapshot,
@@ -14,26 +12,19 @@ import type {
 } from "../../shared/contracts.js";
 
 export interface AiTextExtractOptions {
-  parserId?: AiTextParserProviderId;
-  agentId?: string;
+  /** Profile selected in the split view; omitted uses the default profile. */
+  profileId?: string;
 }
 
-export interface AiTextTaskStartOptions extends AiTextExtractOptions {
-  tier?: string;
-  source?: string;
+export interface AiTextTaskStartOptions {
+  profileId?: string;
+  engineId?: string;
+  operationId?: string;
+  config?: Record<string, unknown>;
+  operationOptions?: Record<string, string>;
 }
 
 export type AiTextLayoutStatus = "idle" | "loading" | "ready" | "missing";
-
-/** Shown until provider discovery answers, and when it fails. */
-export const DEFAULT_SPLIT_PANE_AGENTS: readonly AiTextAgentOption[] = [
-  { id: "pi", label: "pi (Default)", available: true, isDefault: true },
-  { id: "claude", label: "Claude Code", available: true },
-  { id: "codex", label: "Codex", available: true },
-  { id: "autumn-studio", label: "Autumn Studio", available: true },
-  { id: "opencode", label: "OpenCode", available: true },
-  { id: "copilot", label: "GitHub Copilot", available: true },
-];
 
 /** Client-side view of the daemon RPCs used by AI Text Mode. */
 export interface AiTextBridge {
@@ -62,9 +53,10 @@ export interface AiTextBridge {
     versionId: string,
     assetPath: string,
   ): Promise<{ mimeType: string; base64: string }>;
-  getEnvironment(options?: { refresh?: boolean }): Promise<{
-    environment: AiTextEnvironment;
-  }>;
+  getEngineEnvironment(
+    engineId: string,
+    options?: { config?: Record<string, unknown>; refresh?: boolean },
+  ): Promise<{ environment: AiTextEngineEnvironment }>;
   selectVersion(
     relPath: string,
     versionId: string,
@@ -81,7 +73,6 @@ export interface AiTextBridge {
     activeVersion: AiTextVersionRecord | null;
     content: string | null;
   }>;
-  listAgents?(): Promise<AiTextAgentOption[]>;
 }
 
 export interface FileAiTextContextValue {
@@ -96,7 +87,6 @@ export interface FileAiTextContextValue {
   metadata: AiTextDocumentMetadata | null;
   activeVersion: AiTextVersionRecord | null;
   activeContent: string | null;
-  availableAgents: readonly AiTextAgentOption[];
   settings: AiTextSettings;
   sourceUpdatedAt?: number;
   sourceFileSize?: number;
@@ -105,14 +95,13 @@ export interface FileAiTextContextValue {
   layoutMessage: string | null;
   activeBlockId: string | null;
   activeBlock: AiTextLayoutBlock | null;
-  defaultViewer: AiTextSettings["defaultAiTextViewer"];
+  defaultViewerId: string;
   showLayoutBlockOverlays: boolean;
   autoScrollToLayoutBlock: boolean;
   pdfHandleRef: React.RefObject<PDFViewerHandle | null>;
   onTriggerAiText(options?: AiTextExtractOptions): void;
   onRetryExtraction(): void;
   onCancelExtraction(): void;
-  onDownloadModels(): void;
   onSelectVersion(versionId: string): void;
   onDeleteVersion(versionId: string): void;
   onCloseSplit(): void;

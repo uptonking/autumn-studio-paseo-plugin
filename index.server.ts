@@ -1,4 +1,5 @@
 import { readFile, stat } from "fs/promises";
+import { join } from "node:path";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import {
   cancelAiTextTask,
@@ -6,7 +7,7 @@ import {
   deleteAiTextVersion,
   fileExplorerSettings,
   getAiTextAsset,
-  getAiTextEnvironment,
+  getAiTextEngineEnvironment,
   getAiTextLayout,
   getAiTextMetadata,
   getAiTextSettings,
@@ -16,6 +17,9 @@ import {
   getPdfWasm,
   getXlsxWasm,
   listAiTextAgents,
+  listAiTextEngines,
+  listAiTextStorageStats,
+  revealAiTextPath,
   saveFileContent,
   selectAiTextVersion,
   startAiTextTask,
@@ -25,12 +29,22 @@ import {
   readDocumentMetadata,
   selectActiveVersion,
 } from "./server/ai-text/metadata-store.js";
+import { resolveOutputBase } from "./server/ai-text/metadata-paths.js";
+import {
+  listAiTextStorageStats as collectAiTextStorageStats,
+} from "./server/ai-text/output-stats.js";
+import { openPathInFileManager } from "./server/ai-text/reveal.js";
+import { parseAiTextOutputRoot } from "./shared/ai-text/output-root.js";
 import {
   readExtractedVersionAsset,
   readExtractedVersionLayout,
 } from "./server/ai-text/version-artifacts.js";
-import { getMineruEnvironment } from "./server/ai-text/environment.js";
-import { discoverAiTextAgents } from "./server/ai-text/parser-registry.js";
+import { discoverAiTextAgents } from "./server/ai-text/agent-runner.js";
+import {
+  detectEngineEnvironment,
+  listAiTextEngineDescriptors,
+} from "./server/ai-text/engine-registry.js";
+import { registerAiTextEngines } from "./server/ai-text/engines/index.js";
 import { createAiTextTaskStore } from "./server/ai-text/task-store.js";
 import { atomicWriteFile, safeResolve, workspaceRoot } from "./server/paths.js";
 import { contentTypeFor, scanWorkspaceTree } from "./server/scan.js";
@@ -55,6 +69,7 @@ async function locate(paseo: unknown, workspaceId: string, relPath: string) {
 export default function contribute(server: PluginServerContext) {
   const settingsHandle = server.registerSettings(fileExplorerSettings);
   const aiTextTasks = createAiTextTaskStore();
+  registerAiTextEngines();
 
   async function resolveAiTextSettings() {
     try {
@@ -70,7 +85,15 @@ export default function contribute(server: PluginServerContext) {
 
   server.handle(getFileTree, async ({ workspaceId }, { paseo }) => {
     const root = await workspaceRoot(paseo, workspaceId);
-    const { tree, truncated } = await scanWorkspaceTree(root);
+    const aiSettings = await resolveAiTextSettings();
+    const parsed = parseAiTextOutputRoot(aiSettings.outputRootDir || ".autumn");
+    // A custom workspace-relative output root stays browsable like .autumn;
+    // outside-workspace roots never appear in the tree.
+    const visibleDotDirs =
+      parsed.ok && parsed.kind === "workspace-relative"
+        ? parsed.value.split("/").filter((segment) => segment.startsWith("."))
+        : [];
+    const { tree, truncated } = await scanWorkspaceTree(root, 5000, visibleDotDirs);
     return { tree, truncated };
   });
 
@@ -164,6 +187,7 @@ export default function contribute(server: PluginServerContext) {
         root,
         relPath,
         aiSettings.outputRootDir,
+        workspaceId,
       );
     },
   );
@@ -171,7 +195,16 @@ export default function contribute(server: PluginServerContext) {
   server.handle(
     startAiTextTask,
     async (
-      { workspaceId, relPath, kind, parserId, agentId, tier, source },
+      {
+        workspaceId,
+        relPath,
+        kind,
+        profileId,
+        engineId,
+        operationId,
+        config,
+        operationOptions,
+      },
       { paseo },
     ) => {
       if (kind === "parse" && !workspaceId) {
@@ -191,10 +224,11 @@ export default function contribute(server: PluginServerContext) {
         sourceAbsPath,
         kind,
         settings: aiSettings,
-        parserId,
-        agentId,
-        tier,
-        source,
+        profileId,
+        engineId,
+        operationId,
+        config,
+        operationOptions,
       });
     },
   );
@@ -221,6 +255,7 @@ export default function contribute(server: PluginServerContext) {
         relPath,
         versionId,
         aiSettings.outputRootDir,
+        workspaceId,
       );
     },
   );
@@ -239,18 +274,30 @@ export default function contribute(server: PluginServerContext) {
         versionId,
         assetPath,
         aiSettings.outputRootDir,
+        workspaceId,
       );
     },
   );
 
+  server.handle(listAiTextEngines, async () => ({
+    engines: listAiTextEngineDescriptors(),
+  }));
+
   server.handle(
-    getAiTextEnvironment,
-    async ({ refresh }) => {
+    getAiTextEngineEnvironment,
+    async ({ engineId, config, refresh }) => {
       const aiSettings = await resolveAiTextSettings();
-      const environment = await getMineruEnvironment({
-        kitCommand: aiSettings.mineru.kitCommand,
-        localApiUrl: aiSettings.mineru.localApiUrl,
-        tier: aiSettings.mineru.tier,
+      const profilesForEngine = aiSettings.profiles.filter(
+        (item) => item.engineId === engineId,
+      );
+      const profile =
+        profilesForEngine.find(
+          (item) => item.id === aiSettings.defaultProfileId,
+        ) ?? profilesForEngine[0];
+      const environment = await detectEngineEnvironment({
+        engineId,
+        config: config ?? profile?.config ?? {},
+        indexUrl: aiSettings.pypiIndexUrl,
         refresh: refresh ?? false,
       });
       return { environment };
@@ -267,6 +314,7 @@ export default function contribute(server: PluginServerContext) {
         relPath,
         versionId,
         aiSettings.outputRootDir,
+        workspaceId,
       );
     },
   );
@@ -281,7 +329,78 @@ export default function contribute(server: PluginServerContext) {
         relPath,
         versionId,
         aiSettings.outputRootDir,
+        workspaceId,
       );
+    },
+  );
+
+  server.handle(
+    listAiTextStorageStats,
+    async ({ workspaceId }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      const aiSettings = await resolveAiTextSettings();
+      return await collectAiTextStorageStats({
+        workspaceRootPath: root,
+        workspaceId,
+        outputRootDir: aiSettings.outputRootDir,
+      });
+    },
+  );
+
+  server.handle(
+    revealAiTextPath,
+    async ({ kind, workspaceId, docPath, engineId }, { paseo }) => {
+      // Targets are keyed, not raw paths: every branch resolves the absolute
+      // location from the plugin's own settings/detection so the client can
+      // never ask the daemon to open an arbitrary directory.
+      let target: string;
+      if (kind === "output-root" || kind === "doc-folder") {
+        if (!workspaceId) throw new Error("workspaceId is required");
+        const root = await workspaceRoot(paseo, workspaceId);
+        const aiSettings = await resolveAiTextSettings();
+        const base = resolveOutputBase(
+          root,
+          aiSettings.outputRootDir,
+          workspaceId,
+        );
+        target = base.docRootAbsPath;
+        if (kind === "doc-folder") {
+          const slug = (docPath ?? "").trim();
+          if (!slug || slug.includes("/") || slug.includes("\\") || slug.includes("..") || slug.includes("\0")) {
+            throw new Error("Invalid document folder.");
+          }
+          target = join(base.docRootAbsPath, slug);
+        }
+      } else {
+        const resolvedEngineId = (engineId ?? "").trim();
+        if (!resolvedEngineId) throw new Error("engineId is required");
+        const aiSettings = await resolveAiTextSettings();
+        const profilesForEngine = aiSettings.profiles.filter(
+          (item) => item.engineId === resolvedEngineId,
+        );
+        const profile =
+          profilesForEngine.find(
+            (item) => item.id === aiSettings.defaultProfileId,
+          ) ?? profilesForEngine[0];
+        const environment = await detectEngineEnvironment({
+          engineId: resolvedEngineId,
+          config: profile?.config ?? {},
+          indexUrl: aiSettings.pypiIndexUrl,
+        });
+        const storage = environment.storage;
+        target =
+          kind === "engine-tool"
+            ? (storage?.enginePath ?? "")
+            : (storage?.modelPath ?? "");
+        if (!target) {
+          throw new Error(
+            kind === "engine-tool"
+              ? "No engine install directory is known. Refresh the engine card first."
+              : "No model cache directory is known. Refresh the engine card first.",
+          );
+        }
+      }
+      return await openPathInFileManager(target);
     },
   );
 

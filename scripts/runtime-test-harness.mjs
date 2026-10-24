@@ -1,4 +1,5 @@
 import { createRequire } from "module";
+import { runtimePaseoApi } from "./runtime-test-ai-text-engines.mjs";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
@@ -165,12 +166,27 @@ const Pressable = ({
       ? children({ pressed: false, hovered: false })
       : children,
   );
+const ActivityIndicator = ({ testID, style, ...rest }) =>
+  React.createElement("div", { ...rest, "data-testid": testID, style: flattenStyle(style) });
+const TextInput = ({ testID, style, value, onChangeText, placeholder, editable, ...rest }) =>
+  React.createElement("input", {
+    ...rest,
+    type: "text",
+    "data-testid": testID,
+    value: value ?? "",
+    placeholder,
+    disabled: editable === false,
+    style: flattenStyle(style),
+    onChange: (event) => onChangeText?.(event.target.value),
+  });
 const ReactNative = {
   Platform: { OS: "web" },
   View,
   Text,
   ScrollView,
   Pressable,
+  ActivityIndicator,
+  TextInput,
 };
 
 export const fakeTree = {
@@ -266,23 +282,15 @@ let currentSettingsData = {
 
 export const rpcInputs = [];
 export const deletedDiskPaths = new Set();
+const diskFile = (content, contentType) => ({
+  content: Buffer.from(content, "utf8"),
+  contentType,
+  mtime: 1700000000000,
+});
+
 export const simulatedDiskFiles = new Map([
-  [
-    "README.md",
-    {
-      content: Buffer.from("# Hello Paseo", "utf8"),
-      contentType: "text/markdown",
-      mtime: 1700000000000,
-    },
-  ],
-  [
-    "report.html",
-    {
-      content: Buffer.from("<h1>Annual Report</h1><p>Summary</p>", "utf8"),
-      contentType: "text/html",
-      mtime: 1700000000000,
-    },
-  ],
+  ["README.md", diskFile("# Hello Paseo", "text/markdown")],
+  ["report.html", diskFile("<h1>Annual Report</h1><p>Summary</p>", "text/html")],
 ]);
 
 export const sdkClient = {
@@ -309,11 +317,7 @@ export const sdkClient = {
         contentType: prev?.contentType ?? "application/octet-stream",
         mtime,
       });
-      return {
-        path: input.relPath,
-        size: nextBuffer.byteLength,
-        mtime,
-      };
+      return { path: input.relPath, size: nextBuffer.byteLength, mtime };
     }
     if (
       rpcDef?.name === "files.pdf_wasm" ||
@@ -329,11 +333,8 @@ export const sdkClient = {
       }
       const diskEntry = simulatedDiskFiles.get(input.relPath);
       if (diskEntry) {
-        return {
-          dataUri: `data:${diskEntry.contentType};base64,${diskEntry.content.toString("base64")}`,
-          size: diskEntry.content.byteLength,
-          mtime: diskEntry.mtime,
-        };
+        const dataUri = `data:${diskEntry.contentType};base64,${diskEntry.content.toString("base64")}`;
+        return { dataUri, size: diskEntry.content.byteLength, mtime: diskEntry.mtime };
       }
       return {
         dataUri:
@@ -361,6 +362,7 @@ export const sdkClient = {
   },
   useToast: () => ({ show() {}, error() {} }),
   copyText: async () => {},
+  usePaseo: () => runtimePaseoApi,
 };
 
 export const sdkClientUi = {

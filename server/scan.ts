@@ -40,8 +40,17 @@ const VISIBLE_DOT_DIRS = new Set([".autumn"]);
 
 const MAX_DEPTH = 24;
 
-/** Directory walk that skips symlinks (cycles, path escapes) and dot-directories. */
-export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
+/**
+ * Directory walk that skips symlinks (cycles, path escapes) and
+ * dot-directories. `visibleDotDirs` extends the whitelist so a custom AI Text
+ * output root (e.g. `.ai-text`) stays browsable like `.autumn` is.
+ */
+export async function scanWorkspaceTree(
+  rootPath: string,
+  maxFiles = 5000,
+  visibleDotDirs: readonly string[] = [],
+) {
+  const visibleDirs = new Set([...VISIBLE_DOT_DIRS, ...visibleDotDirs]);
   let fileCount = 0;
   let truncated = false;
 
@@ -89,7 +98,7 @@ export async function scanWorkspaceTree(rootPath: string, maxFiles = 5000) {
       if (
         stats.isDirectory() &&
         entry.startsWith(".") &&
-        !VISIBLE_DOT_DIRS.has(entry)
+        !visibleDirs.has(entry)
       ) {
         continue;
       }

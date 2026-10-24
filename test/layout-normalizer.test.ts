@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { layoutBlockToArea } from "../shared/ai-text-layout.ts";
-import { normalizeMineruMiddleJson } from "../server/ai-text/layout-normalizer.ts";
+import { layoutBlockToArea } from "../shared/ai-text/layout.ts";
+import { normalizeMineruMiddleJson } from "../server/ai-text/engines/mineru/layout-normalizer.ts";
 
 const PRODUCED_AT = "2026-10-21T00:00:00.000Z";
 

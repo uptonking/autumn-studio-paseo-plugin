@@ -80,7 +80,7 @@ export function AiTextVersionToolbar({
       >
         {versions.map((version) => (
           <option key={version.id} value={version.id}>
-            {`v${version.versionNumber} · ${version.provenance.parserId} + ${version.provenance.agentId} (${version.fileName})`}
+            {`v${version.versionNumber} · ${version.provenance.profileName} (${version.fileName})`}
           </option>
         ))}
       </select>
@@ -101,7 +101,7 @@ export function AiTextVersionToolbar({
                 data-testid={`ai-text-version-pill-v${version.versionNumber}`}
                 aria-pressed={isActive}
                 disabled={isExtracting}
-                title={`Switch to v${version.versionNumber} (${version.provenance.parserId} + ${version.provenance.agentId})`}
+                title={`Switch to v${version.versionNumber} (${version.provenance.profileName} · ${version.provenance.engineLabel})`}
                 onClick={() => onSelectVersion(version.id)}
                 className={cn(
                   "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",

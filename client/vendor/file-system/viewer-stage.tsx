@@ -46,6 +46,7 @@ export function FileSystemGalleryStage({
   formatSettings,
   getFileUrl,
   loadPreviewImageUrl,
+  onOpenSettings,
   onSaveFile,
   pageUrlCache,
   pdfSettings,
@@ -70,6 +71,7 @@ export function FileSystemGalleryStage({
     file: FileSystemFileItem,
     pageIndex: number
   ) => Promise<string | null>
+  onOpenSettings?: () => void
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>
   pageUrlCache?: Map<string, string>
   pdfSettings?: FileSystemPdfSettings
@@ -174,6 +176,7 @@ export function FileSystemGalleryStage({
           sourceFileSize={file.size}
           autoSaveEdits={autoSaveEdits}
           onSaveFile={onSaveFile ? handleSaveFile : undefined}
+          onOpenSettings={onOpenSettings}
           extraMenuItems={extraMenuItems}
           toolbarActions={toolbarActions}
         />

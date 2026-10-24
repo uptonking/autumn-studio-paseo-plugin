@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
-import { extractLocalDocumentWithOcr } from "../server/ai-text/mineru-adapter.ts";
+import { extractLocalDocumentWithOcr } from "../server/ai-text/local-ocr-extractor.ts";
 
 describe("ai-text: real office-docs PDF corpus extraction", () => {
   it("extracts all 10 real PDFs from office-docs with layout, OCR, tables, sidebars, and code blocks", async () => {
@@ -27,7 +27,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(tableRes.modeUsed, "local-pdftotext");
+    assert.equal(tableRes.routeUsed, "local-pdftotext");
     assert.ok(tableRes.markdown.includes("| BROWSER | ECMASCRIPT COMPLIANCE |"));
     assert.ok(
       tableRes.markdown.includes("| Netscape Navigator 4.06–4.79 | Edition 1 |"),
@@ -41,7 +41,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(ocrRes.modeUsed, "local-vision-ocr");
+    assert.equal(ocrRes.routeUsed, "local-vision-ocr");
     assert.ok(ocrRes.markdown.includes("## 鲁迅论《红楼梦》"));
     assert.ok(ocrRes.markdown.includes("贾府上的焦大，也不爱林妹妹"));
     assert.ok(ocrRes.markdown.includes("> — 《花边文学·看书琐记》"));
@@ -55,7 +55,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(pythonBoolRes.modeUsed, "local-vision-ocr");
+    assert.equal(pythonBoolRes.routeUsed, "local-vision-ocr");
     assert.ok(
       pythonBoolRes.markdown.includes("其实在 Python 中任何对象都可判断其布尔值"),
     );
@@ -89,7 +89,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(twoColRes.modeUsed, "local-vision-ocr");
+    assert.equal(twoColRes.routeUsed, "local-vision-ocr");
     assert.ok(twoColRes.markdown.includes("## THE PACIFIC ISLANDS"));
     assert.ok(twoColRes.markdown.includes("## MALAYA"));
     assert.ok(
@@ -112,7 +112,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(crdtRes.modeUsed, "local-pdftotext");
+    assert.equal(crdtRes.routeUsed, "local-pdftotext");
     assert.ok(
       crdtRes.markdown.includes("## The Only Undoable CRDTs are Counters"),
     );
@@ -144,7 +144,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(eggRes.modeUsed, "local-vision-ocr");
+    assert.equal(eggRes.routeUsed, "local-vision-ocr");
     assert.ok(
       eggRes.markdown.includes(
         "- **46%**：现在英国人吃的所有鸡蛋中，有 46% 来自散养鸡",
@@ -177,7 +177,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(jsGoodRes.modeUsed, "local-vision-ocr");
+    assert.equal(jsGoodRes.routeUsed, "local-vision-ocr");
     assert.ok(jsGoodRes.markdown.includes("## 附录 A"));
     assert.ok(jsGoodRes.markdown.includes("## 毒瘤 (Awful Parts)"));
     assert.ok(jsGoodRes.markdown.includes("Pericles, Prince of Tyre"));
@@ -215,7 +215,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(proJs3Res.modeUsed, "local-pdftotext");
+    assert.equal(proJs3Res.routeUsed, "local-pdftotext");
     assert.ok(proJs3Res.markdown.includes("## Why the DOM Is Necessary"));
     assert.ok(proJs3Res.markdown.includes("## DOM Levels"));
     assert.ok(
@@ -250,7 +250,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(journeyRes.modeUsed, "local-vision-ocr");
+    assert.equal(journeyRes.routeUsed, "local-vision-ocr");
     assert.ok(
       journeyRes.markdown.includes(
         "'The headband then becomes very tight. Of course, the wearer is going to listen very carefully to you after that.'",
@@ -310,7 +310,7 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
       enableOcr: true,
       enableTable: true,
     });
-    assert.equal(html5CanvasRes.modeUsed, "local-vision-ocr");
+    assert.equal(html5CanvasRes.routeUsed, "local-vision-ocr");
     assert.ok(
       html5CanvasRes.markdown.includes("（2）通过调用 beginPath() 来开始一段新路径。"),
     );
@@ -353,6 +353,19 @@ describe("ai-text: real office-docs PDF corpus extraction", () => {
     assert.ok(
       !html5CanvasRes.markdown.includes("吾爱"),
       "watermark text should be stripped",
+    );
+  });
+
+  it("propagates cancellation instead of producing fallback text", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("stop now"));
+    await assert.rejects(
+      extractLocalDocumentWithOcr({
+        fileName: "document.pdf",
+        buffer: Buffer.from("%PDF-1.4"),
+        signal: controller.signal,
+      }),
+      /stop now/,
     );
   });
 });

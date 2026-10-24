@@ -24,10 +24,24 @@ function sleep(ms) {
 }
 
 export async function verifyAiTextSettingsSection(settingsHost) {
+  const byTestId = (testId) =>
+    settingsHost.querySelector(`[data-testid="${testId}"]`);
+  const getSection = (title) =>
+    settingsHost.querySelector(`[data-testid="settings-section-${title}"]`);
+  const waitFor = async (predicate, label) => {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const value = predicate();
+      if (value) return value;
+      await sleep(50);
+    }
+    throw new Error(`Timed out waiting for ${label}`);
+  };
+  const click = (element) =>
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  const optionsOf = (select) =>
+    [...select.querySelectorAll("option")].map((option) => option.value);
 
-  const navAiText = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-nav-ai-text"]',
-  );
+  const navAiText = byTestId("file-explorer-settings-nav-ai-text");
   if (!navAiText) {
     throw new Error("Settings sidebar missing AI Text Mode navigation item");
   }
@@ -36,245 +50,244 @@ export async function verifyAiTextSettingsSection(settingsHost) {
       `Expected AI Text Mode sidebar item to display 'On' badge, got '${navAiText.textContent}'`,
     );
   }
-  navAiText.click();
-  await new Promise((r) => setTimeout(r, 60));
+  click(navAiText);
+  await sleep(80);
 
-  const aiTextSection = settingsHost.querySelector(
-    '[data-testid="settings-section-AI Text Mode"]',
-  );
-  const parsingSection = settingsHost.querySelector(
-    '[data-testid="settings-section-Text Parsing Options"]',
-  );
-  if (!aiTextSection || !parsingSection) {
+  const aiTextSection = getSection("AI Text Mode");
+  if (!aiTextSection) {
     throw new Error(
-      "Clicking AI Text Mode in settings sidebar did not render AI Text Mode and Text Parsing Options sections",
+      "Clicking AI Text Mode in settings sidebar did not render the AI Text Mode section",
     );
   }
-
-  const agentSelect = aiTextSection.querySelector(
-    '[data-testid="settings-select-Default AI agent"] select',
-  );
-  if (!agentSelect || agentSelect.value !== "pi") {
-    throw new Error(
-      `Expected Default AI agent select to default to 'pi', got '${agentSelect?.value}'`,
-    );
+  for (const tab of ["general", "profiles", "engines", "advanced"]) {
+    if (!byTestId(`file-explorer-ai-text-tab-${tab}`)) {
+      throw new Error(`AI Text settings is missing the ${tab} tab`);
+    }
   }
 
-  const openSplitSwitch = aiTextSection.querySelector(
-    '[data-testid="settings-switch-Open split view by default"] input[type="checkbox"]',
-  );
+  const defaultViewerSelect = byTestId(
+    "settings-select-Default AI Text viewer",
+  )?.querySelector("select");
+  if (!defaultViewerSelect || defaultViewerSelect.value !== "text") {
+    throw new Error(
+      `Expected Default AI Text viewer to default to 'text', got '${defaultViewerSelect?.value}'`,
+    );
+  }
+  const viewerOptions = optionsOf(defaultViewerSelect);
+  assertIncludes(viewerOptions, "text", "Default AI Text viewer");
+  assertIncludes(viewerOptions, "layout-blocks", "Default AI Text viewer");
+
+  const defaultProfileSelect = byTestId(
+    "settings-select-Default parsing profile",
+  )?.querySelector("select");
+  if (
+    !defaultProfileSelect ||
+    defaultProfileSelect.value !== "mineru-cloud-free"
+  ) {
+    throw new Error(
+      `Expected Default parsing profile to default to 'mineru-cloud-free', got '${defaultProfileSelect?.value}'`,
+    );
+  }
+  const profileOptions = optionsOf(defaultProfileSelect);
+  assertIncludes(profileOptions, "mineru-cloud-free", "Default parsing profile");
+
+  const openSplitSwitch = byTestId(
+    "settings-switch-Open split view by default",
+  )?.querySelector('input[type="checkbox"]');
   if (!openSplitSwitch || openSplitSwitch.checked) {
     throw new Error(
       "Expected 'Open split view by default' switch to be present and default to off",
     );
   }
 
-  const defaultViewerSelect = aiTextSection.querySelector(
-    '[data-testid="settings-select-Default AI Text viewer"] select',
+  // Profiles tab: cards, editor, and preset creation.
+  click(byTestId("file-explorer-ai-text-tab-profiles"));
+  await waitFor(
+    () => getSection("Parsing profiles"),
+    "the Parsing profiles tab",
   );
-  if (!defaultViewerSelect || defaultViewerSelect.value !== "text") {
+  if (
+    !byTestId("file-explorer-ai-text-profile-mineru-cloud-free") ||
+    byTestId("file-explorer-ai-text-profile-delete-mineru-cloud-free") ||
+    byTestId("file-explorer-ai-text-profile-docling-standard")
+  ) {
     throw new Error(
-      `Expected Default AI Text viewer to default to 'text', got '${defaultViewerSelect?.value}'`,
+      "The built-in cloud-free profile should exist, be marked non-deletable, and be the only pre-created profile",
     );
   }
-  const defaultViewerOptions = [
-    ...defaultViewerSelect.querySelectorAll("option"),
-  ].map((opt) => opt.value);
-  assertIncludes(defaultViewerOptions, "text", "Default AI Text viewer");
-  assertIncludes(defaultViewerOptions, "layout-blocks", "Default AI Text viewer");
 
-  const parserSelect = parsingSection.querySelector(
-    '[data-testid="settings-select-Text parsing service"] select',
+  click(byTestId("file-explorer-ai-text-profile-edit-mineru-cloud-free"));
+  const editor = await waitFor(
+    () => getSection("Profile"),
+    "the profile editor",
   );
-  if (!parserSelect || parserSelect.value !== "mineru") {
-    throw new Error(
-      `Expected Text parsing service select to default to 'mineru', got '${parserSelect?.value}'`,
-    );
+  if (!editor.querySelector('[data-testid="settings-select-Engine"] select')) {
+    throw new Error("Profile editor is missing the engine select");
   }
-  const parserOptionValues = [...parserSelect.querySelectorAll("option")].map(
-    (opt) => opt.value,
+  if (!editor.querySelector('[data-testid="settings-select-Route"] select')) {
+    throw new Error("Profile editor is missing the route select");
+  }
+  click(byTestId("file-explorer-setting-ai-text-profile-cancel"));
+  await waitFor(
+    () => getSection("Parsing profiles"),
+    "the profile list after cancelling the editor",
   );
-  for (const expectedParser of [
-    "mineru",
-    "agent-vlm",
-    "llamaparse",
-    "azure-document-intelligence",
-    "datalab",
-  ]) {
-    assertIncludes(parserOptionValues, expectedParser, "Text parsing service");
-  }
 
-  const has = (root, testId) =>
-    Boolean(root?.querySelector(`[data-testid="${testId}"]`));
-  const getSection = (title) =>
-    settingsHost.querySelector(`[data-testid="settings-section-${title}"]`);
-
-  const engineSection = getSection("MinerU Engine");
-  const extractionSection = getSection("MinerU Extraction");
-  if (!engineSection || !extractionSection) {
+  // The preset trigger must hug its content instead of filling the card.
+  const presetTrigger = byTestId("file-explorer-setting-ai-text-profile-new");
+  if (presetTrigger?.style?.alignSelf !== "flex-start") {
     throw new Error(
-      "MinerU settings must render separate Engine and Extraction sections",
+      `'New profile from preset' should hug its content, got alignSelf '${presetTrigger?.style?.alignSelf}'`,
     );
   }
-
-  const modeSelect = engineSection.querySelector(
-    '[data-testid="settings-select-MinerU execution mode"] select',
+  click(presetTrigger);
+  await waitFor(
+    () => byTestId("file-explorer-setting-ai-text-profile-preset-docling-vlm"),
+    "the new-profile preset list",
   );
-  if (!modeSelect || modeSelect.value !== "cloud-free") {
-    throw new Error(
-      `Expected MinerU execution mode to default to 'cloud-free', got '${modeSelect?.value}'`,
-    );
-  }
-  if (has(extractionSection, "settings-switch-Extract layout metadata")) {
-    throw new Error(
-      "Cloud-free mode must not offer layout extraction; the free API is Markdown-only",
-    );
-  }
-  if (!has(extractionSection, "settings-switch-Enable OCR")) {
-    throw new Error("Cloud-free mode must expose cloud OCR settings");
-  }
-  if (has(extractionSection, "settings-select-MinerU model tier")) {
-    throw new Error(
-      "Cloud-free mode must not expose the local model tier setting",
-    );
-  }
-  if (getSection("MinerU Advanced")) {
-    throw new Error("Cloud-free mode must not render local advanced settings");
-  }
-
-  const view = settingsHost.ownerDocument.defaultView;
-  const setMode = async (mode) => {
-    const select = settingsHost.querySelector(
-      '[data-testid="settings-select-MinerU execution mode"] select',
-    );
-    if (!select) {
-      throw new Error("MinerU execution mode select disappeared");
-    }
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      view.HTMLSelectElement.prototype,
-      "value",
-    )?.set;
-    valueSetter?.call(select, mode);
-    select.dispatchEvent(new view.Event("change", { bubbles: true }));
-    await sleep(80);
-  };
-
-  await setMode("local-cli");
-  const localEngine = getSection("MinerU Engine");
-  const localExtraction = getSection("MinerU Extraction");
-  if (!has(localEngine, "settings-input-MinerU Kit command")) {
-    throw new Error("Local CLI mode must expose the MinerU Kit command");
-  }
-  if (has(localEngine, "settings-input-Local MinerU API URL")) {
-    throw new Error("Local CLI mode must not expose the local API URL");
-  }
-  if (!has(localExtraction, "settings-select-MinerU model tier")) {
-    throw new Error("Local CLI mode must expose the model tier");
-  }
-  if (!has(localExtraction, "settings-select-MinerU OCR mode")) {
-    throw new Error("Local CLI mode must expose MinerU OCR mode");
-  }
-  if (!has(localExtraction, "settings-switch-Extract layout metadata")) {
-    throw new Error("Local CLI mode must expose layout extraction");
-  }
-  if (has(localExtraction, "settings-switch-Enable OCR")) {
-    throw new Error(
-      "Local CLI mode must not show the cloud-only Enable OCR switch",
-    );
-  }
-  if (!getSection("MinerU Advanced")) {
-    throw new Error("Local CLI mode must render advanced local settings");
-  }
-
-  await setMode("local-api");
-  const apiEngine = getSection("MinerU Engine");
-  if (!has(apiEngine, "settings-input-MinerU Kit command")) {
-    throw new Error(
-      "Local API mode still needs mineru-kit as the client executable",
-    );
-  }
-  if (!has(apiEngine, "settings-input-Local MinerU API URL")) {
-    throw new Error("Local API mode must expose the local API URL");
-  }
-  if (has(getSection("MinerU Advanced"), "settings-input-Remote MinerU server URL")) {
-    throw new Error("Local API mode must not expose the remote Server URL");
-  }
-
-  await setMode("cloud-token");
-  const tokenEngine = getSection("MinerU Engine");
-  const tokenExtraction = getSection("MinerU Extraction");
-  if (!has(tokenEngine, "settings-input-MinerU API token")) {
-    throw new Error("Token mode must expose the MinerU API token");
-  }
-  if (!has(tokenEngine, "settings-input-MinerU cloud endpoint")) {
-    throw new Error("Token mode must expose the MinerU cloud endpoint");
-  }
-  if (!has(tokenExtraction, "settings-switch-Extract layout metadata")) {
-    throw new Error("Token mode must expose layout extraction");
-  }
-  if (!has(tokenExtraction, "settings-switch-Enable OCR")) {
-    throw new Error("Token mode must expose cloud OCR settings");
-  }
-  if (has(tokenExtraction, "settings-select-MinerU model tier")) {
-    throw new Error("Token mode must not expose the local model tier");
-  }
-  if (getSection("MinerU Advanced")) {
-    throw new Error("Token mode must not render local advanced settings");
-  }
-
-  await setMode("auto");
-  const autoEngine = getSection("MinerU Engine");
-  if (!has(autoEngine, "settings-input-MinerU Kit command")) {
-    throw new Error("Auto mode must expose the MinerU Kit command");
-  }
-  if (!has(autoEngine, "settings-input-Local MinerU API URL")) {
-    throw new Error("Auto mode must expose the local API URL");
-  }
-  if (!has(autoEngine, "settings-input-MinerU API token (optional)")) {
-    throw new Error("Auto mode must allow an optional cloud token");
-  }
-
-  // Restore the default so later runtime checks see the original settings.
-  await setMode("cloud-free");
-
-  const environmentSection = settingsHost.querySelector(
-    '[data-testid="settings-section-MinerU Environment"]',
+  click(
+    byTestId("file-explorer-setting-ai-text-profile-preset-docling-vlm"),
   );
-  if (!environmentSection) {
-    throw new Error("MinerU Environment section was not rendered in settings");
-  }
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (settingsHost.querySelector('[data-testid="mineru-environment-status"]')) {
-      break;
-    }
-    await sleep(50);
-  }
-  const environmentStatus = settingsHost.querySelector(
-    '[data-testid="mineru-environment-status"]',
+  await waitFor(() => getSection("Profile"), "the preset profile editor");
+  click(byTestId("file-explorer-setting-ai-text-profile-cancel"));
+  await waitFor(
+    () => getSection("Parsing profiles"),
+    "the profile list after cancelling the preset editor",
   );
-  if (!environmentStatus) {
+
+  // Engines tab: fixed-order engine tabs and one panel at a time.
+  click(byTestId("file-explorer-ai-text-tab-engines"));
+  await waitFor(
+    () => getSection("Engines & setup"),
+    "the Engines & setup tab",
+  );
+  if (!byTestId("file-explorer-ai-text-engine-tabs")) {
+    throw new Error("Engines tab is missing the engine tab bar");
+  }
+  // Fixed catalog order puts MinerU first; its panel is selected by default
+  // and its details section starts expanded.
+  const mineruCard = await waitFor(
+    () => byTestId("file-explorer-ai-text-engine-mineru"),
+    "the MinerU engine panel",
+  );
+  const status = await waitFor(
+    () => byTestId("file-explorer-ai-text-engine-status-mineru"),
+    "the MinerU environment status",
+  );
+  if (!(status.textContent ?? "").includes("Ready")) {
     throw new Error(
-      "MinerU Environment status card never rendered detected values",
+      `Expected MinerU environment to report Ready, got '${status.textContent}'`,
     );
   }
-  const environmentText = environmentStatus.textContent ?? "";
-  for (const expected of ["4.0.12", "uv-tool", "standard"]) {
-    if (!environmentText.includes(expected)) {
-      throw new Error(
-        `Expected MinerU environment to show '${expected}', got '${environmentText}'`,
-      );
-    }
+  if (!(mineruCard.textContent ?? "").includes("4.0.12")) {
+    throw new Error("MinerU engine panel did not render the detected version");
   }
-  // Settings render outside the plugin shadow root, so Tailwind utilities do
-  // not load there. The status must use inline RN/theme styles instead.
-  if (environmentStatus.querySelectorAll("[style]").length < 2) {
-    throw new Error("MinerU Environment status rows are missing host styles");
+  const detailsToggle = byTestId("file-explorer-ai-text-engine-toggle-mineru");
+  if (!(detailsToggle?.textContent ?? "").includes("▾")) {
+    throw new Error("Engine details toggle should be a down-chevron when expanded");
   }
-  if (environmentSection.querySelector("[class]")) {
+  if (byTestId("file-explorer-ai-text-engine-op-docling-cli.update")) {
     throw new Error(
-      "MinerU Environment must not rely on plugin Tailwind classes in settings",
+      "Only the selected engine's panel should render its operations",
     );
   }
+
+  click(byTestId("file-explorer-ai-text-engine-op-mineru-models.download"));
+  await waitFor(
+    () => {
+      const card = byTestId("file-explorer-ai-text-engine-mineru");
+      return (card?.textContent ?? "").includes("Finished. Detection refreshed.");
+    },
+    "the MinerU operation to finish",
+  );
+
+  click(byTestId("file-explorer-ai-text-engine-tab-docling"));
+  await waitFor(
+    () => byTestId("file-explorer-ai-text-engine-docling"),
+    "the Docling engine panel",
+  );
+  const doclingUpdateBadge = await waitFor(
+    () => byTestId("file-explorer-ai-text-engine-update-docling"),
+    "the Docling update badge",
+  );
+  if (!(doclingUpdateBadge.textContent ?? "").includes("2.142.0")) {
+    throw new Error("Docling update badge did not show the latest version");
+  }
+  if (!byTestId("file-explorer-ai-text-engine-storage-models-docling")) {
+    throw new Error("Docling panel is missing the model cache storage row");
+  }
+  // Installed engines pin their version inputs to the installed release
+  // instead of offering "latest".
+  const doclingVersionInput = document.querySelector(
+    '[data-testid="settings-input-Install · Version (blank = latest)"] input',
+  );
+  if (!doclingVersionInput || doclingVersionInput.value !== "2.53.0") {
+    throw new Error(
+      `Expected the installed Docling version input to hold '2.53.0', got '${doclingVersionInput?.value}'`,
+    );
+  }
+  if (!byTestId("file-explorer-ai-text-engine-op-docling-cli.update")) {
+    throw new Error("Update action is missing while an update is available");
+  }
+
+  click(byTestId("file-explorer-ai-text-engine-tab-local-ocr"));
+  await waitFor(
+    () => byTestId("file-explorer-ai-text-engine-local-ocr"),
+    "the local-ocr engine panel",
+  );
+  if (byTestId("file-explorer-ai-text-engine-op-local-ocr-cli.uninstall")) {
+    throw new Error("local-ocr must not offer engine lifecycle actions");
+  }
+
+  // Advanced tab: output root, PyPI mirror, and the storage dashboard.
+  click(byTestId("file-explorer-ai-text-tab-advanced"));
+  const advanced = await waitFor(
+    () => getSection("Storage"),
+    "the Advanced tab (Storage section)",
+  );
+  const outputRoot = advanced.querySelector(
+    '[data-testid="settings-input-Output root directory"] input',
+  );
+  if (!outputRoot || outputRoot.value !== ".autumn") {
+    throw new Error(
+      `Expected output root directory to default to '.autumn', got '${outputRoot?.value}'`,
+    );
+  }
+  if (!advanced.textContent?.includes("Inside the workspace")) {
+    throw new Error("Output root preview is missing for a relative root");
+  }
+  const statsRow = await waitFor(
+    () => byTestId("file-explorer-ai-text-stats-row-0"),
+    "the storage dashboard stats row",
+  );
+  if (!(statsRow.textContent ?? "").includes("docs/report.pdf")) {
+    throw new Error("Stats row is missing the source file");
+  }
+  if (!byTestId("file-explorer-ai-text-stats-refresh")) {
+    throw new Error("Storage dashboard is missing the Recalculate button");
+  }
+  const pypiSection = await waitFor(
+    () => getSection("Package index"),
+    "the Package index section",
+  );
+  const pypiSelect = pypiSection.querySelector(
+    '[data-testid="settings-select-PyPI source"] select',
+  );
+  if (!pypiSelect || pypiSelect.value !== "") {
+    throw new Error(
+      `PyPI source should default to the official index, got '${pypiSelect?.value}'`,
+    );
+  }
+  // Settings render outside the plugin shadow root, so plugin Tailwind classes
+  // do not load there. Custom rows must use inline RN/theme styles instead.
+  if (advanced.querySelector("[class]")) {
+    throw new Error(
+      "AI Text settings must not rely on plugin Tailwind classes in settings",
+    );
+  }
+
+  click(byTestId("file-explorer-ai-text-tab-general"));
+  await waitFor(() => getSection("AI Text Mode"), "the General tab");
 }
 
 export async function verifyAiTextSplitViewAndMultiVersion({
@@ -402,7 +415,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
   }
 
   const blocksButton = rightSplitPane.querySelector(
-    '[data-testid="ai-text-mode-blocks"]',
+    '[data-testid="ai-text-mode-layout-blocks"]',
   );
   if (!blocksButton) {
     throw new Error(
@@ -467,7 +480,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
   }
 
   const previewButton = rightSplitPane.querySelector(
-    '[data-testid="ai-text-mode-preview"]',
+    '[data-testid="ai-text-mode-text"]',
   );
   previewButton?.dispatchEvent(
     new dom.window.MouseEvent("click", { bubbles: true }),

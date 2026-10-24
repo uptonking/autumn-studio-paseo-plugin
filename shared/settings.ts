@@ -2,13 +2,20 @@ import { defineSettings } from "@getpaseo/plugin";
 import { z } from "zod";
 import {
   aiTextSettingsSchema,
-  DEFAULT_AI_TEXT_SETTINGS,
-  DEFAULT_MINERU_SETTINGS,
+  createDefaultAiTextSettings,
+  migrateFileExplorerSettingsV1,
   type AiTextSettings,
-  type MineruSettings,
-} from "./ai-text-settings.ts";
+} from "./ai-text/settings.ts";
+import {
+  aiTextProfileSchema,
+  createDefaultAiTextProfiles,
+  isValidAiTextProfileId,
+  normalizeAiTextProfile,
+  type AiTextProfile,
+} from "./ai-text/profiles.ts";
+import { normalizeAiTextOutputRootDir } from "./ai-text/output-root.ts";
 
-export * from "./ai-text-settings.ts";
+export * from "./ai-text/settings.ts";
 
 export const fileOpenModeSchema = z.enum(["in-place", "dialog", "new-tab"]);
 export type FileOpenMode = z.infer<typeof fileOpenModeSchema>;
@@ -128,7 +135,7 @@ export const fileExplorerSettingsSchema = z.object({
   pdf: pdfSettingsSchema.default(DEFAULT_PDF_SETTINGS),
   xlsx: xlsxSettingsSchema.default(DEFAULT_XLSX_SETTINGS),
   text: textSettingsSchema.default(DEFAULT_TEXT_VIEWER_SETTINGS),
-  aiText: aiTextSettingsSchema.default(DEFAULT_AI_TEXT_SETTINGS),
+  aiText: aiTextSettingsSchema.default(() => createDefaultAiTextSettings()),
   /**
    * Extensible map for additional file format viewers/editors
    * (e.g. docx, pptx, image, markdown).
@@ -145,15 +152,16 @@ export const DEFAULT_FILE_EXPLORER_SETTINGS: FileExplorerSettingsValues = {
   pdf: DEFAULT_PDF_SETTINGS,
   xlsx: DEFAULT_XLSX_SETTINGS,
   text: DEFAULT_TEXT_VIEWER_SETTINGS,
-  aiText: DEFAULT_AI_TEXT_SETTINGS,
+  aiText: createDefaultAiTextSettings(),
   formats: {},
 };
 
 export const fileExplorerSettings = defineSettings({
   id: "preferences",
   scope: "host",
-  version: 1,
+  version: 2,
   schema: fileExplorerSettingsSchema,
+  migrate: migrateFileExplorerSettingsV1,
 });
 
 export function toPdfViewerZoom(
@@ -322,29 +330,58 @@ export function withTextViewerSettings(
   };
 }
 
+const aiTextScalarSettingsSchema = aiTextSettingsSchema.omit({
+  profiles: true,
+});
+
+function normalizeStoredProfiles(rawProfiles: unknown): AiTextProfile[] {
+  const defaults = createDefaultAiTextProfiles();
+  if (!Array.isArray(rawProfiles)) return defaults;
+  const seen = new Set<string>();
+  const profiles: AiTextProfile[] = [];
+  for (const candidate of rawProfiles) {
+    const parsed = aiTextProfileSchema.safeParse(candidate);
+    if (!parsed.success) continue;
+    const profile = parsed.data;
+    if (!isValidAiTextProfileId(profile.id) || seen.has(profile.id)) continue;
+    seen.add(profile.id);
+    // Filling engine defaults here keeps settings, fingerprints, and the
+    // pipeline looking at the same profile shape.
+    profiles.push(normalizeAiTextProfile(profile));
+  }
+  return profiles.length > 0 ? profiles : defaults;
+}
+
 export function getAiTextSettings(
   values: Partial<FileExplorerSettingsValues> | undefined
 ): AiTextSettings {
   const raw = values?.aiText;
+  const defaults = createDefaultAiTextSettings();
+  const scalars = aiTextScalarSettingsSchema.safeParse(raw ?? {});
+  const base = scalars.success
+    ? scalars.data
+    : aiTextScalarSettingsSchema.parse({});
+  const profiles = normalizeStoredProfiles(
+    typeof raw === "object" && raw !== null ? raw.profiles : undefined
+  );
+  const defaultProfileId = profiles.some(
+    (profile) => profile.id === base.defaultProfileId
+  )
+    ? base.defaultProfileId
+    : (profiles[0]?.id ?? defaults.defaultProfileId);
   return {
-    ...DEFAULT_AI_TEXT_SETTINGS,
-    ...raw,
-    mineru: {
-      ...DEFAULT_MINERU_SETTINGS,
-      ...raw?.mineru,
-    },
-    parsers: {
-      ...DEFAULT_AI_TEXT_SETTINGS.parsers,
-      ...raw?.parsers,
-    },
+    ...base,
+    // Heal stored values the server would silently replace with the default,
+    // so the settings UI and the daemon agree on the resolved folder.
+    outputRootDir: normalizeAiTextOutputRootDir(base.outputRootDir),
+    profiles,
+    defaultProfileId,
   };
 }
 
 export function withAiTextSettings(
   values: FileExplorerSettingsValues,
-  patch: Partial<Omit<AiTextSettings, "mineru">> & {
-    mineru?: Partial<MineruSettings>;
-  }
+  patch: Partial<AiTextSettings>
 ): FileExplorerSettingsValues {
   const current = getAiTextSettings(values);
   return {
@@ -352,14 +389,6 @@ export function withAiTextSettings(
     aiText: {
       ...current,
       ...patch,
-      mineru: {
-        ...current.mineru,
-        ...patch.mineru,
-      },
-      parsers: {
-        ...current.parsers,
-        ...patch.parsers,
-      },
     },
   };
 }

@@ -145,6 +145,9 @@ export async function runProcess(
     stopChild();
   };
   options.signal?.addEventListener("abort", onAbort, { once: true });
+  // The signal can flip between the check above and the listener; a missed
+  // abort would leave the CLI running to completion.
+  if (options.signal?.aborted) onAbort();
 
   if (options.timeoutMs && options.timeoutMs > 0) {
     timeoutHandle = setTimeout(() => {

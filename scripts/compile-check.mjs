@@ -64,8 +64,11 @@ for (const rootFile of ["index.client.tsx", "index.server.ts"]) {
   }
 }
 
-// The plugin lives in <paseo-checkout>/../paseo-plugins/<name> or .../<name>/plugin.
+// The plugin lives in <paseo-checkout>/../<name>, <paseo-checkout>/../paseo-plugins/<name>,
+// or .../<name>/plugin.
 const candidates = [
+  resolve(pluginDir, "../paseo/packages/server/dist/server/server/plugins/compiler.js"),
+  resolve(pluginDir, "../paseo/packages/server/dist/server/plugins/compiler.js"),
   resolve(pluginDir, "../../paseo/packages/server/dist/server/server/plugins/compiler.js"),
   resolve(pluginDir, "../../paseo/packages/server/dist/server/plugins/compiler.js"),
   resolve(pluginDir, "../../../paseo/packages/server/dist/server/server/plugins/compiler.js"),

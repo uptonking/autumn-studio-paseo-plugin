@@ -4,7 +4,7 @@ import type {
   AiTextLayoutDocument,
   AiTextVersionRecord,
 } from "../../shared/contracts.js";
-import { layoutBlockToArea } from "../../shared/ai-text-layout.js";
+import { layoutBlockToArea } from "../../shared/ai-text/layout.js";
 import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
 import type { AiTextBridge, AiTextLayoutStatus } from "./ai-text-types.js";
 
