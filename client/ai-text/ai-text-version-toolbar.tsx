@@ -86,43 +86,12 @@ export function AiTextVersionToolbar({
       </select>
 
       {versions.length > 1 ? (
-        <div
-          role="group"
-          aria-label="Quick switch text version"
-          data-testid="ai-text-version-pills"
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 p-0.5"
-        >
-          {versions.slice(0, 5).map((version) => {
-            const isActive = version.id === activeVersion?.id;
-            return (
-              <button
-                key={version.id}
-                type="button"
-                data-testid={`ai-text-version-pill-v${version.versionNumber}`}
-                aria-pressed={isActive}
-                disabled={isExtracting}
-                title={`Switch to v${version.versionNumber} (${version.provenance.profileName} · ${version.provenance.engineLabel})`}
-                onClick={() => onSelectVersion(version.id)}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
-                  isActive
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {`v${version.versionNumber}`}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {versions.length > 1 ? (
         <span
           data-testid="ai-text-version-count"
+          title={`${versions.length} extracted versions — switch with the selector`}
           className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
         >
-          {versions.length} versions
+          {versions.length} Ver.
         </span>
       ) : null}
 
@@ -146,13 +115,16 @@ export function AiTextVersionToolbar({
           }
           onClick={() => requestDelete(activeVersion.id)}
           className={cn(
-            "size-6",
+            "size-6 gap-1 px-1",
             isConfirmingDelete
-              ? "bg-destructive/10 text-destructive"
+              ? "w-auto bg-destructive/10 text-destructive"
               : "text-muted-foreground hover:text-destructive",
           )}
         >
           <Trash2 className="size-3" />
+          {isConfirmingDelete ? (
+            <span className="text-[10px] font-semibold">Confirm delete</span>
+          ) : null}
         </Button>
       ) : null}
     </>

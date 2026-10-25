@@ -54,7 +54,7 @@ export function AiTextSettingsTabs({
             key={tab.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            testID={`file-explorer-ai-text-tab-${tab.id}`}
+            testID={`autumn-studio-ai-text-tab-${tab.id}`}
             onPress={() => onChange(tab.id)}
             style={[
               tabButtonStyle,

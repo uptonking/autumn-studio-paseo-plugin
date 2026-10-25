@@ -3,9 +3,9 @@ import { useRpc, useSettings } from "@getpaseo/plugin/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   cancelAiTextTask,
-  DEFAULT_FILE_EXPLORER_SETTINGS,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS,
   deleteAiTextVersion,
-  fileExplorerSettings,
+  autumnStudioSettings,
   getAiTextAsset,
   getAiTextEngineEnvironment,
   getAiTextLayout,
@@ -47,11 +47,25 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   const callGetAiTextEngineEnvironment = useRpc(getAiTextEngineEnvironment);
   const callSelectAiTextVersion = useRpc(selectAiTextVersion);
   const callDeleteAiTextVersion = useRpc(deleteAiTextVersion);
-  const settingsState = useSettings(fileExplorerSettings);
+  const settingsState = useSettings(autumnStudioSettings);
   const settings =
     settingsState.status === "ready"
       ? settingsState.values
-      : DEFAULT_FILE_EXPLORER_SETTINGS;
+      : DEFAULT_AUTUMN_STUDIO_SETTINGS;
+
+  const dismissTreeDeprecation = useCallback(() => {
+    if (settingsState.status !== "ready") return;
+    void settingsState.save(
+      {
+        ...settingsState.values,
+        general: {
+          ...settingsState.values.general,
+          fileTreeDeprecationDismissed: true,
+        },
+      },
+      settingsState.revision,
+    );
+  }, [settingsState]);
 
   const getPdfWasmUrl = useCallback(
     () => getOrCreatePdfWasmBlobUrl(() => fetchPdfWasm({})),
@@ -87,7 +101,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
                 mtimeIso !== file.updatedAt)
             ) {
               void queryClient.invalidateQueries({
-                queryKey: ["file-explorer:tree", workspaceId],
+                queryKey: ["autumn-studio:tree", workspaceId],
               });
             }
           }
@@ -108,7 +122,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
         callSaveRpc: callSaveFile,
         onSaved: () => {
           void queryClient.invalidateQueries({
-            queryKey: ["file-explorer:tree", workspaceId],
+            queryKey: ["autumn-studio:tree", workspaceId],
           });
         },
       }),
@@ -195,7 +209,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
         result.task.status === "cancelled"
       ) {
         void queryClient.invalidateQueries({
-          queryKey: ["file-explorer:tree", workspaceId],
+          queryKey: ["autumn-studio:tree", workspaceId],
         });
       }
       return result;
@@ -252,7 +266,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
         versionId,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["file-explorer:tree", workspaceId],
+        queryKey: ["autumn-studio:tree", workspaceId],
       });
       return result;
     },
@@ -297,5 +311,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     getPdfWasmUrl,
     getXlsxWasmDataUri,
     handleSaveFile,
+    treeDeprecationDismissed: settings.general.fileTreeDeprecationDismissed,
+    dismissTreeDeprecation,
   };
 }

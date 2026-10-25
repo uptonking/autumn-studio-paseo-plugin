@@ -294,6 +294,10 @@ export const simulatedDiskFiles = new Map([
 ]);
 
 export const sdkClient = {
+  useTabState: (tab, _schema, defaultState) => {
+    const [state, setState] = React.useState(tab?.state ?? defaultState);
+    return [state, (next) => (setState(next), tab?.setState?.(next))];
+  },
   useRpc: (rpcDef) => async (input) => {
     rpcInputs.push({ name: rpcDef?.name, input });
     const aiTextResult = handleAiTextRpc(
@@ -319,11 +323,11 @@ export const sdkClient = {
       });
       return { path: input.relPath, size: nextBuffer.byteLength, mtime };
     }
-    if (
-      rpcDef?.name === "files.pdf_wasm" ||
-      rpcDef?.name === "files.xlsx_wasm"
-    ) {
+    if (["files.pdf_wasm", "files.xlsx_wasm"].includes(rpcDef?.name))
       return { dataUri: "data:application/wasm;base64,AGFzbQEAAAA=" };
+    if (rpcDef?.name === "files.locate") {
+      const p = "/Users/yaoo/Documents/repos/tests/";
+      return { relPath: input?.absPath?.startsWith(p) ? input.absPath.slice(p.length) : null };
     }
     if (input?.relPath !== undefined) {
       if (deletedDiskPaths.has(input.relPath)) {
@@ -351,11 +355,7 @@ export const sdkClient = {
       revision: "rev-1",
       saving: false,
       saveError: null,
-      save: async (nextValues) => {
-        currentSettingsData = nextValues;
-        setValues(nextValues);
-        return true;
-      },
+      save: async (next) => ((currentSettingsData = next), setValues(next), true),
       reset: async () => true,
       reload: async () => {},
     };
@@ -485,19 +485,19 @@ export const runtimeRequire = (name) => {
 
 export async function verifySettingsSidebarNavigation(settingsHost) {
   const settingsSidebar = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-sidebar"]',
+    '[data-testid="autumn-studio-settings-sidebar"]',
   );
   const navGeneral = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-nav-general"]',
+    '[data-testid="autumn-studio-settings-nav-general"]',
   );
   const navPdf = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-nav-pdf"]',
+    '[data-testid="autumn-studio-settings-nav-pdf"]',
   );
   const navXlsx = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-nav-xlsx"]',
+    '[data-testid="autumn-studio-settings-nav-xlsx"]',
   );
   const navMore = settingsHost.querySelector(
-    '[data-testid="file-explorer-settings-nav-more"]',
+    '[data-testid="autumn-studio-settings-nav-more"]',
   );
   if (!settingsSidebar || !navGeneral || !navPdf || !navXlsx || !navMore) {
     throw new Error(
@@ -586,7 +586,7 @@ export async function verifySettingsSidebarNavigation(settingsHost) {
   if (!textSection || !imageSection || settingsHost.querySelector('[data-testid="settings-section-Excel"]')) {
     throw new Error("Clicking More Formats in settings sidebar did not display Code & Text and Images sections");
   }
-  const filterImageBtn = settingsHost.querySelector('[data-testid="file-explorer-settings-more-filter-image"]');
+  const filterImageBtn = settingsHost.querySelector('[data-testid="autumn-studio-settings-more-filter-image"]');
   if (!filterImageBtn) {
     throw new Error("More Formats sub-filter pill for Images missing");
   }

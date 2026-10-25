@@ -41,7 +41,7 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   const optionsOf = (select) =>
     [...select.querySelectorAll("option")].map((option) => option.value);
 
-  const navAiText = byTestId("file-explorer-settings-nav-ai-text");
+  const navAiText = byTestId("autumn-studio-settings-nav-ai-text");
   if (!navAiText) {
     throw new Error("Settings sidebar missing AI Text Mode navigation item");
   }
@@ -60,7 +60,7 @@ export async function verifyAiTextSettingsSection(settingsHost) {
     );
   }
   for (const tab of ["general", "profiles", "engines", "advanced"]) {
-    if (!byTestId(`file-explorer-ai-text-tab-${tab}`)) {
+    if (!byTestId(`autumn-studio-ai-text-tab-${tab}`)) {
       throw new Error(`AI Text settings is missing the ${tab} tab`);
     }
   }
@@ -101,22 +101,22 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   }
 
   // Profiles tab: cards, editor, and preset creation.
-  click(byTestId("file-explorer-ai-text-tab-profiles"));
+  click(byTestId("autumn-studio-ai-text-tab-profiles"));
   await waitFor(
     () => getSection("Parsing profiles"),
     "the Parsing profiles tab",
   );
   if (
-    !byTestId("file-explorer-ai-text-profile-mineru-cloud-free") ||
-    byTestId("file-explorer-ai-text-profile-delete-mineru-cloud-free") ||
-    byTestId("file-explorer-ai-text-profile-docling-standard")
+    !byTestId("autumn-studio-ai-text-profile-mineru-cloud-free") ||
+    byTestId("autumn-studio-ai-text-profile-delete-mineru-cloud-free") ||
+    byTestId("autumn-studio-ai-text-profile-docling-standard")
   ) {
     throw new Error(
       "The built-in cloud-free profile should exist, be marked non-deletable, and be the only pre-created profile",
     );
   }
 
-  click(byTestId("file-explorer-ai-text-profile-edit-mineru-cloud-free"));
+  click(byTestId("autumn-studio-ai-text-profile-edit-mineru-cloud-free"));
   const editor = await waitFor(
     () => getSection("Profile"),
     "the profile editor",
@@ -127,14 +127,14 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   if (!editor.querySelector('[data-testid="settings-select-Route"] select')) {
     throw new Error("Profile editor is missing the route select");
   }
-  click(byTestId("file-explorer-setting-ai-text-profile-cancel"));
+  click(byTestId("autumn-studio-setting-ai-text-profile-cancel"));
   await waitFor(
     () => getSection("Parsing profiles"),
     "the profile list after cancelling the editor",
   );
 
   // The preset trigger must hug its content instead of filling the card.
-  const presetTrigger = byTestId("file-explorer-setting-ai-text-profile-new");
+  const presetTrigger = byTestId("autumn-studio-setting-ai-text-profile-new");
   if (presetTrigger?.style?.alignSelf !== "flex-start") {
     throw new Error(
       `'New profile from preset' should hug its content, got alignSelf '${presetTrigger?.style?.alignSelf}'`,
@@ -142,36 +142,36 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   }
   click(presetTrigger);
   await waitFor(
-    () => byTestId("file-explorer-setting-ai-text-profile-preset-docling-vlm"),
+    () => byTestId("autumn-studio-setting-ai-text-profile-preset-docling-vlm"),
     "the new-profile preset list",
   );
   click(
-    byTestId("file-explorer-setting-ai-text-profile-preset-docling-vlm"),
+    byTestId("autumn-studio-setting-ai-text-profile-preset-docling-vlm"),
   );
   await waitFor(() => getSection("Profile"), "the preset profile editor");
-  click(byTestId("file-explorer-setting-ai-text-profile-cancel"));
+  click(byTestId("autumn-studio-setting-ai-text-profile-cancel"));
   await waitFor(
     () => getSection("Parsing profiles"),
     "the profile list after cancelling the preset editor",
   );
 
   // Engines tab: fixed-order engine tabs and one panel at a time.
-  click(byTestId("file-explorer-ai-text-tab-engines"));
+  click(byTestId("autumn-studio-ai-text-tab-engines"));
   await waitFor(
     () => getSection("Engines & setup"),
     "the Engines & setup tab",
   );
-  if (!byTestId("file-explorer-ai-text-engine-tabs")) {
+  if (!byTestId("autumn-studio-ai-text-engine-tabs")) {
     throw new Error("Engines tab is missing the engine tab bar");
   }
   // Fixed catalog order puts MinerU first; its panel is selected by default
   // and its details section starts expanded.
   const mineruCard = await waitFor(
-    () => byTestId("file-explorer-ai-text-engine-mineru"),
+    () => byTestId("autumn-studio-ai-text-engine-mineru"),
     "the MinerU engine panel",
   );
   const status = await waitFor(
-    () => byTestId("file-explorer-ai-text-engine-status-mineru"),
+    () => byTestId("autumn-studio-ai-text-engine-status-mineru"),
     "the MinerU environment status",
   );
   if (!(status.textContent ?? "").includes("Ready")) {
@@ -182,38 +182,38 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   if (!(mineruCard.textContent ?? "").includes("4.0.12")) {
     throw new Error("MinerU engine panel did not render the detected version");
   }
-  const detailsToggle = byTestId("file-explorer-ai-text-engine-toggle-mineru");
+  const detailsToggle = byTestId("autumn-studio-ai-text-engine-toggle-mineru");
   if (!(detailsToggle?.textContent ?? "").includes("▾")) {
     throw new Error("Engine details toggle should be a down-chevron when expanded");
   }
-  if (byTestId("file-explorer-ai-text-engine-op-docling-cli.update")) {
+  if (byTestId("autumn-studio-ai-text-engine-op-docling-cli.update")) {
     throw new Error(
       "Only the selected engine's panel should render its operations",
     );
   }
 
-  click(byTestId("file-explorer-ai-text-engine-op-mineru-models.download"));
+  click(byTestId("autumn-studio-ai-text-engine-op-mineru-models.download"));
   await waitFor(
     () => {
-      const card = byTestId("file-explorer-ai-text-engine-mineru");
+      const card = byTestId("autumn-studio-ai-text-engine-mineru");
       return (card?.textContent ?? "").includes("Finished. Detection refreshed.");
     },
     "the MinerU operation to finish",
   );
 
-  click(byTestId("file-explorer-ai-text-engine-tab-docling"));
+  click(byTestId("autumn-studio-ai-text-engine-tab-docling"));
   await waitFor(
-    () => byTestId("file-explorer-ai-text-engine-docling"),
+    () => byTestId("autumn-studio-ai-text-engine-docling"),
     "the Docling engine panel",
   );
   const doclingUpdateBadge = await waitFor(
-    () => byTestId("file-explorer-ai-text-engine-update-docling"),
+    () => byTestId("autumn-studio-ai-text-engine-update-docling"),
     "the Docling update badge",
   );
   if (!(doclingUpdateBadge.textContent ?? "").includes("2.142.0")) {
     throw new Error("Docling update badge did not show the latest version");
   }
-  if (!byTestId("file-explorer-ai-text-engine-storage-models-docling")) {
+  if (!byTestId("autumn-studio-ai-text-engine-storage-models-docling")) {
     throw new Error("Docling panel is missing the model cache storage row");
   }
   // Installed engines pin their version inputs to the installed release
@@ -226,21 +226,21 @@ export async function verifyAiTextSettingsSection(settingsHost) {
       `Expected the installed Docling version input to hold '2.53.0', got '${doclingVersionInput?.value}'`,
     );
   }
-  if (!byTestId("file-explorer-ai-text-engine-op-docling-cli.update")) {
+  if (!byTestId("autumn-studio-ai-text-engine-op-docling-cli.update")) {
     throw new Error("Update action is missing while an update is available");
   }
 
-  click(byTestId("file-explorer-ai-text-engine-tab-local-ocr"));
+  click(byTestId("autumn-studio-ai-text-engine-tab-local-ocr"));
   await waitFor(
-    () => byTestId("file-explorer-ai-text-engine-local-ocr"),
+    () => byTestId("autumn-studio-ai-text-engine-local-ocr"),
     "the local-ocr engine panel",
   );
-  if (byTestId("file-explorer-ai-text-engine-op-local-ocr-cli.uninstall")) {
+  if (byTestId("autumn-studio-ai-text-engine-op-local-ocr-cli.uninstall")) {
     throw new Error("local-ocr must not offer engine lifecycle actions");
   }
 
   // Advanced tab: output root, PyPI mirror, and the storage dashboard.
-  click(byTestId("file-explorer-ai-text-tab-advanced"));
+  click(byTestId("autumn-studio-ai-text-tab-advanced"));
   const advanced = await waitFor(
     () => getSection("Storage"),
     "the Advanced tab (Storage section)",
@@ -257,13 +257,13 @@ export async function verifyAiTextSettingsSection(settingsHost) {
     throw new Error("Output root preview is missing for a relative root");
   }
   const statsRow = await waitFor(
-    () => byTestId("file-explorer-ai-text-stats-row-0"),
+    () => byTestId("autumn-studio-ai-text-stats-row-0"),
     "the storage dashboard stats row",
   );
   if (!(statsRow.textContent ?? "").includes("docs/report.pdf")) {
     throw new Error("Stats row is missing the source file");
   }
-  if (!byTestId("file-explorer-ai-text-stats-refresh")) {
+  if (!byTestId("autumn-studio-ai-text-stats-refresh")) {
     throw new Error("Storage dashboard is missing the Recalculate button");
   }
   const pypiSection = await waitFor(
@@ -286,7 +286,7 @@ export async function verifyAiTextSettingsSection(settingsHost) {
     );
   }
 
-  click(byTestId("file-explorer-ai-text-tab-general"));
+  click(byTestId("autumn-studio-ai-text-tab-general"));
   await waitFor(() => getSection("AI Text Mode"), "the General tab");
 }
 
@@ -311,7 +311,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
     (btn.textContent ?? "").includes("report.html"),
   );
   if (!htmlBtn) {
-    throw new Error("report.html button not found in File Explorer icons view");
+    throw new Error("report.html button not found in the explorer icons view");
   }
   htmlBtn.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
   await new Promise((r) => setTimeout(r, 200));
@@ -335,7 +335,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
     (btn.textContent ?? "").includes("guide.pdf"),
   );
   if (!pdfBtn) {
-    throw new Error("guide.pdf button not found in File Explorer icons view");
+    throw new Error("guide.pdf button not found in the explorer icons view");
   }
   pdfBtn.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true }));
   await new Promise((r) => setTimeout(r, 300));
@@ -422,9 +422,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
       "Expected Blocks toggle in the AI Text toolbar when the version has layout metadata",
     );
   }
-  blocksButton.dispatchEvent(
-    new dom.window.MouseEvent("click", { bubbles: true }),
-  );
+  blocksButton.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
   await sleep(200);
 
   const blocksPanel = rightSplitPane.querySelector(
@@ -436,10 +434,13 @@ export async function verifyAiTextSplitViewAndMultiVersion({
   if (!rightSplitPane.querySelector('[data-testid="ai-text-layout-page-1"]')) {
     throw new Error("Layout blocks panel is missing the page 1 group");
   }
-  if (!(blocksPanel.textContent ?? "").includes("4 blocks")) {
-    throw new Error(
-      `Expected layout blocks header to report 4 blocks, got '${blocksPanel.textContent}'`,
-    );
+  // The panel no longer repeats the version-wide "N blocks · M pages" summary;
+  // page headers carry local counts and the metadata panel owns the totals.
+  const panelText = blocksPanel.textContent ?? "";
+  if (panelText.includes(" pages")) throw new Error(`Blocks panel duplicates the pages summary: ${panelText}`);
+  const pageOneHeader = rightSplitPane.querySelector('[data-testid="ai-text-layout-page-1"] > div');
+  if (!(pageOneHeader?.textContent ?? "").includes("3 blocks")) {
+    throw new Error(`Page 1 header should report 3 blocks, got '${pageOneHeader?.textContent}'`);
   }
 
   const textBlock = rightSplitPane.querySelector(
@@ -522,36 +523,30 @@ export async function verifyAiTextSplitViewAndMultiVersion({
     throw new Error("v1 option missing from version selector dropdown");
   }
   versionSelect.value = v1Option.value;
-  versionSelect.dispatchEvent(
-    new dom.window.Event("change", { bubbles: true }),
-  );
+  versionSelect.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   await new Promise((r) => setTimeout(r, 150));
-
-  if (
-    !(rightSplitPane.textContent ?? "").includes(
-      "Extracted v1 for guide.pdf",
-    )
-  ) {
-    throw new Error(
-      "Selecting v1 in version dropdown did not switch right split pane content back to v1",
-    );
+  if (!(rightSplitPane.textContent ?? "").includes("Extracted v1 for guide.pdf")) {
+    throw new Error("Selecting v1 in version dropdown did not switch content back to v1");
   }
 
-  // Test 1-click quick version pill switching back to v2
-  const v2Pill = rightSplitPane.querySelector(
-    '[data-testid="ai-text-version-pill-v2"]',
-  );
-  if (!v2Pill) {
-    throw new Error("Quick version pill v2 missing in right split pane");
+  // Quick-switch pills are gone: the dropdown is the single switcher and the
+  // count chip is compact.
+  if (rightSplitPane.querySelector('[data-testid="ai-text-version-pills"]')) {
+    throw new Error("Quick version pills should be removed in favor of the dropdown");
   }
-  v2Pill.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  const countChip = rightSplitPane.querySelector('[data-testid="ai-text-version-count"]');
+  if (!(countChip?.textContent ?? "").includes("2 Ver.")) {
+    throw new Error(`Version count chip should read '2 Ver.', got '${countChip?.textContent}'`);
+  }
+  const v2Option = [...versionSelect.querySelectorAll("option")].find((opt) =>
+    opt.value.includes("_v2_"),
+  );
+  if (!v2Option) throw new Error("v2 option missing from version selector dropdown");
+  versionSelect.value = v2Option.value;
+  versionSelect.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   await new Promise((r) => setTimeout(r, 150));
-  if (
-    !(rightSplitPane.textContent ?? "").includes(
-      "Extracted v2 for guide.pdf",
-    )
-  ) {
-    throw new Error("Clicking v2 version pill did not switch back to v2");
+  if (!(rightSplitPane.textContent ?? "").includes("Extracted v2 for guide.pdf")) {
+    throw new Error("Dropdown did not switch back to v2 after switching to v1");
   }
 
   await verifyAiTextSplitPaneToggles({ shadow, dom });

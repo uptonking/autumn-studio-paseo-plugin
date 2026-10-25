@@ -23,6 +23,8 @@ const aiTextProfilesSchema = z
 export const aiTextSettingsSchema = z.object({
   enabled: z.boolean().default(true),
   openSplitViewByDefault: z.boolean().default(false),
+  /** Whether the split view's docked metadata panel starts open. */
+  showMetadataPanelByDefault: z.boolean().default(false),
   /** Free-form viewer id; unknown ids fall back to the default pane. */
   defaultViewerId: z.string().default(DEFAULT_AI_TEXT_VIEWER_ID),
   showLayoutBlockOverlays: z.boolean().default(true),
@@ -453,10 +455,10 @@ export function migrateAiTextSettingsV1(raw: unknown): AiTextSettings {
 }
 
 /**
- * Settings `migrate` hook body for `fileExplorerSettings` version 1 -> 2.
+ * Settings `migrate` hook body for `autumnStudioSettings` version 1 -> 2.
  * Sections other than `aiText` are carried through; the v2 schema fills them.
  */
-export function migrateFileExplorerSettingsV1(
+export function migrateAutumnStudioSettingsV1(
   values: unknown,
 ): Record<string, unknown> {
   if (typeof values !== "object" || values === null || Array.isArray(values)) {

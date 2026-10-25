@@ -1,5 +1,7 @@
-// Runtime helpers for the AI Text view chrome: the floating metadata panel,
+// Runtime helpers for the AI Text view chrome: the docked metadata panel,
 // the right-pane actions menu, and hiding/showing the original viewer.
+
+import { rpcInputs } from "./runtime-test-harness.mjs";
 
 const click = (dom, element) =>
   element.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
@@ -7,6 +9,28 @@ const click = (dom, element) =>
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane }) {
+  // The metadata panel starts hidden (settings default) and opens on demand
+  // from the view's ⋯ menu.
+  if (rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]')) {
+    throw new Error("AI text metadata panel must be hidden by default");
+  }
+  const initialActionsTrigger = rightSplitPane.querySelector(
+    '[data-testid="ai-text-view-actions"]',
+  );
+  if (!initialActionsTrigger) {
+    throw new Error("AI text view three-dots actions button missing");
+  }
+  click(dom, initialActionsTrigger);
+  await wait(80);
+  const initialShowItem = shadow.querySelector(
+    '[data-testid="ai-text-show-metadata-menu-item"]',
+  );
+  if (!initialShowItem) {
+    throw new Error("'Show AI text metadata' menu item missing on first open");
+  }
+  click(dom, initialShowItem);
+  await wait(80);
+
   const metadataPanel = rightSplitPane.querySelector(
     '[data-testid="ai-text-metadata-panel"]',
   );
@@ -71,10 +95,40 @@ export async function verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane })
   }
   click(dom, showMetadataItem);
   await wait(80);
-  if (!rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]')) {
+  const reopenedPanel = rightSplitPane.querySelector(
+    '[data-testid="ai-text-metadata-panel"]',
+  );
+  if (!reopenedPanel) {
     throw new Error(
       "AI text metadata panel did not reopen from the three-dots menu",
     );
+  }
+
+  // Blocks/pages counts live only here — the layout chip is the single home.
+  if (!reopenedPanel.querySelector('[data-testid="ai-text-provenance-layout"]')) {
+    throw new Error("AI text metadata panel is missing the layout stats chip");
+  }
+
+  // Re-parse is guarded by an inline confirmation: the first click arms the
+  // button without starting a task, and Escape disarms it.
+  const rpcStart = rpcInputs.length;
+  const runBtn = reopenedPanel.querySelector(
+    '[data-testid="ai-text-reparse-run-button"]',
+  );
+  click(dom, runBtn);
+  await wait(80);
+  if (runBtn.getAttribute("data-armed") !== "true") {
+    throw new Error("First Re-parse click did not arm the inline confirmation");
+  }
+  if (rpcInputs.slice(rpcStart).some((r) => r.name === "ai_text.task.start")) {
+    throw new Error("Armed Re-parse must not start a parse task");
+  }
+  runBtn.dispatchEvent(
+    new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  await wait(80);
+  if (runBtn.getAttribute("data-armed") === "true") {
+    throw new Error("Escape did not disarm the Re-parse confirmation");
   }
 }
 

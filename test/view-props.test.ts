@@ -19,7 +19,7 @@ import {
   serializeEditedPdfBytes,
 } from "../client/vendor/pdf-viewer/pdf-save.ts";
 import {
-  DEFAULT_FILE_EXPLORER_SETTINGS, type FileNode,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS, type FileNode,
 } from "../shared/contracts.ts";
 
 describe("view-props: flattenTree", () => {

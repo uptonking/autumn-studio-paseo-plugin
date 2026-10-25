@@ -157,8 +157,9 @@ const FORBIDDEN_EAGER_ISLAND_MODULES = [
 ];
 
 for (const islandEntry of [
-  "client/file-explorer-island.web.tsx",
+  "client/explorer-island.web.tsx",
   "client/file-viewer-island.web.tsx",
+  "client/file-panel/file-panel-island.web.tsx",
 ]) {
   const closure = collectStaticClosure(islandEntry);
   const leaked = FORBIDDEN_EAGER_ISLAND_MODULES.filter((mod) =>

@@ -115,71 +115,56 @@ export function AiTextLayoutBlocksPanel({
       data-testid="ai-text-layout-blocks"
       className="flex size-full min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <div className="flex shrink-0 flex-col gap-1.5 border-b bg-muted/20 px-2.5 py-2">
-        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <span>
-            <strong className="font-semibold text-foreground">
-              {layout.blockCount}
-            </strong>{" "}
-            blocks ·{" "}
-            <strong className="font-semibold text-foreground">
-              {layout.pageCount}
-            </strong>{" "}
-            pages
-          </span>
-          <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
-            {layout.source}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <label className="relative flex min-w-0 flex-1 items-center">
-            <Search className="pointer-events-none absolute left-2 size-3 text-muted-foreground" />
-            <input
-              data-testid="ai-text-layout-search"
-              type="search"
-              value={query}
-              placeholder="Search blocks"
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-7 w-full rounded-md border border-border bg-background pl-7 pr-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </label>
-          <select
-            data-testid="ai-text-layout-type-filter"
-            aria-label="Filter blocks by type"
-            value={typeFilter}
-            onChange={(event) =>
-              setTypeFilter(event.target.value as AiTextLayoutBlockType | "all")
-            }
-            className="h-7 max-w-[110px] rounded-md border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="all">All types</option>
-            {typeOptions.map((type) => (
-              <option key={type} value={type}>
-                {blockTypeLabel(type)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            data-testid="ai-text-layout-hide-furniture"
-            aria-pressed={hideFurniture}
-            title={
-              hideFurniture
-                ? "Show headers, footers, and page numbers"
-                : "Hide headers, footers, and page numbers"
-            }
-            onClick={() => setHideFurniture((current) => !current)}
-            className={cn(
-              "inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-medium transition-colors",
-              hideFurniture
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-background text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <EyeOff className="size-3" />
-            <span>Furniture</span>
-          </button>
-        </div>
+      {/* Block and page counts live only in the bottom metadata panel — the
+          per-page section headers below carry the local counts. */}
+      <div className="flex shrink-0 items-center gap-1.5 border-b bg-muted/20 px-2.5 py-2">
+        <label className="relative flex min-w-0 flex-1 items-center">
+          <Search className="pointer-events-none absolute left-2 size-3 text-muted-foreground" />
+          <input
+            data-testid="ai-text-layout-search"
+            type="search"
+            value={query}
+            placeholder="Search blocks"
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-7 w-full rounded-md border border-border bg-background pl-7 pr-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </label>
+        <select
+          data-testid="ai-text-layout-type-filter"
+          aria-label="Filter blocks by type"
+          value={typeFilter}
+          onChange={(event) =>
+            setTypeFilter(event.target.value as AiTextLayoutBlockType | "all")
+          }
+          className="h-7 max-w-[110px] rounded-md border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <option value="all">All types</option>
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {blockTypeLabel(type)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          data-testid="ai-text-layout-hide-furniture"
+          aria-pressed={hideFurniture}
+          title={
+            hideFurniture
+              ? "Show headers, footers, and page numbers"
+              : "Hide headers, footers, and page numbers"
+          }
+          onClick={() => setHideFurniture((current) => !current)}
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-medium transition-colors",
+            hideFurniture
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-background text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <EyeOff className="size-3" />
+          <span>Furniture</span>
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">

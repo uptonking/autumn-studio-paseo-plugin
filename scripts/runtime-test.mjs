@@ -12,6 +12,11 @@ import {
   verifySettingsSidebarNavigation,
 } from "./runtime-test-harness.mjs";
 import { verifyAiTextSplitViewAndMultiVersion } from "./runtime-test-ai-text.mjs";
+import {
+  verifyNativeFilePanelAiTextPersistence,
+  verifyNativeFilePanelMount,
+  verifyNativeFilePanelRegistrations,
+} from "./runtime-test-file-panel.mjs";
 
 const bundleText = process.env.CLIENT_BUNDLE ?? "/tmp/fe-client-bundle.js";
 const text2 = readFileSync(bundleText, "utf-8");
@@ -24,12 +29,14 @@ if (typeof contribute !== "function") throw new Error("bundle default export mis
 
 const fakeClient = {
   panels: [],
+  filePanels: [],
   sidebarHeaderItems: [],
   screens: [],
   settingsScreens: [],
   commands: [],
   openedPanels: [],
   addWorkspacePanel: (c) => (fakeClient.panels.push(c), () => {}),
+  addFilePanel: (c) => (fakeClient.filePanels.push(c), () => {}),
   addSidebarHeaderItem: (c) => (fakeClient.sidebarHeaderItems.push(c), () => {}),
   addScreen: (c) => (fakeClient.screens.push(c), () => {}),
   addSettingsScreen: (c) => (fakeClient.settingsScreens.push(c), () => {}),
@@ -40,7 +47,7 @@ const fakeClient = {
 };
 contribute(fakeClient);
 
-const sidebarItem = fakeClient.sidebarHeaderItems.find((s) => s.id === "file-explorer");
+const sidebarItem = fakeClient.sidebarHeaderItems.find((s) => s.id === "autumn-studio");
 if (!sidebarItem?.Component) throw new Error("no sidebar header item contributed");
 console.log("✓ contributed sidebar header item:", sidebarItem.id, sidebarItem.title);
 
@@ -52,11 +59,17 @@ const settingsScreen = fakeClient.settingsScreens.find((s) => s.id === "settings
 if (!settingsScreen?.Component) throw new Error("no settingsScreen contributed");
 console.log("✓ contributed settings screen:", settingsScreen.id, settingsScreen.title);
 
-const panel = fakeClient.panels.find((p) => p.id === "file-explorer");
+const panel = fakeClient.panels.find((p) => p.id === "explorer");
 const viewerPanel = fakeClient.panels.find((p) => p.id === "file-viewer");
-if (!panel?.Component) throw new Error("no file-explorer panel contributed");
+if (!panel?.Component) throw new Error("no explorer panel contributed");
 if (!viewerPanel?.Component) throw new Error("no file-viewer panel contributed");
 console.log("✓ contributed panels:", panel.id, "and", viewerPanel.id);
+
+// --- native file panel registrations ---------------------------------------
+const textFilePanel = verifyNativeFilePanelRegistrations(fakeClient.filePanels);
+console.log(
+  `✓ contributed ${fakeClient.filePanels.length} native file panels (pdf, spreadsheet, document, slides, image, text)`
+);
 
 // --- render sidebar item & settings screen ---------------------------------
 const { createRoot } = pluginRequire("react-dom/client");
@@ -98,14 +111,14 @@ sidebarRoot.render(
 );
 await new Promise((r) => setTimeout(r, 80));
 const sidebarBtn = sidebarHost.querySelector('[data-testid="sidebar-row"]');
-if (!sidebarBtn || sidebarBtn.textContent !== "File Explorer") {
-  throw new Error("SidebarRow for File Explorer not rendered");
+if (!sidebarBtn || sidebarBtn.textContent !== "Autumn Studio") {
+  throw new Error("SidebarRow for Autumn Studio not rendered");
 }
 sidebarBtn.click();
 if (!openedScreenInput || openedScreenInput.screenId !== "settings") {
-  throw new Error("Clicking File Explorer sidebar item did not open settings screen");
+  throw new Error("Clicking Autumn Studio sidebar item did not open settings screen");
 }
-console.log("✓ clicking File Explorer sidebar item opens settings screen");
+console.log("✓ clicking Autumn Studio sidebar item opens settings screen");
 
 const settingsHost = document.createElement("div");
 document.body.appendChild(settingsHost);
@@ -120,7 +133,7 @@ await new Promise((r) => setTimeout(r, 80));
 await verifySettingsSidebarNavigation(settingsHost);
 console.log("✓ settings screen rendered left sidebar (General, PDF, Excel, More Formats) and switched sections on click");
 
-// --- render the File Explorer panel with react-dom -------------------------
+// --- render the explorer panel with react-dom -------------------------
 const host = document.createElement("div");
 document.body.appendChild(host);
 const root = createRoot(host);
@@ -407,14 +420,14 @@ const backFromReadme = shadow.querySelector(
 backFromReadme?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
 await new Promise((r) => setTimeout(r, 120));
 
-// Verify File Explorer toolbar's own More actions menu also shows Recent files
+// Verify explorer toolbar's own More actions menu also shows Recent files
 const explorerMoreBtn = shadow.querySelector('[aria-label="More actions"]');
-if (!explorerMoreBtn) throw new Error("File Explorer toolbar More actions button missing");
+if (!explorerMoreBtn) throw new Error("explorer toolbar More actions button missing");
 explorerMoreBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
 await new Promise((r) => setTimeout(r, 80));
 const explorerRecentGroup = shadow.querySelector('[data-testid="file-system-recent-files"]');
 if (!explorerRecentGroup) {
-  throw new Error("Recent files section missing in File Explorer toolbar More actions menu");
+  throw new Error("Recent files section missing in explorer toolbar More actions menu");
 }
 // Close the menu before clicking preview.png
 explorerMoreBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
@@ -548,6 +561,26 @@ await verifyAiTextSplitViewAndMultiVersion({
   simulatedDiskFiles,
 });
 console.log("✓ AI Text Mode opens right-hand split view, switches button to 'AI text again', generates multiple .autumn/ versions with metadata, and switches versions");
+
+// --- native file panel surface mounts over a PluginFile ---------------------
+await verifyNativeFilePanelMount({
+  filePanel: textFilePanel,
+  hostProps,
+  pluginRequire,
+  simulatedDiskFiles,
+});
+console.log(
+  "✓ native file panel renders the island viewer from PluginFile.url() (workspace-relative identity, no read RPC)"
+);
+
+await verifyNativeFilePanelAiTextPersistence({
+  filePanel: fakeClient.filePanels.find((p) => p.id === "pdf"),
+  hostProps,
+  pluginRequire,
+});
+console.log(
+  "✓ native pdf panel persists the AI Text split through PluginTab.state and re-opens it on remount"
+);
 
 // unmount cleans up
 viewerRoot.unmount();

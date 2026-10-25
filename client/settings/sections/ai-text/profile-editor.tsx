@@ -114,7 +114,7 @@ export function ProfileEditor({
       <SettingsSection
         title="Profile"
         info="A profile is a named parsing recipe: engine, route, engine settings, extraction options, and refinement."
-        testID="file-explorer-settings-ai-text-profile-editor"
+        testID="autumn-studio-settings-ai-text-profile-editor"
       >
         <SettingsCard>
           <SettingsInput
@@ -124,7 +124,7 @@ export function ProfileEditor({
             placeholder="Profile name"
             disabled={disabled}
             onChangeText={(name) => onChange({ ...draft, name })}
-            testID="file-explorer-setting-ai-text-profile-name"
+            testID="autumn-studio-setting-ai-text-profile-name"
           />
           <SettingsSelect
             label="Engine"
@@ -148,7 +148,7 @@ export function ProfileEditor({
                 extraction: defaultExtractionForEngine(engineId),
               });
             }}
-            testID="file-explorer-setting-ai-text-profile-engine"
+            testID="autumn-studio-setting-ai-text-profile-engine"
           />
           <SettingsSelect
             label="Route"
@@ -172,7 +172,7 @@ export function ProfileEditor({
                 extraction: { ...draft.extraction, ...pages },
               });
             }}
-            testID="file-explorer-setting-ai-text-profile-route"
+            testID="autumn-studio-setting-ai-text-profile-route"
           />
           <EngineFields
             profile={draft}
@@ -185,7 +185,7 @@ export function ProfileEditor({
       <SettingsSection
         title="Extraction"
         info="Only options the selected engine supports are shown."
-        testID="file-explorer-settings-ai-text-profile-extraction"
+        testID="autumn-studio-settings-ai-text-profile-extraction"
       >
         <SettingsCard>
           {caps?.ocr ? (
@@ -195,7 +195,7 @@ export function ProfileEditor({
               value={draft.extraction.ocr}
               disabled={disabled}
               onValueChange={(ocr) => setExtraction({ ocr })}
-              testID="file-explorer-setting-ai-text-profile-ocr"
+              testID="autumn-studio-setting-ai-text-profile-ocr"
             />
           ) : null}
           {caps?.formula ? (
@@ -205,7 +205,7 @@ export function ProfileEditor({
               value={draft.extraction.formula}
               disabled={disabled}
               onValueChange={(formula) => setExtraction({ formula })}
-              testID="file-explorer-setting-ai-text-profile-formula"
+              testID="autumn-studio-setting-ai-text-profile-formula"
             />
           ) : null}
           {caps?.tables ? (
@@ -215,7 +215,7 @@ export function ProfileEditor({
               value={draft.extraction.tables}
               disabled={disabled}
               onValueChange={(tables) => setExtraction({ tables })}
-              testID="file-explorer-setting-ai-text-profile-tables"
+              testID="autumn-studio-setting-ai-text-profile-tables"
             />
           ) : null}
           {caps?.language ? (
@@ -226,7 +226,7 @@ export function ProfileEditor({
               options={OCR_LANGUAGE_OPTIONS}
               disabled={disabled}
               onValueChange={(language) => setExtraction({ language })}
-              testID="file-explorer-setting-ai-text-profile-language"
+              testID="autumn-studio-setting-ai-text-profile-language"
             />
           ) : null}
           {caps?.pageRange ? (
@@ -238,7 +238,7 @@ export function ProfileEditor({
               placeholder="All pages"
               disabled={disabled}
               onChangeText={(pages) => setExtraction({ pages })}
-              testID="file-explorer-setting-ai-text-profile-pages"
+              testID="autumn-studio-setting-ai-text-profile-pages"
             />
           ) : null}
           {caps?.layout ? (
@@ -248,7 +248,7 @@ export function ProfileEditor({
               value={draft.extraction.layout}
               disabled={disabled}
               onValueChange={(layout) => setExtraction({ layout })}
-              testID="file-explorer-setting-ai-text-profile-layout"
+              testID="autumn-studio-setting-ai-text-profile-layout"
             />
           ) : null}
           {caps?.imageAnalysis ? (
@@ -258,7 +258,7 @@ export function ProfileEditor({
               value={draft.extraction.imageAnalysis}
               disabled={disabled}
               onValueChange={(imageAnalysis) => setExtraction({ imageAnalysis })}
-              testID="file-explorer-setting-ai-text-profile-image-analysis"
+              testID="autumn-studio-setting-ai-text-profile-image-analysis"
             />
           ) : null}
           <SettingsInput
@@ -275,7 +275,7 @@ export function ProfileEditor({
                 timeoutMs: Math.min(7_200_000, Math.max(10_000, parsed)),
               });
             }}
-            testID="file-explorer-setting-ai-text-profile-timeout"
+            testID="autumn-studio-setting-ai-text-profile-timeout"
           />
         </SettingsCard>
       </SettingsSection>
@@ -283,7 +283,7 @@ export function ProfileEditor({
       <SettingsSection
         title="Refinement"
         info="Post-processing applied before the Markdown version is stored. Agent refinement is an explicit opt-in and falls back to parser output with a warning."
-        testID="file-explorer-settings-ai-text-profile-refinement"
+        testID="autumn-studio-settings-ai-text-profile-refinement"
       >
         <SettingsCard>
           <SettingsSelect
@@ -294,7 +294,7 @@ export function ProfileEditor({
             onValueChange={(mode) =>
               setRefinement({ mode: mode as AiTextProfile["refinement"]["mode"] })
             }
-            testID="file-explorer-setting-ai-text-profile-refinement-mode"
+            testID="autumn-studio-setting-ai-text-profile-refinement-mode"
           />
           {draft.refinement.mode === "agent" ? (
             <>
@@ -305,7 +305,7 @@ export function ProfileEditor({
                 options={agentSelectOptions}
                 disabled={disabled}
                 onValueChange={(agentId) => setRefinement({ agentId })}
-                testID="file-explorer-setting-ai-text-profile-refinement-agent"
+                testID="autumn-studio-setting-ai-text-profile-refinement-agent"
               />
               <SettingsInput
                 key={`${draft.id}:model`}
@@ -315,7 +315,7 @@ export function ProfileEditor({
                 placeholder="Provider default"
                 disabled={disabled}
                 onChangeText={(model) => setRefinement({ model })}
-                testID="file-explorer-setting-ai-text-profile-refinement-model"
+                testID="autumn-studio-setting-ai-text-profile-refinement-model"
               />
               <SettingsSelect
                 label="Prompt preset"
@@ -328,7 +328,7 @@ export function ProfileEditor({
                 onValueChange={(promptPresetId) =>
                   setRefinement({ promptPresetId })
                 }
-                testID="file-explorer-setting-ai-text-profile-refinement-preset"
+                testID="autumn-studio-setting-ai-text-profile-refinement-preset"
               />
               {draft.refinement.promptPresetId === "custom" ? (
                 <SettingsInput
@@ -339,7 +339,7 @@ export function ProfileEditor({
                   placeholder="Repair this document…"
                   disabled={disabled}
                   onChangeText={(prompt) => setRefinement({ prompt })}
-                  testID="file-explorer-setting-ai-text-profile-refinement-prompt"
+                  testID="autumn-studio-setting-ai-text-profile-refinement-prompt"
                 />
               ) : null}
             </>
@@ -348,7 +348,7 @@ export function ProfileEditor({
       </SettingsSection>
 
       {errors.length > 0 ? (
-        <AiTextPanel theme={theme} testID="file-explorer-ai-text-profile-errors">
+        <AiTextPanel theme={theme} testID="autumn-studio-ai-text-profile-errors">
           <AiTextBadge label="Profile needs attention" tone="danger" theme={theme} />
           {errors.map((error, index) => (
             <AiTextHint key={index} theme={theme} tone="danger">
@@ -358,7 +358,7 @@ export function ProfileEditor({
         </AiTextPanel>
       ) : null}
 
-      <SettingsSection title="Save" testID="file-explorer-ai-text-profile-actions">
+      <SettingsSection title="Save" testID="autumn-studio-ai-text-profile-actions">
         <SettingsCard>
           <View
             style={{
@@ -376,14 +376,14 @@ export function ProfileEditor({
               disabled={disabled}
               tone="accent"
               theme={theme}
-              testID="file-explorer-setting-ai-text-profile-save"
+              testID="autumn-studio-setting-ai-text-profile-save"
             />
             <AiTextAction
               label="Cancel"
               onPress={onCancel}
               disabled={disabled}
               theme={theme}
-              testID="file-explorer-setting-ai-text-profile-cancel"
+              testID="autumn-studio-setting-ai-text-profile-cancel"
             />
           </View>
         </SettingsCard>

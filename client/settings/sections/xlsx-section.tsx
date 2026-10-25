@@ -69,7 +69,7 @@ export function XlsxSettingsSection({
   );
 
   return (
-    <SettingsSection title="Excel" testID="file-explorer-settings-xlsx">
+    <SettingsSection title="Excel" testID="autumn-studio-settings-xlsx">
       <SettingsCard>
         <FormatOpenBehaviorFields
           kind="xlsx"
@@ -85,7 +85,7 @@ export function XlsxSettingsSection({
           options={XLSX_ZOOM_OPTIONS}
           disabled={controlsDisabled}
           onValueChange={handleDefaultZoomChange}
-          testID="file-explorer-setting-xlsx-zoom"
+          testID="autumn-studio-setting-xlsx-zoom"
         />
         <SettingsSwitch
           label="Show formula bar"
@@ -93,7 +93,7 @@ export function XlsxSettingsSection({
           value={xlsx.showFormulaBar}
           disabled={controlsDisabled}
           onValueChange={handleFormulaBarChange}
-          testID="file-explorer-setting-xlsx-formula-bar"
+          testID="autumn-studio-setting-xlsx-formula-bar"
         />
         <SettingsSwitch
           label="Show hidden sheets"
@@ -101,7 +101,7 @@ export function XlsxSettingsSection({
           value={xlsx.showHiddenSheets}
           disabled={controlsDisabled}
           onValueChange={handleHiddenSheetsChange}
-          testID="file-explorer-setting-xlsx-hidden-sheets"
+          testID="autumn-studio-setting-xlsx-hidden-sheets"
         />
         <SettingsSwitch
           label="Show download action"
@@ -109,7 +109,7 @@ export function XlsxSettingsSection({
           value={xlsx.showDownloadButton}
           disabled={controlsDisabled}
           onValueChange={handleDownloadButtonChange}
-          testID="file-explorer-setting-xlsx-download"
+          testID="autumn-studio-setting-xlsx-download"
         />
       </SettingsCard>
     </SettingsSection>

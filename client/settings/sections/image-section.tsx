@@ -14,7 +14,7 @@ export function ImageSettingsSection({
   const controlsDisabled = disabled || !general.enabled;
 
   return (
-    <SettingsSection title="Images" testID="file-explorer-settings-image">
+    <SettingsSection title="Images" testID="autumn-studio-settings-image">
       <SettingsCard>
         <FormatOpenBehaviorFields
           kind="image"

@@ -203,7 +203,7 @@ export function ProfilesTab({
       <SettingsSection
         title="Parsing profiles"
         info="Every extraction uses a profile. Switch the profile in the AI Text split view to re-parse without changing the global default."
-        testID="file-explorer-settings-ai-text-profiles"
+        testID="autumn-studio-settings-ai-text-profiles"
       >
         <SettingsCard>
           <SettingsSelect
@@ -212,7 +212,7 @@ export function ProfilesTab({
             options={profileOptions}
             disabled={disabled}
             onValueChange={(defaultProfileId) => update({ defaultProfileId })}
-            testID="file-explorer-setting-ai-text-profile-default"
+            testID="autumn-studio-setting-ai-text-profile-default"
           />
           <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
             <AiTextAction
@@ -221,7 +221,7 @@ export function ProfilesTab({
               disabled={disabled}
               tone="accent"
               theme={theme}
-              testID="file-explorer-setting-ai-text-profile-new"
+              testID="autumn-studio-setting-ai-text-profile-new"
             />
           </View>
           {showPresets ? (
@@ -256,7 +256,7 @@ export function ProfilesTab({
                       onPress={() => startNew(preset.id)}
                       disabled={disabled}
                       theme={theme}
-                      testID={`file-explorer-setting-ai-text-profile-preset-${preset.id}`}
+                      testID={`autumn-studio-setting-ai-text-profile-preset-${preset.id}`}
                     />
                   </View>
                   <AiTextHint theme={theme}>{preset.description}</AiTextHint>
@@ -279,7 +279,7 @@ export function ProfilesTab({
           <AiTextPanel
             key={profile.id}
             theme={theme}
-            testID={`file-explorer-ai-text-profile-${profile.id}`}
+            testID={`autumn-studio-ai-text-profile-${profile.id}`}
           >
             <View
               style={{
@@ -313,7 +313,7 @@ export function ProfilesTab({
                 onPress={() => startEdit(profile)}
                 disabled={disabled}
                 theme={theme}
-                testID={`file-explorer-ai-text-profile-edit-${profile.id}`}
+                testID={`autumn-studio-ai-text-profile-edit-${profile.id}`}
               />
               {!isDefault ? (
                 <AiTextAction
@@ -321,7 +321,7 @@ export function ProfilesTab({
                   onPress={() => update({ defaultProfileId: profile.id })}
                   disabled={disabled}
                   theme={theme}
-                  testID={`file-explorer-ai-text-profile-make-default-${profile.id}`}
+                  testID={`autumn-studio-ai-text-profile-make-default-${profile.id}`}
                 />
               ) : null}
               {!isBuiltIn ? (
@@ -335,7 +335,7 @@ export function ProfilesTab({
                   disabled={disabled}
                   tone="danger"
                   theme={theme}
-                  testID={`file-explorer-ai-text-profile-delete-${profile.id}`}
+                  testID={`autumn-studio-ai-text-profile-delete-${profile.id}`}
                 />
               ) : null}
             </View>

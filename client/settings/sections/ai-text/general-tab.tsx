@@ -47,7 +47,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
     <>
       <SettingsSection
         title="AI Text Mode"
-        testID="file-explorer-settings-ai-text-general"
+        testID="autumn-studio-settings-ai-text-general"
       >
         <SettingsCard>
           <SettingsSwitch
@@ -56,7 +56,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             value={aiText.enabled}
             disabled={disabled}
             onValueChange={(enabled) => update({ enabled })}
-            testID="file-explorer-setting-ai-text-enabled"
+            testID="autumn-studio-setting-ai-text-enabled"
           />
           <SettingsSelect
             label="Default AI Text viewer"
@@ -65,7 +65,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             options={viewerOptions}
             disabled={disabled || !aiText.enabled}
             onValueChange={(defaultViewerId) => update({ defaultViewerId })}
-            testID="file-explorer-setting-ai-text-default-viewer"
+            testID="autumn-studio-setting-ai-text-default-viewer"
           />
           <SettingsSelect
             label="Default parsing profile"
@@ -74,7 +74,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             options={profileOptions}
             disabled={disabled || !aiText.enabled}
             onValueChange={(defaultProfileId) => update({ defaultProfileId })}
-            testID="file-explorer-setting-ai-text-default-profile"
+            testID="autumn-studio-setting-ai-text-default-profile"
           />
           <SettingsSwitch
             label="Open split view by default"
@@ -84,7 +84,17 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             onValueChange={(openSplitViewByDefault) =>
               update({ openSplitViewByDefault })
             }
-            testID="file-explorer-setting-ai-text-open-split-default"
+            testID="autumn-studio-setting-ai-text-open-split-default"
+          />
+          <SettingsSwitch
+            label="Show AI Text metadata"
+            hint="Open the split view with the bottom metadata panel (provenance, stats, and the AI Text again controls). It can always be toggled from the view's ⋯ menu."
+            value={aiText.showMetadataPanelByDefault}
+            disabled={disabled || !aiText.enabled}
+            onValueChange={(showMetadataPanelByDefault) =>
+              update({ showMetadataPanelByDefault })
+            }
+            testID="autumn-studio-setting-ai-text-show-metadata"
           />
           <SettingsSwitch
             label="Show layout block outlines on the PDF"
@@ -94,7 +104,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             onValueChange={(showLayoutBlockOverlays) =>
               update({ showLayoutBlockOverlays })
             }
-            testID="file-explorer-setting-ai-text-layout-outlines"
+            testID="autumn-studio-setting-ai-text-layout-outlines"
           />
           <SettingsSwitch
             label="Auto-scroll PDF to the selected block"
@@ -104,12 +114,12 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             onValueChange={(autoScrollToLayoutBlock) =>
               update({ autoScrollToLayoutBlock })
             }
-            testID="file-explorer-setting-ai-text-layout-autoscroll"
+            testID="autumn-studio-setting-ai-text-layout-autoscroll"
           />
         </SettingsCard>
       </SettingsSection>
 
-      <SettingsSection title="Reset" testID="file-explorer-settings-reset-ai-text">
+      <SettingsSection title="Reset" testID="autumn-studio-settings-reset-ai-text">
         <SettingsCard>
           <SettingsAction
             label="Restore default AI Text Mode settings"
@@ -117,7 +127,7 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             actionLabel="Reset AI Text Mode defaults"
             disabled={disabled}
             onPress={() => update(createDefaultAiTextSettings())}
-            testID="file-explorer-setting-reset-ai-text"
+            testID="autumn-studio-setting-reset-ai-text"
           />
         </SettingsCard>
       </SettingsSection>

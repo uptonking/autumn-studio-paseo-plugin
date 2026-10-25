@@ -4,7 +4,7 @@ import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
 import {
   getAiTextSettings,
   getFormatBehaviorConfig,
-  type FileExplorerSettingsValues,
+  type AutumnStudioSettingsValues,
 } from "../../../shared/settings.js";
 import type { SettingsSectionDescriptor } from "../registry.js";
 
@@ -51,7 +51,7 @@ export function SectionMetaBanner({
   }
   return (
     <View
-      testID={`file-explorer-settings-meta-${section.id}`}
+      testID={`autumn-studio-settings-meta-${section.id}`}
       style={{
         marginBottom: 12,
         paddingHorizontal: 2,
@@ -120,7 +120,7 @@ export function SettingsSidebarNav({
   moreSections: readonly SettingsSectionDescriptor[];
   activePrimarySectionId: string | null;
   isMoreActive: boolean;
-  values: FileExplorerSettingsValues;
+  values: AutumnStudioSettingsValues;
   theme: PluginSurfaceProps["theme"];
   compact?: boolean;
   onSelectNav: (navId: string) => void;
@@ -132,7 +132,7 @@ export function SettingsSidebarNav({
 
   return (
     <View
-      testID="file-explorer-settings-sidebar"
+      testID="autumn-studio-settings-sidebar"
       style={{
         width: compact ? "100%" : 220,
         flexShrink: 0,
@@ -176,7 +176,7 @@ export function SettingsSidebarNav({
         return (
           <Pressable
             key={section.id}
-            testID={`file-explorer-settings-nav-${section.id}`}
+            testID={`autumn-studio-settings-nav-${section.id}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: isSelected }}
             onPress={() => onSelectNav(section.id)}
@@ -245,7 +245,7 @@ export function SettingsSidebarNav({
             }}
           />
           <Pressable
-            testID="file-explorer-settings-nav-more"
+            testID="autumn-studio-settings-nav-more"
             accessibilityRole="tab"
             accessibilityState={{ selected: isMoreActive }}
             onPress={() => onSelectNav(MORE_FORMATS_NAV_ID)}
@@ -333,7 +333,7 @@ export function MoreFormatsFilterBar({
 }) {
   return (
     <View
-      testID="file-explorer-settings-more-filters"
+      testID="autumn-studio-settings-more-filters"
       style={{
         flexDirection: "row",
         flexWrap: "wrap",
@@ -343,7 +343,7 @@ export function MoreFormatsFilterBar({
       }}
     >
       <Pressable
-        testID="file-explorer-settings-more-filter-all"
+        testID="autumn-studio-settings-more-filter-all"
         accessibilityRole="tab"
         accessibilityState={{ selected: moreFilterId === "all" }}
         onPress={() => onSelectFilter("all")}
@@ -381,7 +381,7 @@ export function MoreFormatsFilterBar({
         return (
           <Pressable
             key={section.id}
-            testID={`file-explorer-settings-more-filter-${section.id}`}
+            testID={`autumn-studio-settings-more-filter-${section.id}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: isPillSelected }}
             onPress={() => onSelectFilter(section.id)}

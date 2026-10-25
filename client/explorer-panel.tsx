@@ -15,15 +15,15 @@ import {
 import { useWorkspaceFileBridge } from "./use-workspace-file-bridge.js";
 import {
   flattenTree,
-  type FileExplorerViewProps,
+  type ExplorerViewProps,
   type FileOpenRef,
 } from "./view-props.js";
 
 // The island pulls in react-dom and the whole DOM component tree; the dynamic
 // import keeps all of it unevaluated on native, where it must never load.
-const FileExplorerIsland = lazy(() =>
-  import("./file-explorer-island.web.js").then((m) => ({
-    default: m.FileExplorerIsland,
+const ExplorerIsland = lazy(() =>
+  import("./explorer-island.web.js").then((m) => ({
+    default: m.ExplorerIsland,
   })),
 );
 
@@ -33,7 +33,7 @@ const FileExplorerIsland = lazy(() =>
  * in scope. The island cannot use them — context does not cross its
  * separate react-dom root.
  */
-export function FileExplorerPanel(
+export function ExplorerPanel(
   props: PluginWorkspacePanelProps & {
     onOpenFileInNewTab?: (
       workspaceId: string,
@@ -55,12 +55,14 @@ export function FileExplorerPanel(
     getPdfWasmUrl,
     getXlsxWasmDataUri,
     handleSaveFile,
+    treeDeprecationDismissed,
+    dismissTreeDeprecation,
   } = useWorkspaceFileBridge(props.workspaceId);
   const { recentFiles } = useWorkspaceOpenedTabs(props.workspaceId);
   const isEnabled = settings.general.enabled;
 
   const query = useQuery({
-    queryKey: ["file-explorer:tree", props.workspaceId],
+    queryKey: ["autumn-studio:tree", props.workspaceId],
     queryFn: () => fetchTree({ workspaceId: props.workspaceId }),
     enabled: isWeb && isEnabled,
     refetchOnWindowFocus: true,
@@ -116,7 +118,7 @@ export function FileExplorerPanel(
     [query.data?.tree],
   );
 
-  const view: FileExplorerViewProps = useMemo(
+  const view: ExplorerViewProps = useMemo(
     () => ({
       items: flattenedItems,
       recentFiles,
@@ -149,6 +151,8 @@ export function FileExplorerPanel(
       onRemoveRecentFile: handleRemoveRecentFile,
       onClearRecentFiles: handleClearRecentFiles,
       onOpenSettings: props.onOpenSettings ? handleOpenSettings : undefined,
+      treeDeprecationDismissed,
+      onDismissTreeDeprecation: dismissTreeDeprecation,
     }),
     [
       flattenedItems,
@@ -177,6 +181,8 @@ export function FileExplorerPanel(
       handleClearRecentFiles,
       props.onOpenSettings,
       handleOpenSettings,
+      treeDeprecationDismissed,
+      dismissTreeDeprecation,
     ],
   );
 
@@ -191,7 +197,7 @@ export function FileExplorerPanel(
         }}
       >
         <Text style={{ fontSize: 15, opacity: 0.7, textAlign: "center" }}>
-          File Explorer is available on desktop and web only.
+          Autumn Studio is available on desktop and web only.
         </Text>
         <Text
           style={{
@@ -217,7 +223,7 @@ export function FileExplorerPanel(
         </View>
       }
     >
-      <FileExplorerIsland {...props} view={view} />
+      <ExplorerIsland {...props} view={view} />
     </Suspense>
   );
 }

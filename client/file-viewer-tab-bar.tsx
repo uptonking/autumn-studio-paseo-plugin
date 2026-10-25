@@ -427,13 +427,13 @@ export function FileViewerTabBar({
             {view.onOpenExplorer ? (
               <DropdownMenuItem onClick={view.onOpenExplorer}>
                 <IconPlaceholder lucide="PanelLeft" className="size-4" />
-                Open File Explorer
+                Open explorer
               </DropdownMenuItem>
             ) : null}
             {view.onOpenSettings ? (
               <DropdownMenuItem onClick={view.onOpenSettings}>
                 <IconPlaceholder lucide="Settings" className="size-4" />
-                File Explorer settings
+                Autumn Studio settings
               </DropdownMenuItem>
             ) : null}
             {hasNavigationSection && hasRecentSection ? (

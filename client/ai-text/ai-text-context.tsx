@@ -8,6 +8,12 @@ import {
   type AiTextLayoutDocument,
 } from "../../shared/contracts.js";
 import { lazyWithPreload } from "../lazy-with-preload.js";
+import {
+  clampSplitRatioPct,
+  DEFAULT_SPLIT_RATIO_PCT,
+  type AiTextSplitPersistence,
+  type SurfacePersistenceHandle,
+} from "../surface-persistence.js";
 import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
 import { Spinner } from "../vendor/components/ui/spinner.js";
 import { cn } from "../vendor/lib/utils.js";
@@ -68,6 +74,7 @@ export function AiTextSurfaceSplitWrapper({
   fileName,
   variant = "in-place",
   aiText,
+  persistence,
   sourceUpdatedAt,
   sourceFileSize,
   onSaveFile,
@@ -79,6 +86,8 @@ export function AiTextSurfaceSplitWrapper({
   fileName?: string;
   variant?: string;
   aiText?: AiTextBridge;
+  /** Per-tab persisted split state; surfaces without a tab omit it. */
+  persistence?: SurfacePersistenceHandle;
   sourceUpdatedAt?: number;
   sourceFileSize?: number;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
@@ -92,9 +101,18 @@ export function AiTextSurfaceSplitWrapper({
     Boolean(filePath) &&
     isAiTextSupportedFormat(kind, filePath ?? fileName);
 
+  const persistenceRef = React.useRef(persistence);
+  persistenceRef.current = persistence;
+
   const [isSplitOpen, setIsSplitOpen] = React.useState(false);
-  const [isOriginalHidden, setIsOriginalHidden] = React.useState(false);
-  const [splitRatioPct, setSplitRatioPct] = React.useState(50);
+  const [isOriginalHidden, setIsOriginalHidden] = React.useState(() =>
+    Boolean(persistence?.state.aiText?.originalHidden),
+  );
+  const [splitRatioPct, setSplitRatioPct] = React.useState(() =>
+    clampSplitRatioPct(
+      persistence?.state.aiText?.splitRatioPct ?? DEFAULT_SPLIT_RATIO_PCT,
+    ),
+  );
   const [isLoadingMetadata, setIsLoadingMetadata] = React.useState(false);
   const [metadata, setMetadata] = React.useState<AiTextDocumentMetadata | null>(
     null,
@@ -128,6 +146,10 @@ export function AiTextSurfaceSplitWrapper({
     cancel: cancelExtraction,
     resetTaskState,
   } = useAiTextTask(aiText);
+
+  const persistAiText = React.useCallback((changes: AiTextSplitPersistence) => {
+    persistenceRef.current?.updateAiText(changes);
+  }, []);
 
   const activeVersion = React.useMemo(() => {
     if (!metadata || metadata.versions.length === 0) return null;
@@ -163,7 +185,9 @@ export function AiTextSurfaceSplitWrapper({
   React.useEffect(() => {
     resetTaskState();
     setIsSplitOpen(false);
-    setIsOriginalHidden(false);
+    setIsOriginalHidden(
+      Boolean(persistenceRef.current?.state.aiText?.originalHidden),
+    );
     setMetadata(null);
     setActiveContent(null);
 
@@ -180,15 +204,20 @@ export function AiTextSurfaceSplitWrapper({
         setMetadata(res.metadata);
         setActiveContent(res.activeContent);
         setIsLoadingMetadata(false);
-        if (
-          shouldAutoOpenAiTextSplit({
-            openSplitViewByDefault: openSplitViewByDefaultRef.current,
-            metadata: res.metadata,
-            activeContent: res.activeContent,
-            filePath,
-            lastAutoOpenedFilePath: autoOpenedFilePathRef.current,
-          })
-        ) {
+        // An explicitly persisted decision wins over the settings-driven
+        // auto-open; absence of the field keeps the automatic behavior.
+        const persistedSplitOpen = persistenceRef.current?.state.aiText?.splitOpen;
+        const shouldOpen =
+          persistedSplitOpen !== undefined
+            ? persistedSplitOpen
+            : shouldAutoOpenAiTextSplit({
+                openSplitViewByDefault: openSplitViewByDefaultRef.current,
+                metadata: res.metadata,
+                activeContent: res.activeContent,
+                filePath,
+                lastAutoOpenedFilePath: autoOpenedFilePathRef.current,
+              });
+        if (shouldOpen) {
           autoOpenedFilePathRef.current = filePath;
           void LazyAiTextSplitPane.preload();
           setIsSplitOpen(true);
@@ -242,6 +271,7 @@ export function AiTextSurfaceSplitWrapper({
       if (!enabled || !supported || !filePath || !aiText) return;
       if (isExtracting) return;
       void LazyAiTextSplitPane.preload();
+      persistAiText({ splitOpen: true });
 
       // If split view is already open, clicking "AI text again" always runs a new parse.
       if (isSplitOpen) {
@@ -272,6 +302,7 @@ export function AiTextSurfaceSplitWrapper({
       isExtracting,
       isSplitOpen,
       metadata,
+      persistAiText,
       runExtraction,
       supported,
     ],
@@ -320,18 +351,21 @@ export function AiTextSurfaceSplitWrapper({
   const handleCloseSplit = React.useCallback(() => {
     setIsSplitOpen(false);
     setIsOriginalHidden(false);
+    persistAiText({ splitOpen: false, originalHidden: false });
     // Remember the dismissal so a settings-driven metadata reload does not
     // auto-open the split the user just closed.
     if (filePath) autoOpenedFilePathRef.current = filePath;
-  }, [filePath]);
+  }, [filePath, persistAiText]);
 
   const handleHideOriginal = React.useCallback(() => {
     setIsOriginalHidden(true);
-  }, []);
+    persistAiText({ originalHidden: true });
+  }, [persistAiText]);
 
   const handleShowOriginal = React.useCallback(() => {
     setIsOriginalHidden(false);
-  }, []);
+    persistAiText({ originalHidden: false });
+  }, [persistAiText]);
 
   React.useEffect(
     () => () => {
@@ -346,28 +380,29 @@ export function AiTextSurfaceSplitWrapper({
       const container = splitContainerRef.current;
       if (!container) return;
       stopResizeRef.current?.();
+      let latestPct: number | null = null;
       const onMouseMove = (moveEvent: MouseEvent) => {
         const rect = container.getBoundingClientRect();
         if (rect.width <= 0) return;
         const rightWidth = rect.right - moveEvent.clientX;
-        const pct = Math.min(
-          72,
-          Math.max(28, Math.round((rightWidth / rect.width) * 100)),
-        );
-        setSplitRatioPct(pct);
+        latestPct = clampSplitRatioPct((rightWidth / rect.width) * 100);
+        setSplitRatioPct(latestPct);
       };
       const stop = () => {
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", stop);
         window.removeEventListener("blur", stop);
         if (stopResizeRef.current === stop) stopResizeRef.current = null;
+        if (latestPct !== null) {
+          persistAiText({ splitRatioPct: latestPct });
+        }
       };
       stopResizeRef.current = stop;
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", stop);
       window.addEventListener("blur", stop);
     },
-    [],
+    [persistAiText],
   );
 
   const contextValue = React.useMemo<FileAiTextContextValue>(
@@ -489,7 +524,10 @@ export function AiTextSurfaceSplitWrapper({
                   data-testid="ai-text-split-resizer"
                   title="Drag to resize split view (double-click to reset)"
                   onMouseDown={handleStartResize}
-                  onDoubleClick={() => setSplitRatioPct(50)}
+                  onDoubleClick={() => {
+                    setSplitRatioPct(DEFAULT_SPLIT_RATIO_PCT);
+                    persistAiText({ splitRatioPct: DEFAULT_SPLIT_RATIO_PCT });
+                  }}
                   className="w-1 shrink-0 cursor-col-resize bg-border/70 transition-colors hover:bg-primary/50"
                 />
               </>

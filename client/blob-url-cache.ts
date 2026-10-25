@@ -308,6 +308,22 @@ export function replaceCachedFileBlobUrl(
   return nextUrl;
 }
 
+/**
+ * Retires the cached blob URL for a path so the next read refetches, without
+ * revoking the URL an active editor may still hold. Used when another
+ * surface (a native file panel's PluginFile write) changed the file on disk.
+ */
+export function invalidateWorkspaceFileBlobUrl(
+  workspaceId: string,
+  path: string,
+): void {
+  const wsMap = workspaceFileCache.get(workspaceId);
+  const existing = wsMap?.get(path);
+  if (!wsMap || !existing) return;
+  retireWorkspaceUrl(workspaceId, existing.promise);
+  wsMap.delete(path);
+}
+
 export function clearWorkspaceBlobUrls(workspaceId: string): void {
   const wsMap = workspaceFileCache.get(workspaceId);
   if (wsMap) {

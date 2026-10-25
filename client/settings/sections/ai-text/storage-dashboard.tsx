@@ -69,7 +69,7 @@ function StatsHeaderRow({
         borderBottomWidth: 1,
         borderColor: theme.colors.border,
       }}
-      testID="file-explorer-ai-text-stats-header"
+      testID="autumn-studio-ai-text-stats-header"
     >
       {HEADERS.map((header) => {
         const active = header.key === sortKey;
@@ -78,7 +78,7 @@ function StatsHeaderRow({
             key={header.key}
             accessibilityRole="button"
             onPress={() => onSort(header.key)}
-            testID={`file-explorer-ai-text-stats-header-${header.key}`}
+            testID={`autumn-studio-ai-text-stats-header-${header.key}`}
             style={[COLUMN[header.key]]}
           >
             <Text
@@ -481,14 +481,14 @@ export function StorageDashboard({
             onPress={() => void load(true)}
             disabled={disabled || loading || !workspaceId}
             theme={theme}
-            testID="file-explorer-ai-text-stats-refresh"
+            testID="autumn-studio-ai-text-stats-refresh"
           />
           <AiTextAction
             label="Open folder"
             onPress={() => handleReveal("output-root")}
             disabled={disabled || !workspaceId}
             theme={theme}
-            testID="file-explorer-ai-text-stats-reveal-root"
+            testID="autumn-studio-ai-text-stats-reveal-root"
           />
         </View>
       </View>
@@ -508,7 +508,7 @@ export function StorageDashboard({
             color: theme.colors.foreground,
             fontSize: 12,
           }}
-          testID="file-explorer-ai-text-stats-filter"
+          testID="autumn-studio-ai-text-stats-filter"
         />
       </View>
 
@@ -549,8 +549,8 @@ export function StorageDashboard({
               disabled={disabled}
               theme={theme}
               onReveal={() => handleReveal("doc-folder", row.docFolderRelPath)}
-              testID={`file-explorer-ai-text-stats-row-${index}`}
-              revealTestID={`file-explorer-ai-text-stats-reveal-${index}`}
+              testID={`autumn-studio-ai-text-stats-row-${index}`}
+              revealTestID={`autumn-studio-ai-text-stats-reveal-${index}`}
               divider={index < displayRows.length - 1}
             />
           ))}

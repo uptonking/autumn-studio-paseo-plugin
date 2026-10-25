@@ -10,7 +10,7 @@ export function setSettingsScreenPreloader(preload: () => void): void {
   settingsPreloader = preload;
 }
 
-export function openFileExplorerSettingsScreen(section?: string): void {
+export function openAutumnStudioSettingsScreen(section?: string): void {
   settingsPreloader?.();
   latestOpenScreen?.(
     section
@@ -19,7 +19,7 @@ export function openFileExplorerSettingsScreen(section?: string): void {
   );
 }
 
-export function FileExplorerSidebarItem({
+export function AutumnStudioSidebarItem({
   currentScreen,
   openScreen,
 }: PluginSidebarItemProps) {
@@ -40,7 +40,7 @@ export function FileExplorerSidebarItem({
   return (
     <SidebarRow
       icon="FolderTree"
-      label="File Explorer"
+      label="Autumn Studio"
       active={isActive}
       onPress={() => {
         settingsPreloader?.();

@@ -3,7 +3,7 @@ import { SettingsSelect } from "@getpaseo/plugin/client/ui";
 import {
   getFormatBehaviorConfig,
   withFormatBehaviorConfig,
-  type FileExplorerSettingsValues,
+  type AutumnStudioSettingsValues,
   type FileFormatOpenBehavior,
 } from "../../../shared/settings.js";
 import type { FileSystemViewerKind } from "../../vendor/file-system/types.js";
@@ -23,10 +23,10 @@ const OPEN_BEHAVIOR_OPTIONS: readonly {
 export interface FormatOpenBehaviorFieldsProps {
   kind: FileSystemViewerKind;
   formatLabel: string;
-  values: FileExplorerSettingsValues;
+  values: AutumnStudioSettingsValues;
   disabled: boolean;
   updateValues: (
-    updater: (current: FileExplorerSettingsValues) => FileExplorerSettingsValues
+    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues
   ) => void;
 }
 
@@ -116,7 +116,7 @@ export function FormatOpenBehaviorFields({
         options={OPEN_BEHAVIOR_OPTIONS}
         disabled={disabled}
         onValueChange={handleOpenBehaviorChange}
-        testID={`file-explorer-setting-${kind}-open-behavior`}
+        testID={`autumn-studio-setting-${kind}-open-behavior`}
       />
       {viewerOptions.length > 0 ? (
         <SettingsSelect
@@ -126,7 +126,7 @@ export function FormatOpenBehaviorFields({
           options={viewerOptions}
           disabled={disabled}
           onValueChange={handleDefaultViewerChange}
-          testID={`file-explorer-setting-${kind}-default-viewer`}
+          testID={`autumn-studio-setting-${kind}-default-viewer`}
         />
       ) : null}
       {editorOptions.length > 0 ? (
@@ -137,7 +137,7 @@ export function FormatOpenBehaviorFields({
           options={editorOptions}
           disabled={disabled}
           onValueChange={handleDefaultEditorChange}
-          testID={`file-explorer-setting-${kind}-default-editor`}
+          testID={`autumn-studio-setting-${kind}-default-editor`}
         />
       ) : null}
     </>

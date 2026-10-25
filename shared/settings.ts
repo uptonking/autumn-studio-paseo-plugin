@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   aiTextSettingsSchema,
   createDefaultAiTextSettings,
-  migrateFileExplorerSettingsV1,
+  migrateAutumnStudioSettingsV1,
   type AiTextSettings,
 } from "./ai-text/settings.ts";
 import {
@@ -20,13 +20,13 @@ export * from "./ai-text/settings.ts";
 export const fileOpenModeSchema = z.enum(["in-place", "dialog", "new-tab"]);
 export type FileOpenMode = z.infer<typeof fileOpenModeSchema>;
 
-export const fileExplorerViewModeSchema = z.enum([
+export const explorerViewModeSchema = z.enum([
   "list",
   "icons",
   "columns",
   "gallery",
 ]);
-export type FileExplorerViewMode = z.infer<typeof fileExplorerViewModeSchema>;
+export type ExplorerViewMode = z.infer<typeof explorerViewModeSchema>;
 
 export const fileFormatOpenBehaviorSchema = z.enum(["viewer", "editor"]);
 export type FileFormatOpenBehavior = z.infer<
@@ -58,8 +58,9 @@ export const generalSettingsSchema = z.object({
   enabled: z.boolean().default(true),
   fileOpenMode: fileOpenModeSchema.default("in-place"),
   maxOpenTabs: z.number().int().min(1).max(50).default(DEFAULT_MAX_OPEN_TABS),
-  defaultViewMode: fileExplorerViewModeSchema.default("list"),
+  defaultViewMode: explorerViewModeSchema.default("list"),
   autoSaveEdits: z.boolean().default(true),
+  fileTreeDeprecationDismissed: z.boolean().default(false),
 });
 export type GeneralSettings = z.infer<typeof generalSettingsSchema>;
 
@@ -100,6 +101,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   maxOpenTabs: DEFAULT_MAX_OPEN_TABS,
   defaultViewMode: "list",
   autoSaveEdits: true,
+  fileTreeDeprecationDismissed: false,
 };
 
 export const DEFAULT_PDF_SETTINGS: PdfSettings = {
@@ -130,7 +132,7 @@ export const DEFAULT_TEXT_VIEWER_SETTINGS: TextViewerSettings = {
   wordWrap: true,
 };
 
-export const fileExplorerSettingsSchema = z.object({
+export const autumnStudioSettingsSchema = z.object({
   general: generalSettingsSchema.default(DEFAULT_GENERAL_SETTINGS),
   pdf: pdfSettingsSchema.default(DEFAULT_PDF_SETTINGS),
   xlsx: xlsxSettingsSchema.default(DEFAULT_XLSX_SETTINGS),
@@ -143,11 +145,11 @@ export const fileExplorerSettingsSchema = z.object({
   formats: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
 });
 
-export type FileExplorerSettingsValues = z.infer<
-  typeof fileExplorerSettingsSchema
+export type AutumnStudioSettingsValues = z.infer<
+  typeof autumnStudioSettingsSchema
 >;
 
-export const DEFAULT_FILE_EXPLORER_SETTINGS: FileExplorerSettingsValues = {
+export const DEFAULT_AUTUMN_STUDIO_SETTINGS: AutumnStudioSettingsValues = {
   general: DEFAULT_GENERAL_SETTINGS,
   pdf: DEFAULT_PDF_SETTINGS,
   xlsx: DEFAULT_XLSX_SETTINGS,
@@ -156,12 +158,12 @@ export const DEFAULT_FILE_EXPLORER_SETTINGS: FileExplorerSettingsValues = {
   formats: {},
 };
 
-export const fileExplorerSettings = defineSettings({
+export const autumnStudioSettings = defineSettings({
   id: "preferences",
   scope: "host",
   version: 2,
-  schema: fileExplorerSettingsSchema,
-  migrate: migrateFileExplorerSettingsV1,
+  schema: autumnStudioSettingsSchema,
+  migrate: migrateAutumnStudioSettingsV1,
 });
 
 export function toPdfViewerZoom(
@@ -199,7 +201,7 @@ export function toXlsxViewerZoom(zoom: XlsxDefaultZoom): number {
 }
 
 export function getXlsxSettings(
-  values: Partial<FileExplorerSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined
 ): XlsxSettings {
   return {
     ...DEFAULT_XLSX_SETTINGS,
@@ -208,9 +210,9 @@ export function getXlsxSettings(
 }
 
 export function withXlsxSettings(
-  values: FileExplorerSettingsValues,
+  values: AutumnStudioSettingsValues,
   patch: Partial<XlsxSettings>
-): FileExplorerSettingsValues {
+): AutumnStudioSettingsValues {
   return {
     ...values,
     xlsx: {
@@ -227,7 +229,7 @@ export interface FormatBehaviorConfig {
 }
 
 export function getFormatBehaviorConfig(
-  values: Partial<FileExplorerSettingsValues> | undefined,
+  values: Partial<AutumnStudioSettingsValues> | undefined,
   kind: string
 ): FormatBehaviorConfig {
   if (kind === "pdf") {
@@ -267,10 +269,10 @@ export function getFormatBehaviorConfig(
 }
 
 export function withFormatBehaviorConfig(
-  values: FileExplorerSettingsValues,
+  values: AutumnStudioSettingsValues,
   kind: string,
   patch: Partial<FormatBehaviorConfig>
-): FileExplorerSettingsValues {
+): AutumnStudioSettingsValues {
   if (kind === "pdf") {
     return {
       ...values,
@@ -309,7 +311,7 @@ export function withFormatBehaviorConfig(
 }
 
 export function getTextViewerSettings(
-  values: Partial<FileExplorerSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined
 ): TextViewerSettings {
   return {
     ...DEFAULT_TEXT_VIEWER_SETTINGS,
@@ -318,9 +320,9 @@ export function getTextViewerSettings(
 }
 
 export function withTextViewerSettings(
-  values: FileExplorerSettingsValues,
+  values: AutumnStudioSettingsValues,
   patch: Partial<TextViewerSettings>
-): FileExplorerSettingsValues {
+): AutumnStudioSettingsValues {
   return {
     ...values,
     text: {
@@ -353,7 +355,7 @@ function normalizeStoredProfiles(rawProfiles: unknown): AiTextProfile[] {
 }
 
 export function getAiTextSettings(
-  values: Partial<FileExplorerSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined
 ): AiTextSettings {
   const raw = values?.aiText;
   const defaults = createDefaultAiTextSettings();
@@ -380,9 +382,9 @@ export function getAiTextSettings(
 }
 
 export function withAiTextSettings(
-  values: FileExplorerSettingsValues,
+  values: AutumnStudioSettingsValues,
   patch: Partial<AiTextSettings>
-): FileExplorerSettingsValues {
+): AutumnStudioSettingsValues {
   const current = getAiTextSettings(values);
   return {
     ...values,

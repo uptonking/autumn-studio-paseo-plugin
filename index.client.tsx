@@ -5,46 +5,48 @@ import type {
   PluginSurfaceProps,
   PluginWorkspacePanelProps,
 } from "@getpaseo/plugin/client";
-import { FileExplorerPanel } from "./client/file-explorer-panel.js";
+import { ExplorerPanel } from "./client/explorer-panel.js";
 import { FileViewerPanel } from "./client/file-viewer-panel.js";
+import { FilePanelSurface } from "./client/file-panel/file-panel-surface.js";
+import { FORMAT_FAMILIES } from "./client/viewers/format-families.js";
 import { lazyWithPreload } from "./client/lazy-with-preload.js";
 import { openFileTabInStore } from "./client/opened-tabs-store.js";
 import {
-  FileExplorerSidebarItem,
-  openFileExplorerSettingsScreen,
+  AutumnStudioSidebarItem,
+  openAutumnStudioSettingsScreen,
   setSettingsScreenPreloader,
 } from "./client/sidebar-item.js";
 import type { FileOpenRef } from "./client/view-props.js";
 
-const LazyFileExplorerSettingsPage = lazyWithPreload(() =>
+const LazyAutumnStudioSettingsPage = lazyWithPreload(() =>
   import("./client/settings/settings-screen.js").then((m) => ({
-    default: m.FileExplorerSettingsPage,
+    default: m.AutumnStudioSettingsPage,
   })),
 );
 
-const LazyFileExplorerSettingsContent = lazyWithPreload(() =>
+const LazyAutumnStudioSettingsContent = lazyWithPreload(() =>
   import("./client/settings/settings-screen.js").then((m) => ({
-    default: m.FileExplorerSettingsContent,
+    default: m.AutumnStudioSettingsContent,
   })),
 );
 
 setSettingsScreenPreloader(() => {
-  void LazyFileExplorerSettingsPage.preload();
-  void LazyFileExplorerSettingsContent.preload();
+  void LazyAutumnStudioSettingsPage.preload();
+  void LazyAutumnStudioSettingsContent.preload();
 });
 
-function FileExplorerSettingsPageWrapper(props: PluginScreenProps) {
+function AutumnStudioSettingsPageWrapper(props: PluginScreenProps) {
   return (
     <Suspense fallback={null}>
-      <LazyFileExplorerSettingsPage {...props} />
+      <LazyAutumnStudioSettingsPage {...props} />
     </Suspense>
   );
 }
 
-function FileExplorerSettingsContentWrapper(props: PluginSurfaceProps) {
+function AutumnStudioSettingsContentWrapper(props: PluginSurfaceProps) {
   return (
     <Suspense fallback={null}>
-      <LazyFileExplorerSettingsContent {...props} />
+      <LazyAutumnStudioSettingsContent {...props} />
     </Suspense>
   );
 }
@@ -75,11 +77,11 @@ export default function contribute(client: PluginClientContext) {
     client.openPanel("file-viewer", { workspaceId, location: "workspace" });
   };
 
-  const BoundFileExplorerPanel = (props: PluginWorkspacePanelProps) => (
-    <FileExplorerPanel
+  const BoundExplorerPanel = (props: PluginWorkspacePanelProps) => (
+    <ExplorerPanel
       {...props}
       onOpenFileInNewTab={handleOpenFileInNewTab}
-      onOpenSettings={() => openFileExplorerSettingsScreen()}
+      onOpenSettings={() => openAutumnStudioSettingsScreen()}
     />
   );
 
@@ -87,57 +89,55 @@ export default function contribute(client: PluginClientContext) {
     <FileViewerPanel
       {...props}
       onOpenExplorer={(workspaceId) =>
-        client.openPanel("file-explorer", { workspaceId, location: "explorer" })
+        client.openPanel("explorer", { workspaceId, location: "explorer" })
       }
-      onOpenSettings={() => openFileExplorerSettingsScreen()}
+      onOpenSettings={() => openAutumnStudioSettingsScreen()}
     />
   );
 
   const removeSidebarHeaderItem = client.addSidebarHeaderItem({
-    id: "file-explorer",
-    title: "File Explorer",
-    Component: FileExplorerSidebarItem,
+    id: "autumn-studio",
+    title: "Autumn Studio",
+    Component: AutumnStudioSidebarItem,
   });
 
   const removeScreen = client.addScreen({
     id: "settings",
-    title: "File Explorer",
-    Component: FileExplorerSettingsPageWrapper,
+    title: "Autumn Studio",
+    Component: AutumnStudioSettingsPageWrapper,
   });
 
   const removeSettingsScreen = client.addSettingsScreen({
     id: "settings",
-    title: "File Explorer",
+    title: "Autumn Studio",
     icon: "FolderTree",
-    Component: FileExplorerSettingsContentWrapper,
+    Component: AutumnStudioSettingsContentWrapper,
   });
 
   const removeExplorerPanel = client.addWorkspacePanel({
-    id: "file-explorer",
+    id: "explorer",
     title: "Explorer",
     icon: "FolderTree",
-    context: "workspace",
     locations: ["workspace", "explorer"],
-    Component: BoundFileExplorerPanel,
+    Component: BoundExplorerPanel,
   });
 
   const removeViewerPanel = client.addWorkspacePanel({
     id: "file-viewer",
     title: "File Viewer",
     icon: "FileText",
-    context: "workspace",
     locations: ["workspace"],
     Component: BoundFileViewerPanel,
   });
 
   const removeExplorerCommand = client.addCommandCenterItem({
-    id: "open-file-explorer",
-    title: "Open file explorer",
+    id: "open-explorer",
+    title: "Open Autumn Studio explorer (deprecated)",
     icon: "FolderTree",
     context: "workspace",
     keywords: ["files", "tree", "browse", "navigate", "pdf"],
     onSelect({ openPanel }) {
-      openPanel("file-explorer");
+      openPanel("explorer");
     },
   });
 
@@ -152,6 +152,23 @@ export default function contribute(client: PluginClientContext) {
     },
   });
 
+  // Native Paseo file tabs: one registration per format family so Paseo's
+  // picker, Open with menu, and per-extension associations stay meaningful.
+  // The shared surface renders the same island viewer as the File Viewer
+  // workspace panel.
+  const removeFilePanels = FORMAT_FAMILIES.map((family) =>
+    client.addFilePanel({
+      id: family.id,
+      title: family.title,
+      icon: family.icon,
+      files: {
+        extensions: family.extensions,
+        filenames: family.filenames,
+      },
+      Component: FilePanelSurface,
+    }),
+  );
+
   return () => {
     removeSidebarHeaderItem();
     removeScreen();
@@ -160,5 +177,8 @@ export default function contribute(client: PluginClientContext) {
     removeViewerPanel();
     removeExplorerCommand();
     removeViewerCommand();
+    for (const removeFilePanel of removeFilePanels) {
+      removeFilePanel();
+    }
   };
 }

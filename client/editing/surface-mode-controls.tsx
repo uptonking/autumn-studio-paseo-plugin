@@ -156,7 +156,7 @@ export function EditorSaveControls({
 }: EditorSaveControlsProps) {
   if (!editSession) return null;
 
-  const { isDirty, saveState, saveError, saveNow } = editSession;
+  const { isDirty, saveState, saveError, saveErrorKind, saveNow } = editSession;
   const handleSaveClick = () => {
     if (onManualSave) {
       onManualSave();
@@ -201,13 +201,47 @@ export function EditorSaveControls({
               : "Save"}
         </span>
       </Button>
+      {saveError && saveErrorKind === "conflict" ? (
+        <>
+          <Button
+            type="button"
+            data-testid="editor-save-reload"
+            variant="outline"
+            size="xs"
+            disabled={saveState === "saving"}
+            onClick={() => {
+              editSession.discardPendingChanges();
+            }}
+            title="Discard your changes and reload the file from disk."
+            className="h-7 px-2 text-xs"
+          >
+            Reload
+          </Button>
+          <Button
+            type="button"
+            data-testid="editor-save-overwrite"
+            variant="outline"
+            size="xs"
+            disabled={saveState === "saving"}
+            onClick={() => {
+              void saveNow(undefined, { force: true });
+            }}
+            title="The file changed on disk. Overwrite it with your changes."
+            className="h-7 px-2 text-xs"
+          >
+            Overwrite
+          </Button>
+        </>
+      ) : null}
       {saveError ? (
         <span
           role="alert"
           className="max-w-36 truncate text-[11px] text-destructive"
           title={saveError}
         >
-          {saveError}
+          {saveErrorKind === "deleted"
+            ? "File was deleted — restore it to save"
+            : saveError}
         </span>
       ) : null}
     </div>

@@ -10,6 +10,8 @@ import { Button } from "../vendor/components/ui/button.js";
 import { cn } from "../vendor/lib/utils.js";
 import type { AiTextExtractOptions } from "./ai-text-context.js";
 
+const ARM_TIMEOUT_MS = 4000;
+
 function formatShortTimestamp(iso: string): string {
   try {
     const d = new Date(iso);
@@ -56,7 +58,92 @@ const CHIP =
   "inline-flex items-center gap-1 rounded border border-border/70 bg-background px-1.5 py-0.5 font-medium text-foreground";
 const MUTED_CHIP = "rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium";
 
-function VersionProvenance({
+/**
+ * Two-step inline confirmation for triggering a parse run. The first click
+ * arms the button (auto-disarms after a timeout or Escape); the second runs.
+ * Parsing creates a new version and keeps existing ones, so a modal confirm
+ * would be heavier than the action it guards.
+ */
+function ConfirmRunButton({
+  onRun,
+  disabled,
+  testId,
+  label,
+  confirmLabel,
+  title,
+  confirmTitle,
+  className,
+  spinning,
+}: {
+  onRun(): void;
+  disabled?: boolean;
+  testId: string;
+  label: string;
+  confirmLabel: string;
+  title: string;
+  confirmTitle: string;
+  className?: string;
+  spinning?: boolean;
+}) {
+  const [isArmed, setIsArmed] = React.useState(false);
+  const disarmTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (disarmTimerRef.current !== null) {
+        clearTimeout(disarmTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const disarm = React.useCallback(() => {
+    setIsArmed(false);
+    if (disarmTimerRef.current !== null) {
+      clearTimeout(disarmTimerRef.current);
+      disarmTimerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      data-armed={isArmed ? "true" : "false"}
+      disabled={disabled}
+      aria-label={isArmed ? confirmLabel : label}
+      title={isArmed ? confirmTitle : title}
+      onKeyDown={(event) => {
+        if (isArmed && event.key === "Escape") {
+          event.stopPropagation();
+          disarm();
+        }
+      }}
+      onClick={() => {
+        if (isArmed) {
+          disarm();
+          onRun();
+          return;
+        }
+        setIsArmed(true);
+        disarmTimerRef.current = setTimeout(disarm, ARM_TIMEOUT_MS);
+      }}
+      className={cn(
+        "inline-flex h-6 items-center gap-1 rounded border px-1.5 text-[10px] font-medium transition-colors disabled:opacity-50",
+        isArmed
+          ? "border-amber-500/50 bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 dark:text-amber-300"
+          : "border-border/80 bg-background text-foreground hover:bg-accent",
+        className,
+      )}
+    >
+      <RefreshCw className={cn("size-2.5", spinning && "animate-spin")} />
+      <span>{isArmed ? confirmLabel : label}</span>
+    </button>
+  );
+}
+
+/** Header-row identity of the active version: badges and status, no details. */
+function VersionIdentity({
   version,
   profiles,
   isSourceStale,
@@ -73,45 +160,66 @@ function VersionProvenance({
     ? computeAiTextProfileFingerprint(activeProfile) !==
       provenance.profileFingerprint
     : true;
+
+  return (
+    <>
+      <span
+        data-testid="ai-text-provenance-version"
+        className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
+      >
+        v{version.versionNumber}
+      </span>
+      <span
+        data-testid="ai-text-provenance-profile"
+        title={`Fingerprint ${provenance.profileFingerprint}`}
+        className={CHIP}
+      >
+        <FileText className="size-3 text-muted-foreground" />
+        <span>{provenance.profileName}</span>
+      </span>
+      {profileChanged ? (
+        <span
+          data-testid="ai-text-provenance-profile-changed"
+          title={
+            activeProfile
+              ? "This profile was edited after this version was parsed."
+              : provenance.profileFingerprint
+                ? "This version's profile no longer exists in settings."
+                : "This version predates parsing profiles."
+          }
+          className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+        >
+          {activeProfile
+            ? "Profile changed"
+            : provenance.profileFingerprint
+              ? "Profile removed"
+              : "Legacy version"}
+        </span>
+      ) : null}
+      {isSourceStale ? (
+        <ConfirmRunButton
+          testId="ai-text-provenance-stale"
+          onRun={onReparse}
+          label="Source modified"
+          confirmLabel="Re-parse now?"
+          title="Source file was modified after this text version was extracted. Click to re-parse."
+          confirmTitle="Run a new parse with the selected profile; existing versions are kept."
+          className="border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** Detail chips of the active version — the single home for parsing stats. */
+function VersionDetails({ version }: { version: AiTextVersionRecord }) {
+  const provenance = version.provenance;
   const statsSummary = formatStructureStatsSummary(version);
   const routeSuffix = provenance.route ? ` · ${provenance.route}` : "";
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span
-          data-testid="ai-text-provenance-version"
-          className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
-        >
-          v{version.versionNumber}
-        </span>
-        <span
-          data-testid="ai-text-provenance-profile"
-          title={`Fingerprint ${provenance.profileFingerprint}`}
-          className={CHIP}
-        >
-          <FileText className="size-3 text-muted-foreground" />
-          <span>{provenance.profileName}</span>
-        </span>
-        {profileChanged ? (
-          <span
-            data-testid="ai-text-provenance-profile-changed"
-            title={
-              activeProfile
-                ? "This profile was edited after this version was parsed."
-                : provenance.profileFingerprint
-                  ? "This version's profile no longer exists in settings."
-                  : "This version predates parsing profiles."
-            }
-            className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
-          >
-            {activeProfile
-              ? "Profile changed"
-              : provenance.profileFingerprint
-                ? "Profile removed"
-                : "Legacy version"}
-          </span>
-        ) : null}
         <span data-testid="ai-text-provenance-engine" className={CHIP}>
           <span>
             {provenance.engineLabel}
@@ -143,26 +251,12 @@ function VersionProvenance({
         {version.layout ? (
           <span
             data-testid="ai-text-provenance-layout"
+            title="Layout geometry of this version — the only place blocks and page counts are shown."
             className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300"
           >
             {version.layout.blockCount} blocks · {version.layout.pageCount} pages
           </span>
         ) : null}
-        {isSourceStale ? (
-          <button
-            type="button"
-            data-testid="ai-text-provenance-stale"
-            onClick={onReparse}
-            title="Source file was modified after this text version was extracted. Click to re-parse."
-            className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
-          >
-            <RefreshCw className="size-2.5" />
-            <span>Source modified</span>
-          </button>
-        ) : null}
-        <span className="ml-auto whitespace-nowrap tabular-nums">
-          {formatShortTimestamp(version.createdAt)} · {version.durationMs}ms
-        </span>
       </div>
 
       {provenance.fallbackReason ||
@@ -233,50 +327,28 @@ export function AiTextMetadataPanel({
       data-testid="ai-text-metadata-panel"
       role="region"
       aria-label="AI text metadata"
-      className="mx-2 mb-2 flex shrink-0 flex-col gap-1.5 rounded-lg border border-border/80 bg-popover/95 px-2.5 py-2 text-[11px] text-muted-foreground shadow-lg backdrop-blur-sm"
+      className="flex shrink-0 flex-col gap-1.5 border-t bg-muted/30 px-2.5 py-2 text-[11px] text-muted-foreground"
     >
-      {activeVersion ? (
-        <VersionProvenance
-          version={activeVersion}
-          profiles={profiles}
-          isSourceStale={isSourceStale}
-          onReparse={reparse}
-        />
-      ) : (
-        <span className="font-medium text-foreground">
-          Choose a parsing profile, then extract text.
-        </span>
-      )}
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        <select
-          data-testid="ai-text-reparse-profile-select"
-          aria-label="Profile for the next AI text run"
-          value={selectedProfileId}
-          disabled={isExtracting || profiles.length === 0}
-          onChange={(event) => onSelectProfile(event.target.value)}
-          className="h-6 max-w-56 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground outline-none"
-        >
-          {profiles.map((profile) => (
-            <option key={profile.id} value={profile.id}>
-              {profile.name}
-              {profile.id === defaultProfileId ? " (default)" : ""}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          data-testid="ai-text-reparse-run-button"
-          disabled={isExtracting || !selectedProfileId}
-          onClick={reparse}
-          title="Run AI text again with the selected profile"
-          className="inline-flex h-6 items-center gap-1 rounded border border-border/80 bg-background px-1.5 text-[10px] font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-        >
-          <RefreshCw
-            className={cn("size-2.5", isExtracting && "animate-spin")}
-          />
-          <span>Re-parse</span>
-        </button>
+      {/* Header row: version identity left, actions top-right. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {activeVersion ? (
+          <>
+            <VersionIdentity
+              version={activeVersion}
+              profiles={profiles}
+              isSourceStale={isSourceStale}
+              onReparse={reparse}
+            />
+            <span className="ml-auto whitespace-nowrap tabular-nums">
+              {formatShortTimestamp(activeVersion.createdAt)} ·{" "}
+              {activeVersion.durationMs}ms
+            </span>
+          </>
+        ) : (
+          <span className="min-w-0 flex-1 font-medium text-foreground">
+            Choose a parsing profile, then extract text.
+          </span>
+        )}
         {onOpenSettings ? (
           <Button
             type="button"
@@ -303,6 +375,41 @@ export function AiTextMetadataPanel({
         >
           <X className="size-3" />
         </Button>
+      </div>
+
+      {activeVersion ? <VersionDetails version={activeVersion} /> : null}
+
+      {/* Run controls sit at the bottom edge, labeled like the main toolbar's
+          "AI text again" action so the two read as one flow. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-semibold text-muted-foreground">
+          AI Text again:
+        </span>
+        <select
+          data-testid="ai-text-reparse-profile-select"
+          aria-label="Profile for the next AI text run"
+          value={selectedProfileId}
+          disabled={isExtracting || profiles.length === 0}
+          onChange={(event) => onSelectProfile(event.target.value)}
+          className="h-6 max-w-56 rounded border border-border/70 bg-background px-1.5 text-[10px] font-medium text-foreground outline-none"
+        >
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+              {profile.id === defaultProfileId ? " (default)" : ""}
+            </option>
+          ))}
+        </select>
+        <ConfirmRunButton
+          testId="ai-text-reparse-run-button"
+          onRun={reparse}
+          disabled={isExtracting || !selectedProfileId}
+          spinning={isExtracting}
+          label="Re-parse"
+          confirmLabel="Confirm re-parse"
+          title="Run AI text again with the selected profile"
+          confirmTitle="A new version is parsed and stored; existing versions are kept."
+        />
       </div>
     </div>
   );

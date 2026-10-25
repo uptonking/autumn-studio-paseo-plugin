@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_GENERAL_SETTINGS,
   DEFAULT_MAX_OPEN_TABS,
-  type FileExplorerViewMode,
+  type ExplorerViewMode,
   type FileOpenMode,
 } from "../../../shared/settings.js";
 import type {
@@ -41,7 +41,7 @@ const MAX_OPEN_TABS_OPTIONS: readonly {
 
 const DEFAULT_VIEW_OPTIONS: readonly {
   label: string;
-  value: FileExplorerViewMode;
+  value: ExplorerViewMode;
 }[] = [
   { label: "List (Tree)", value: "list" },
   { label: "Icons", value: "icons" },
@@ -103,7 +103,7 @@ export function GeneralSettingsSection({
   );
 
   const handleDefaultViewChange = useCallback(
-    (defaultViewMode: FileExplorerViewMode) => {
+    (defaultViewMode: ExplorerViewMode) => {
       updateValues((current) => ({
         ...current,
         general: { ...current.general, defaultViewMode },
@@ -123,15 +123,15 @@ export function GeneralSettingsSection({
   );
 
   return (
-    <SettingsSection title="General" testID="file-explorer-settings-general">
+    <SettingsSection title="General" testID="autumn-studio-settings-general">
       <SettingsCard>
         <SettingsSwitch
-          label="Enable File Explorer"
-          hint="Turn on the desktop/web File Explorer and built-in file viewers for workspaces."
+          label="Enable Autumn Studio"
+          hint="Turn on the desktop/web Autumn Studio explorer and built-in file viewers for workspaces."
           value={general.enabled}
           disabled={disabled}
           onValueChange={handleEnabledChange}
-          testID="file-explorer-setting-enabled"
+          testID="autumn-studio-setting-enabled"
         />
         <SettingsSelect
           label="File open mode"
@@ -140,7 +140,7 @@ export function GeneralSettingsSection({
           options={FILE_OPEN_MODE_OPTIONS}
           disabled={disabled || !general.enabled}
           onValueChange={handleOpenModeChange}
-          testID="file-explorer-setting-open-mode"
+          testID="autumn-studio-setting-open-mode"
         />
         <SettingsSelect
           label="Maximum open file tabs"
@@ -149,16 +149,16 @@ export function GeneralSettingsSection({
           options={maxOpenTabsOptions}
           disabled={disabled || !general.enabled}
           onValueChange={handleMaxOpenTabsChange}
-          testID="file-explorer-setting-max-open-tabs"
+          testID="autumn-studio-setting-max-open-tabs"
         />
         <SettingsSelect
           label="Default file tree view"
-          hint="Initial layout used when opening the File Explorer."
+          hint="Initial layout used when opening the explorer."
           value={general.defaultViewMode}
           options={DEFAULT_VIEW_OPTIONS}
           disabled={disabled || !general.enabled}
           onValueChange={handleDefaultViewChange}
-          testID="file-explorer-setting-default-view"
+          testID="autumn-studio-setting-default-view"
         />
         <SettingsSwitch
           label="Save file edits to file system automatically"
@@ -166,7 +166,7 @@ export function GeneralSettingsSection({
           value={general.autoSaveEdits ?? true}
           disabled={disabled || !general.enabled}
           onValueChange={handleAutoSaveChange}
-          testID="file-explorer-setting-auto-save"
+          testID="autumn-studio-setting-auto-save"
         />
       </SettingsCard>
     </SettingsSection>

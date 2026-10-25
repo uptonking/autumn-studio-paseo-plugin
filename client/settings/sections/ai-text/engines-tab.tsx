@@ -178,7 +178,7 @@ export function EnginesTab({
     <SettingsSection
       title="Engines & setup"
       info="Healthy engines come first. Install, update, or remove the selected engine; parse-time behavior is configured per profile."
-      testID="file-explorer-settings-ai-text-engines"
+      testID="autumn-studio-settings-ai-text-engines"
     >
       <SettingsCard>
         <View
@@ -189,7 +189,7 @@ export function EnginesTab({
             paddingHorizontal: 12,
             paddingVertical: 6,
           }}
-          testID="file-explorer-ai-text-engine-tabs"
+          testID="autumn-studio-ai-text-engine-tabs"
         >
           {descriptors.map((descriptor) => {
             const active = descriptor.id === selected?.id;
@@ -199,7 +199,7 @@ export function EnginesTab({
                 key={descriptor.id}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
-                testID={`file-explorer-ai-text-engine-tab-${descriptor.id}`}
+                testID={`autumn-studio-ai-text-engine-tab-${descriptor.id}`}
                 onPress={() => setSelectedEngineId(descriptor.id)}
                 style={{
                   flexDirection: "row",

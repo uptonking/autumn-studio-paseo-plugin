@@ -174,7 +174,7 @@ export async function refineAiTextMarkdown(
       config: { provider: resolution.provider, systemPrompt },
       cwd: input.workspaceRootPath,
       title: `AI Text refinement · ${input.fileName}`,
-      labels: { "file-explorer.role": "ai-text-refinement" },
+      labels: { "autumn-studio.role": "ai-text-refinement" },
       autoArchive: true,
       prompt,
     });

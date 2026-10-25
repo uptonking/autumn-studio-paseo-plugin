@@ -137,7 +137,11 @@ export function AiTextSplitPane({
   const [savedFeedback, setSavedFeedback] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
-  const [isMetadataPanelOpen, setIsMetadataPanelOpen] = React.useState(true);
+  // Starts from the settings default; the ✕ and ⋯ menu stay session-local
+  // overrides so casual open/close does not rewrite settings.
+  const [isMetadataPanelOpen, setIsMetadataPanelOpen] = React.useState(() =>
+    Boolean(settings.showMetadataPanelByDefault),
+  );
   const savingRef = React.useRef(false);
   const savedFeedbackTimerRef = React.useRef<ReturnType<
     typeof setTimeout

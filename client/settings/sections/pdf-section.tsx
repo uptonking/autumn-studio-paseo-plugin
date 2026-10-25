@@ -72,7 +72,7 @@ export function PdfSettingsSection({
   );
 
   return (
-    <SettingsSection title="PDF" testID="file-explorer-settings-pdf">
+    <SettingsSection title="PDF" testID="autumn-studio-settings-pdf">
       <SettingsCard>
         <FormatOpenBehaviorFields
           kind="pdf"
@@ -87,7 +87,7 @@ export function PdfSettingsSection({
           value={pdf.showThumbnailsByDefault}
           disabled={controlsDisabled}
           onValueChange={handleThumbnailsChange}
-          testID="file-explorer-setting-pdf-thumbnails"
+          testID="autumn-studio-setting-pdf-thumbnails"
         />
         <SettingsSelect
           label="Default zoom level"
@@ -96,7 +96,7 @@ export function PdfSettingsSection({
           options={PDF_ZOOM_OPTIONS}
           disabled={controlsDisabled}
           onValueChange={handleDefaultZoomChange}
-          testID="file-explorer-setting-pdf-zoom"
+          testID="autumn-studio-setting-pdf-zoom"
         />
         <SettingsSwitch
           label="Show page rotation controls"
@@ -104,7 +104,7 @@ export function PdfSettingsSection({
           value={pdf.showRotateControls}
           disabled={controlsDisabled}
           onValueChange={handleRotateControlsChange}
-          testID="file-explorer-setting-pdf-rotate"
+          testID="autumn-studio-setting-pdf-rotate"
         />
         <SettingsSwitch
           label="Show download action"
@@ -112,7 +112,7 @@ export function PdfSettingsSection({
           value={pdf.showDownloadButton}
           disabled={controlsDisabled}
           onValueChange={handleDownloadButtonChange}
-          testID="file-explorer-setting-pdf-download"
+          testID="autumn-studio-setting-pdf-download"
         />
       </SettingsCard>
     </SettingsSection>

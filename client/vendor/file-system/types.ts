@@ -106,13 +106,13 @@ export type FileSystemProps = {
   onRecordRecentFile?: (file: FileSystemFileItem) => void
   /** Callback to clear recent files. */
   onClearRecentFiles?: () => void
-  /** Callback to open the File Explorer settings page. */
+  /** Callback to open the Autumn Studio settings page. */
   onOpenSettings?: () => void
-  /** PDF viewer/editor preferences from File Explorer settings. */
+  /** PDF viewer/editor preferences from Autumn Studio settings. */
   pdfSettings?: FileSystemPdfSettings
-  /** Excel viewer/editor preferences from File Explorer settings. */
+  /** Excel viewer/editor preferences from Autumn Studio settings. */
   xlsxSettings?: FileSystemXlsxSettings
-  /** Code & text viewer/editor preferences from File Explorer settings. */
+  /** Code & text viewer/editor preferences from Autumn Studio settings. */
   textSettings?: FileSystemTextSettings
   /** Additional format preferences keyed by viewer kind (e.g. image, docx, pptx). */
   formatSettings?: FileSystemFormatSettingsMap

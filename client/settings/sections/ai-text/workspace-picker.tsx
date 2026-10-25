@@ -52,7 +52,7 @@ export function WorkspacePicker({
           setOpen((isOpen) => !isOpen);
           setQuery("");
         }}
-        testID="file-explorer-ai-text-stats-workspace"
+        testID="autumn-studio-ai-text-stats-workspace"
         style={{
           flexDirection: "row",
           alignItems: "center",
@@ -91,7 +91,7 @@ export function WorkspacePicker({
             padding: 6,
             gap: 4,
           }}
-          testID="file-explorer-ai-text-stats-workspace-list"
+          testID="autumn-studio-ai-text-stats-workspace-list"
         >
           <TextInput
             value={query}
@@ -108,7 +108,7 @@ export function WorkspacePicker({
               color: theme.colors.foreground,
               fontSize: 12,
             }}
-            testID="file-explorer-ai-text-stats-workspace-search"
+            testID="autumn-studio-ai-text-stats-workspace-search"
           />
           {filtered.slice(0, 8).map((option) => {
             const selected = option.id === value;
@@ -122,7 +122,7 @@ export function WorkspacePicker({
                   setOpen(false);
                   setQuery("");
                 }}
-                testID={`file-explorer-ai-text-stats-workspace-option-${option.id}`}
+                testID={`autumn-studio-ai-text-stats-workspace-option-${option.id}`}
                 style={{
                   borderRadius: 6,
                   paddingHorizontal: 10,

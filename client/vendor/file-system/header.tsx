@@ -207,7 +207,7 @@ export function FileSystemInPlaceHeader({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onOpenSettings}>
                   <IconPlaceholder lucide="Settings" className="size-4" />
-                  File Explorer settings
+                  Autumn Studio settings
                 </DropdownMenuItem>
               </>
             ) : null}
@@ -467,7 +467,7 @@ export function FileSystemToolbarHeader({
                 {onOpenSettings ? (
                   <DropdownMenuItem onClick={onOpenSettings}>
                     <IconPlaceholder lucide="Settings" className="size-4" />
-                    File Explorer settings
+                    Autumn Studio settings
                   </DropdownMenuItem>
                 ) : null}
                 {(recentFiles?.length ?? 0) > 0 ? (

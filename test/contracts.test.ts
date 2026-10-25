@@ -7,9 +7,9 @@ import {
   saveFileContent,
   getPdfWasm,
   getXlsxWasm,
-  fileExplorerSettings,
-  fileExplorerSettingsSchema,
-  DEFAULT_FILE_EXPLORER_SETTINGS,
+  autumnStudioSettings,
+  autumnStudioSettingsSchema,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS,
   DEFAULT_TEXT_VIEWER_SETTINGS,
   DEFAULT_XLSX_SETTINGS,
   getTextViewerSettings,
@@ -159,15 +159,16 @@ describe("contracts: getPdfWasm and getXlsxWasm RPCs", () => {
   });
 });
 
-describe("contracts: fileExplorerSettings", () => {
+describe("contracts: autumnStudioSettings", () => {
   it("parses empty object into default settings", () => {
-    const parsed = fileExplorerSettingsSchema.parse({});
-    assert.deepEqual(parsed, DEFAULT_FILE_EXPLORER_SETTINGS);
+    const parsed = autumnStudioSettingsSchema.parse({});
+    assert.deepEqual(parsed, DEFAULT_AUTUMN_STUDIO_SETTINGS);
     assert.equal(parsed.general.enabled, true);
     assert.equal(parsed.general.fileOpenMode, "in-place");
     assert.equal(parsed.general.maxOpenTabs, 8);
     assert.equal(parsed.general.defaultViewMode, "list");
     assert.equal(parsed.general.autoSaveEdits, true);
+    assert.equal(parsed.general.fileTreeDeprecationDismissed, false);
     assert.equal(parsed.pdf.defaultOpenBehavior, "viewer");
     assert.equal(parsed.pdf.defaultViewer, "embedpdf-viewer");
     assert.equal(parsed.pdf.defaultEditor, "embedpdf-editor");
@@ -187,6 +188,7 @@ describe("contracts: fileExplorerSettings", () => {
         maxOpenTabs: 12,
         defaultViewMode: "gallery" as const,
         autoSaveEdits: false,
+        fileTreeDeprecationDismissed: false,
       },
       pdf: {
         defaultOpenBehavior: "editor" as const,
@@ -216,13 +218,13 @@ describe("contracts: fileExplorerSettings", () => {
       formats: {
         markdown: { previewByDefault: true },
       },
-      aiText: DEFAULT_FILE_EXPLORER_SETTINGS.aiText,
+      aiText: DEFAULT_AUTUMN_STUDIO_SETTINGS.aiText,
     };
-    const parsed = fileExplorerSettingsSchema.parse(custom);
+    const parsed = autumnStudioSettingsSchema.parse(custom);
     assert.deepEqual(parsed, custom);
-    assert.equal(fileExplorerSettings.id, "preferences");
-    assert.equal(fileExplorerSettings.scope, "host");
-    assert.equal(fileExplorerSettings.version, 2);
+    assert.equal(autumnStudioSettings.id, "preferences");
+    assert.equal(autumnStudioSettings.scope, "host");
+    assert.equal(autumnStudioSettings.version, 2);
   });
 
   it("maps PdfDefaultZoom and XlsxDefaultZoom values", () => {
@@ -239,7 +241,7 @@ describe("contracts: fileExplorerSettings", () => {
   });
 
   it("reads and updates Code & Text and per-format open behavior settings", () => {
-    const defaults = fileExplorerSettingsSchema.parse({});
+    const defaults = autumnStudioSettingsSchema.parse({});
     assert.deepEqual(getTextViewerSettings(defaults), DEFAULT_TEXT_VIEWER_SETTINGS);
 
     const updated = withTextViewerSettings(defaults, {

@@ -281,7 +281,7 @@ export function EngineOperationPanel({
             disabled={!run.taskId}
             tone="danger"
             theme={theme}
-            testID={`file-explorer-ai-text-engine-op-cancel-${descriptor.id}`}
+            testID={`autumn-studio-ai-text-engine-op-cancel-${descriptor.id}`}
           />
         </>
       )}

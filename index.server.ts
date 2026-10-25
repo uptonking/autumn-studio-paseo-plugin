@@ -5,7 +5,7 @@ import {
   cancelAiTextTask,
   DEFAULT_AI_TEXT_SETTINGS,
   deleteAiTextVersion,
-  fileExplorerSettings,
+  autumnStudioSettings,
   getAiTextAsset,
   getAiTextEngineEnvironment,
   getAiTextLayout,
@@ -19,6 +19,7 @@ import {
   listAiTextAgents,
   listAiTextEngines,
   listAiTextStorageStats,
+  locateWorkspaceFile,
   revealAiTextPath,
   saveFileContent,
   selectAiTextVersion,
@@ -46,7 +47,12 @@ import {
 } from "./server/ai-text/engine-registry.js";
 import { registerAiTextEngines } from "./server/ai-text/engines/index.js";
 import { createAiTextTaskStore } from "./server/ai-text/task-store.js";
-import { atomicWriteFile, safeResolve, workspaceRoot } from "./server/paths.js";
+import {
+  atomicWriteFile,
+  locateInWorkspace,
+  safeResolve,
+  workspaceRoot,
+} from "./server/paths.js";
 import { contentTypeFor, scanWorkspaceTree } from "./server/scan.js";
 
 /** Refuse to buffer more than 32MB into a data URI — the WebSocket and the
@@ -67,7 +73,7 @@ async function locate(paseo: unknown, workspaceId: string, relPath: string) {
 }
 
 export default function contribute(server: PluginServerContext) {
-  const settingsHandle = server.registerSettings(fileExplorerSettings);
+  const settingsHandle = server.registerSettings(autumnStudioSettings);
   const aiTextTasks = createAiTextTaskStore();
   registerAiTextEngines();
 
@@ -134,6 +140,14 @@ export default function contribute(server: PluginServerContext) {
         size: updatedStats.size,
         mtime: updatedStats.mtimeMs,
       };
+    }
+  );
+
+  server.handle(
+    locateWorkspaceFile,
+    async ({ workspaceId, absPath }, { paseo }) => {
+      const root = await workspaceRoot(paseo, workspaceId);
+      return { relPath: await locateInWorkspace(root, absPath) };
     }
   );
 

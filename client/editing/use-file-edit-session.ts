@@ -25,6 +25,19 @@ export type SerializedFilePayload =
 
 export type FileSaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
+/** Why a save failed: version conflict, deleted file, or anything else. */
+export type SaveErrorKind = "conflict" | "deleted" | "other" | null;
+
+/** Classifies a save failure by the PluginFile error names the SDK throws. */
+export function classifySaveError(err: unknown): SaveErrorKind {
+  if (err && typeof err === "object") {
+    const name = (err as { name?: unknown }).name;
+    if (name === "PluginFileConflictError") return "conflict";
+    if (name === "PluginFileDeletedError") return "deleted";
+  }
+  return "other";
+}
+
 export interface FileEditSession {
   /** Current workspace-relative path */
   path: string;
@@ -36,6 +49,8 @@ export interface FileEditSession {
   lastSavedAt: number | null;
   /** Error message if the most recent save failed */
   saveError: string | null;
+  /** Classification of the most recent save failure */
+  saveErrorKind: SaveErrorKind;
   /**Whether automatic file-system save is enabled */
   autoSave: boolean;
   /**
@@ -50,6 +65,7 @@ export interface FileEditSession {
     explicitPayload?:
       | SerializedFilePayload
       | (() => Promise<SerializedFilePayload> | SerializedFilePayload),
+    options?: { force?: boolean },
   ) => Promise<boolean>;
   /**
    * Register a synchronous callback that commits any active UI input (e.g. a
@@ -59,6 +75,12 @@ export interface FileEditSession {
   registerBeforeSaveFlush: (flush: () => void) => () => void;
   /** Synchronously invokes all registered `beforeSaveFlush` callbacks. */
   flushBeforeSave: () => void;
+  /**
+   * Drops pending edits without saving: clears the dirty state and save
+   * error. The host surface re-initializes its renderer from the current
+   * file URL afterwards.
+   */
+  discardPendingChanges: () => void;
 }
 
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -86,6 +108,19 @@ function base64ToUint8Array(base64: string): Uint8Array {
     out[i] = bin.charCodeAt(i);
   }
   return out;
+}
+
+/** Payload bytes for a save, regardless of how the surface serialized it. */
+export function serializedPayloadToBytes(
+  payload: SerializedFilePayload,
+): Uint8Array {
+  if (payload.encoding === "utf8") {
+    return new TextEncoder().encode(payload.data);
+  }
+  if (payload.encoding === "bytes") {
+    return payload.bytes;
+  }
+  return payload.bytes ?? base64ToUint8Array(payload.data);
 }
 
 export interface PersistFileChangeOptions {
@@ -123,23 +158,20 @@ export async function persistSerializedFile({
   return trackWorkspaceFileSave(workspaceId, relPath, async () => {
     let rpcEncoding: "base64" | "utf8";
     let rpcContent: string;
-    let nextBytes: Uint8Array;
     const resolvedMime =
       payload.mimeType ?? contentType ?? "application/octet-stream";
 
     if (payload.encoding === "utf8") {
       rpcEncoding = "utf8";
       rpcContent = payload.data;
-      nextBytes = new TextEncoder().encode(payload.data);
     } else if (payload.encoding === "bytes") {
       rpcEncoding = "base64";
       rpcContent = uint8ArrayToBase64(payload.bytes);
-      nextBytes = payload.bytes;
     } else {
       rpcEncoding = "base64";
       rpcContent = payload.data;
-      nextBytes = payload.bytes ?? base64ToUint8Array(payload.data);
     }
+    const nextBytes = serializedPayloadToBytes(payload);
 
     const saved = await callSaveRpc({
       workspaceId,
@@ -179,7 +211,10 @@ export interface UseFileEditSessionOptions {
   path: string;
   autoSave?: boolean;
   debounceMs?: number;
-  onSavePayload?: (payload: SerializedFilePayload) => Promise<void>;
+  onSavePayload?: (
+    payload: SerializedFilePayload,
+    options?: { force?: boolean },
+  ) => Promise<void>;
 }
 
 const activeFlushersByPath = new Map<
@@ -217,6 +252,7 @@ export function useFileEditSession({
   const [saveState, setSaveState] = React.useState<FileSaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = React.useState<number | null>(null);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [saveErrorKind, setSaveErrorKind] = React.useState<SaveErrorKind>(null);
 
   const pendingSerializerRef = React.useRef<
     (() => Promise<SerializedFilePayload> | SerializedFilePayload) | null
@@ -247,6 +283,19 @@ export function useFileEditSession({
     }
   }, []);
 
+  const discardPendingChanges = React.useCallback(() => {
+    pendingSerializerRef.current = null;
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    saveGenerationRef.current += 1;
+    setIsDirty(false);
+    setSaveState("idle");
+    setSaveError(null);
+    setSaveErrorKind(null);
+  }, []);
+
   const flushPendingOnCleanup = React.useCallback(() => {
     flushBeforeSave();
     if (timerRef.current !== null) {
@@ -275,6 +324,7 @@ export function useFileEditSession({
     setSaveState("idle");
     setLastSavedAt(null);
     setSaveError(null);
+    setSaveErrorKind(null);
     pendingSerializerRef.current = null;
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
@@ -290,6 +340,7 @@ export function useFileEditSession({
       explicitPayload?:
         | SerializedFilePayload
         | (() => Promise<SerializedFilePayload> | SerializedFilePayload),
+      options?: { force?: boolean },
     ): Promise<boolean> => {
       if (!explicitPayload) {
         flushBeforeSave();
@@ -314,13 +365,16 @@ export function useFileEditSession({
       const currentGen = ++saveGenerationRef.current;
       setSaveState("saving");
       setSaveError(null);
+      setSaveErrorKind(null);
 
       try {
         const payloadOrPromise = serializer();
         const saveTask =
           payloadOrPromise instanceof Promise
-            ? payloadOrPromise.then((payload) => saveHandler(payload))
-            : saveHandler(payloadOrPromise);
+            ? payloadOrPromise.then((payload) =>
+                saveHandler(payload, { force: options?.force }),
+              )
+            : saveHandler(payloadOrPromise, { force: options?.force });
         await saveTask;
         if (currentGen === saveGenerationRef.current) {
           pendingSerializerRef.current = null;
@@ -333,6 +387,7 @@ export function useFileEditSession({
         if (currentGen === saveGenerationRef.current) {
           setSaveState("error");
           setSaveError(err instanceof Error ? err.message : String(err));
+          setSaveErrorKind(classifySaveError(err));
         }
         return false;
       }
@@ -349,6 +404,7 @@ export function useFileEditSession({
       setIsDirty(true);
       setSaveState("dirty");
       setSaveError(null);
+      setSaveErrorKind(null);
 
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
@@ -398,14 +454,17 @@ export function useFileEditSession({
       saveState,
       lastSavedAt,
       saveError,
+      saveErrorKind,
       autoSave,
       reportChange,
       saveNow,
       registerBeforeSaveFlush,
       flushBeforeSave,
+      discardPendingChanges,
     }),
     [
       autoSave,
+      discardPendingChanges,
       flushBeforeSave,
       isDirty,
       lastSavedAt,
@@ -413,6 +472,7 @@ export function useFileEditSession({
       registerBeforeSaveFlush,
       reportChange,
       saveError,
+      saveErrorKind,
       saveNow,
       saveState,
     ],

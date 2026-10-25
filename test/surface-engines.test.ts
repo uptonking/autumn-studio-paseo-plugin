@@ -37,7 +37,7 @@ import {
   findXlsxSearchResults,
 } from "../client/vendor/xlsx-viewer/xlsx-search-utils.ts";
 import {
-  DEFAULT_FILE_EXPLORER_SETTINGS,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS,
   getFormatBehaviorConfig,
   getXlsxSettings,
   toXlsxViewerZoom,
@@ -119,7 +119,7 @@ describe("surface-engines: lazy boundaries, Excel search, tree helpers & sync", 
     assert.equal(toXlsxViewerZoom("150"), 150);
     assert.equal(toXlsxViewerZoom("200"), 200);
 
-    const updatedXlsx = withXlsxSettings(DEFAULT_FILE_EXPLORER_SETTINGS, {
+    const updatedXlsx = withXlsxSettings(DEFAULT_AUTUMN_STUDIO_SETTINGS, {
       defaultZoom: "200",
       defaultOpenBehavior: "editor",
       showHiddenSheets: true,

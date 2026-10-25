@@ -47,7 +47,7 @@ export function EngineFields({
               value={Boolean(value)}
               disabled={disabled}
               onValueChange={(next) => setValue(field.key, next)}
-              testID={`file-explorer-setting-engine-field-${profile.engineId}-${field.key}`}
+              testID={`autumn-studio-setting-engine-field-${profile.engineId}-${field.key}`}
             />
           );
         }
@@ -62,7 +62,7 @@ export function EngineFields({
               options={field.options ?? []}
               disabled={disabled}
               onValueChange={(next) => setValue(field.key, next)}
-              testID={`file-explorer-setting-engine-field-${profile.engineId}-${field.key}`}
+              testID={`autumn-studio-setting-engine-field-${profile.engineId}-${field.key}`}
             />
           );
         }
@@ -84,7 +84,7 @@ export function EngineFields({
                 const clamped = Math.min(max, Math.max(min, parsed));
                 setValue(field.key, clamped);
               }}
-              testID={`file-explorer-setting-engine-field-${profile.engineId}-${field.key}`}
+              testID={`autumn-studio-setting-engine-field-${profile.engineId}-${field.key}`}
             />
           );
         }
@@ -99,7 +99,7 @@ export function EngineFields({
             secureTextEntry={field.kind === "password"}
             disabled={disabled}
             onChangeText={(text) => setValue(field.key, text)}
-            testID={`file-explorer-setting-engine-field-${profile.engineId}-${field.key}`}
+            testID={`autumn-studio-setting-engine-field-${profile.engineId}-${field.key}`}
           />
         );
       })}

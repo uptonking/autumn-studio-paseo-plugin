@@ -1,5 +1,5 @@
 import { realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 /**
  * Resolves a workspace id to its directory on disk.
@@ -43,6 +43,53 @@ export async function safeResolve(root: string, relPath: string): Promise<string
     throw new Error("Path escapes the workspace");
   }
   return target;
+}
+
+/**
+ * Converts an absolute host path to its workspace-relative form; null when
+ * the file is outside the root or is the root itself.
+ *
+ * realpath runs on both sides so a symlinked path inside the tree still maps
+ * and symlinks pointing out are excluded, mirroring safeResolve's
+ * containment discipline. A missing file realpaths its nearest existing
+ * ancestor and reattaches the missing tail, so a deleted file keeps a stable
+ * identity for workspace-keyed features even when the root is a symlink.
+ */
+export async function locateInWorkspace(
+  root: string,
+  absPath: string,
+): Promise<string | null> {
+  if (absPath.includes("\0") || !isAbsolute(absPath)) return null;
+  const realRoot = await realpath(root);
+  let target: string;
+  try {
+    target = await realpathMissingTail(absPath);
+  } catch {
+    return null;
+  }
+  const rootPrefix = realRoot.endsWith(sep) ? realRoot : realRoot + sep;
+  if (!target.startsWith(rootPrefix)) return null;
+  const rel = target.slice(rootPrefix.length);
+  return rel ? rel.split(sep).join("/") : null;
+}
+
+async function realpathMissingTail(path: string): Promise<string> {
+  try {
+    return await realpath(path);
+  } catch (err: unknown) {
+    if (
+      !(
+        err &&
+        typeof err === "object" &&
+        (err as { code?: string }).code === "ENOENT"
+      )
+    ) {
+      throw err;
+    }
+    const parent = dirname(path);
+    if (parent === path) return resolve(path);
+    return join(await realpathMissingTail(parent), basename(path));
+  }
 }
 
 /**

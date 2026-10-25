@@ -1,22 +1,22 @@
 import type { ComponentType } from "react";
 import type { PluginSurfaceProps, SettingsState } from "@getpaseo/plugin/client";
 import type {
-  fileExplorerSettings,
-  FileExplorerSettingsValues,
+  autumnStudioSettings,
+  AutumnStudioSettingsValues,
 } from "../../shared/settings.js";
 
-export type ReadyFileExplorerSettings = Extract<
-  SettingsState<typeof fileExplorerSettings.schema>,
+export type ReadyAutumnStudioSettings = Extract<
+  SettingsState<typeof autumnStudioSettings.schema>,
   { status: "ready" }
 >;
 
 export interface SettingsSectionComponentProps {
-  settings: ReadyFileExplorerSettings;
-  values: FileExplorerSettingsValues;
+  settings: ReadyAutumnStudioSettings;
+  values: AutumnStudioSettingsValues;
   disabled: boolean;
   theme: PluginSurfaceProps["theme"];
   updateValues: (
-    updater: (current: FileExplorerSettingsValues) => FileExplorerSettingsValues
+    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues
   ) => void;
 }
 
@@ -43,11 +43,11 @@ export interface SettingsSectionDescriptor {
   /** Format kind key for open-behavior lookup (e.g. "pdf", "xlsx", "text", "image"). */
   formatKind?: string;
   /** Optional visibility predicate given current settings values. */
-  isVisible?: (values: FileExplorerSettingsValues) => boolean;
+  isVisible?: (values: AutumnStudioSettingsValues) => boolean;
   /** Optional section-scoped reset updater. */
   resetSection?: (
-    current: FileExplorerSettingsValues
-  ) => FileExplorerSettingsValues;
+    current: AutumnStudioSettingsValues
+  ) => AutumnStudioSettingsValues;
   /** Section UI component. */
   Component: ComponentType<SettingsSectionComponentProps>;
 }

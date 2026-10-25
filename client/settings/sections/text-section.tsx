@@ -39,7 +39,7 @@ export function TextSettingsSection({
   );
 
   return (
-    <SettingsSection title="Code & Text" testID="file-explorer-settings-text">
+    <SettingsSection title="Code & Text" testID="autumn-studio-settings-text">
       <SettingsCard>
         <FormatOpenBehaviorFields
           kind="text"
@@ -54,7 +54,7 @@ export function TextSettingsSection({
           value={textSettings.showLineNumbers}
           disabled={controlsDisabled}
           onValueChange={handleToggleLineNumbers}
-          testID="file-explorer-setting-text-lines"
+          testID="autumn-studio-setting-text-lines"
         />
         <SettingsSwitch
           label="Wrap long lines"
@@ -62,7 +62,7 @@ export function TextSettingsSection({
           value={textSettings.wordWrap}
           disabled={controlsDisabled}
           onValueChange={handleToggleWordWrap}
-          testID="file-explorer-setting-text-wrap"
+          testID="autumn-studio-setting-text-wrap"
         />
       </SettingsCard>
     </SettingsSection>

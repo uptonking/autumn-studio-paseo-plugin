@@ -35,7 +35,7 @@ const SKIP_FILES = new Set([
   ".Trashes",
 ]);
 
-/** Dot-directories intentionally shown in the File Explorer tree. */
+/** Dot-directories intentionally shown in the explorer tree. */
 const VISIBLE_DOT_DIRS = new Set([".autumn"]);
 
 const MAX_DEPTH = 24;

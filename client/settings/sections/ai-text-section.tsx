@@ -64,7 +64,7 @@ export function AiTextSettingsSection({
       <SettingsSection
         title="AI Text Mode"
         info="Extract document text into .autumn/ with a named parsing profile, then compare it with the original file in a right-hand split view."
-        testID="file-explorer-settings-ai-text"
+        testID="autumn-studio-settings-ai-text"
       >
         <SettingsCard>
           <AiTextSettingsTabs

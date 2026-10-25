@@ -12,10 +12,10 @@ import {
   SettingsSection,
 } from "@getpaseo/plugin/client/ui";
 import {
-  DEFAULT_FILE_EXPLORER_SETTINGS,
-  fileExplorerSettings,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS,
+  autumnStudioSettings,
   getAiTextSettings,
-  type FileExplorerSettingsValues,
+  type AutumnStudioSettingsValues,
 } from "../../shared/settings.js";
 import {
   MORE_FORMATS_NAV_ID,
@@ -24,41 +24,44 @@ import {
   SectionMetaBanner,
   SettingsSidebarNav,
 } from "./components/settings-sidebar-nav.js";
-import type { ReadyFileExplorerSettings } from "./registry.js";
+import { PlatformSupportNotice } from "./platform-support-notice.js";
+import type { ReadyAutumnStudioSettings } from "./registry.js";
 import { getSettingsSections } from "./sections/index.js";
 
 function SettingsSectionsWorkspace({
   settings,
   theme,
   compact,
+  platform,
   params,
 }: {
-  settings: ReadyFileExplorerSettings;
+  settings: ReadyAutumnStudioSettings;
   theme: PluginSurfaceProps["theme"];
   compact?: boolean;
+  platform?: PluginSurfaceProps["layout"]["platform"];
   params?: PluginScreenParams;
 }) {
   const allSections = useMemo(() => getSettingsSections(), []);
-  const values: FileExplorerSettingsValues = useMemo(
+  const values: AutumnStudioSettingsValues = useMemo(
     () => ({
       general: {
-        ...DEFAULT_FILE_EXPLORER_SETTINGS.general,
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.general,
         ...settings.values?.general,
       },
       pdf: {
-        ...DEFAULT_FILE_EXPLORER_SETTINGS.pdf,
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.pdf,
         ...settings.values?.pdf,
       },
       xlsx: {
-        ...DEFAULT_FILE_EXPLORER_SETTINGS.xlsx,
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.xlsx,
         ...settings.values?.xlsx,
       },
       text: {
-        ...DEFAULT_FILE_EXPLORER_SETTINGS.text,
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.text,
         ...settings.values?.text,
       },
       formats: {
-        ...DEFAULT_FILE_EXPLORER_SETTINGS.formats,
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.formats,
         ...settings.values?.formats,
       },
       aiText: getAiTextSettings(settings.values),
@@ -119,8 +122,8 @@ function SettingsSectionsWorkspace({
   const updateValues = useCallback(
     (
       updater: (
-        current: FileExplorerSettingsValues,
-      ) => FileExplorerSettingsValues,
+        current: AutumnStudioSettingsValues,
+      ) => AutumnStudioSettingsValues,
     ) => {
       const next = updater(values);
       void settings.save(next, settings.revision);
@@ -174,7 +177,7 @@ function SettingsSectionsWorkspace({
 
   return (
     <View
-      testID="file-explorer-settings-sections"
+      testID="autumn-studio-settings-sections"
       style={{
         flexDirection: compact ? "column" : "row",
         alignItems: "flex-start",
@@ -194,7 +197,7 @@ function SettingsSectionsWorkspace({
       />
 
       <View
-        testID="file-explorer-settings-detail"
+        testID="autumn-studio-settings-detail"
         style={{
           flex: 1,
           minWidth: 0,
@@ -217,7 +220,7 @@ function SettingsSectionsWorkspace({
         {!values.general.enabled &&
         (isMoreActive || activePrimarySection?.id !== "general") ? (
           <View
-            testID="file-explorer-settings-disabled-banner"
+            testID="autumn-studio-settings-disabled-banner"
             style={{
               marginBottom: 16,
               padding: 12,
@@ -238,11 +241,11 @@ function SettingsSectionsWorkspace({
                 fontSize: 13,
               }}
             >
-              File Explorer is currently disabled in General settings. Enable it
+              Autumn Studio is currently disabled in General settings. Enable it
               to customize format viewers and editors.
             </Text>
             <Pressable
-              testID="file-explorer-settings-enable-shortcut"
+              testID="autumn-studio-settings-enable-shortcut"
               onPress={handleEnableNow}
               style={{
                 backgroundColor: theme.colors.accent,
@@ -267,6 +270,9 @@ function SettingsSectionsWorkspace({
         {!isMoreActive && activePrimarySection ? (
           <View key={activePrimarySection.id}>
             <SectionMetaBanner section={activePrimarySection} theme={theme} />
+            {activePrimarySection.id === "general" ? (
+              <PlatformSupportNotice theme={theme} platform={platform} />
+            ) : null}
             <activePrimarySection.Component
               settings={settings}
               values={values}
@@ -277,25 +283,25 @@ function SettingsSectionsWorkspace({
             {activePrimarySection.id === "general" ? (
               <SettingsSection
                 title="Reset"
-                testID="file-explorer-settings-reset"
+                testID="autumn-studio-settings-reset"
               >
                 <SettingsCard>
                   <SettingsAction
                     label="Restore default settings"
-                    hint="Reset all File Explorer viewer and editor preferences back to their defaults."
+                    hint="Reset all Autumn Studio viewer and editor preferences back to their defaults."
                     actionLabel="Reset to defaults"
                     disabled={settings.saving}
                     onPress={() => {
                       void settings.reset();
                     }}
-                    testID="file-explorer-setting-reset"
+                    testID="autumn-studio-setting-reset"
                   />
                 </SettingsCard>
               </SettingsSection>
             ) : activePrimarySection.resetSection ? (
               <SettingsSection
                 title="Reset"
-                testID={`file-explorer-settings-reset-${activePrimarySection.id}`}
+                testID={`autumn-studio-settings-reset-${activePrimarySection.id}`}
               >
                 <SettingsCard>
                   <SettingsAction
@@ -304,7 +310,7 @@ function SettingsSectionsWorkspace({
                     actionLabel={`Reset ${activePrimarySection.title} defaults`}
                     disabled={settings.saving}
                     onPress={handleResetActivePrimarySection}
-                    testID={`file-explorer-setting-reset-${activePrimarySection.id}`}
+                    testID={`autumn-studio-setting-reset-${activePrimarySection.id}`}
                   />
                 </SettingsCard>
               </SettingsSection>
@@ -313,7 +319,7 @@ function SettingsSectionsWorkspace({
         ) : null}
 
         {isMoreActive ? (
-          <View testID="file-explorer-settings-more-pane">
+          <View testID="autumn-studio-settings-more-pane">
             <MoreFormatsFilterBar
               moreSections={moreSections}
               moreFilterId={moreFilterId}
@@ -339,7 +345,7 @@ function SettingsSectionsWorkspace({
 
             <SettingsSection
               title="Reset"
-              testID="file-explorer-settings-reset-more"
+              testID="autumn-studio-settings-reset-more"
             >
               <SettingsCard>
                 <SettingsAction
@@ -352,7 +358,7 @@ function SettingsSectionsWorkspace({
                   actionLabel="Reset format defaults"
                   disabled={settings.saving}
                   onPress={handleResetDisplayedMoreSections}
-                  testID="file-explorer-setting-reset-more"
+                  testID="autumn-studio-setting-reset-more"
                 />
               </SettingsCard>
             </SettingsSection>
@@ -364,30 +370,30 @@ function SettingsSectionsWorkspace({
 }
 
 /**
- * Used by `client.addSettingsScreen` inside Settings -> Plugins -> File Explorer,
+ * Used by `client.addSettingsScreen` inside Settings -> Plugins -> Autumn Studio,
  * where the host already provides the outer scroll view and page padding.
  */
-export function FileExplorerSettingsContent({
+export function AutumnStudioSettingsContent({
   theme,
   layout,
   params,
 }: PluginSurfaceProps & { params?: PluginScreenParams }) {
-  const settings = useSettings(fileExplorerSettings);
+  const settings = useSettings(autumnStudioSettings);
   const textStyle = useMemo(
     () => ({ color: theme.colors.foreground, fontSize: 14 }),
     [theme.colors.foreground],
   );
 
   if (settings.status === "loading") {
-    return <Text style={textStyle}>Loading File Explorer settings…</Text>;
+    return <Text style={textStyle}>Loading Autumn Studio settings…</Text>;
   }
 
   if (settings.status !== "ready") {
     return (
-      <SettingsSection title="File Explorer">
+      <SettingsSection title="Autumn Studio">
         <SettingsCard>
           <SettingsAction
-            label={settings.error || "Unable to load File Explorer settings"}
+            label={settings.error || "Unable to load Autumn Studio settings"}
             actionLabel="Reload"
             onPress={() => {
               void settings.reload();
@@ -412,16 +418,17 @@ export function FileExplorerSettingsContent({
       settings={settings}
       theme={theme}
       compact={layout?.compact}
+      platform={layout?.platform}
       params={params}
     />
   );
 }
 
 /**
- * Used by `client.addScreen({ id: "settings" })` when clicking the "File Explorer"
+ * Used by `client.addScreen({ id: "settings" })` when clicking the "Autumn Studio"
  * menu item in the left sidebar. Wraps the settings workspace in a centered ScrollView.
  */
-export function FileExplorerSettingsPage(props: PluginScreenProps) {
+export function AutumnStudioSettingsPage(props: PluginScreenProps) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: props.theme.colors.surface0 }}
@@ -433,7 +440,7 @@ export function FileExplorerSettingsPage(props: PluginScreenProps) {
         alignSelf: "center",
       }}
     >
-      <FileExplorerSettingsContent {...props} />
+      <AutumnStudioSettingsContent {...props} />
     </ScrollView>
   );
 }

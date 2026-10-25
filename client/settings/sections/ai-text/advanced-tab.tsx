@@ -55,7 +55,7 @@ export function AdvancedTab({
       <SettingsSection
         title="Storage"
         info="Where extracted Markdown, layout, and images are written. Parsing configuration belongs to Profiles."
-        testID="file-explorer-settings-ai-text-advanced"
+        testID="autumn-studio-settings-ai-text-advanced"
       >
         <SettingsCard>
           <SettingsInput
@@ -72,7 +72,7 @@ export function AdvancedTab({
               );
               if (parsed.ok) update({ outputRootDir: parsed.value });
             }}
-            testID="file-explorer-setting-ai-text-output-root"
+            testID="autumn-studio-setting-ai-text-output-root"
           />
           <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
             {parsedRoot.ok ? (
@@ -102,7 +102,7 @@ export function AdvancedTab({
       <SettingsSection
         title="Package index"
         info="Used when installing or updating engines and when checking for newer releases. Mirrors help when pypi.org is slow or unreachable."
-        testID="file-explorer-settings-ai-text-pypi"
+        testID="autumn-studio-settings-ai-text-pypi"
       >
         <SettingsCard>
           <SettingsSelect
@@ -118,7 +118,7 @@ export function AdvancedTab({
                 update({ pypiIndexUrl: next });
               }
             }}
-            testID="file-explorer-setting-ai-text-pypi-index"
+            testID="autumn-studio-setting-ai-text-pypi-index"
           />
           {isCustomIndex ? (
             <SettingsInput
@@ -130,7 +130,7 @@ export function AdvancedTab({
               onChangeText={(next: string) =>
                 update({ pypiIndexUrl: next.trim() })
               }
-              testID="file-explorer-setting-ai-text-pypi-custom"
+              testID="autumn-studio-setting-ai-text-pypi-custom"
             />
           ) : null}
         </SettingsCard>

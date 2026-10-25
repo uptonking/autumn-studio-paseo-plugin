@@ -194,7 +194,7 @@ export function EngineCard({
   return (
     <AiTextPanel
       theme={theme}
-      testID={`file-explorer-ai-text-engine-${descriptor.id}`}
+      testID={`autumn-studio-ai-text-engine-${descriptor.id}`}
     >
       <View
         style={{
@@ -217,7 +217,7 @@ export function EngineCard({
           label={environmentLabel(environment)}
           tone={environmentTone(environment)}
           theme={theme}
-          testID={`file-explorer-ai-text-engine-status-${descriptor.id}`}
+          testID={`autumn-studio-ai-text-engine-status-${descriptor.id}`}
         />
         {environment?.version ? (
           <AiTextBadge label={`v${environment.version}`} theme={theme} />
@@ -227,7 +227,7 @@ export function EngineCard({
             label={`v${environment.version ?? "?"} → ${environment.latestVersion}`}
             tone="warning"
             theme={theme}
-            testID={`file-explorer-ai-text-engine-update-${descriptor.id}`}
+            testID={`autumn-studio-ai-text-engine-update-${descriptor.id}`}
           />
         ) : null}
         <View style={{ flexGrow: 1 }} />
@@ -235,7 +235,7 @@ export function EngineCard({
           label={detailsOpen ? "▾" : "▸"}
           onPress={() => setUserToggledDetails(!detailsOpen)}
           theme={theme}
-          testID={`file-explorer-ai-text-engine-toggle-${descriptor.id}`}
+          testID={`autumn-studio-ai-text-engine-toggle-${descriptor.id}`}
         />
       </View>
       <AiTextHint theme={theme}>{descriptor.description}</AiTextHint>
@@ -312,8 +312,8 @@ export function EngineCard({
           disabled={disabled}
           theme={theme}
           onOpen={() => handleReveal("engine-tool")}
-          testID={`file-explorer-ai-text-engine-storage-engine-${descriptor.id}`}
-          openTestID={`file-explorer-ai-text-engine-open-engine-${descriptor.id}`}
+          testID={`autumn-studio-ai-text-engine-storage-engine-${descriptor.id}`}
+          openTestID={`autumn-studio-ai-text-engine-open-engine-${descriptor.id}`}
         />
       ) : null}
       {storage?.modelPath ? (
@@ -324,8 +324,8 @@ export function EngineCard({
           disabled={disabled}
           theme={theme}
           onOpen={() => handleReveal("engine-models")}
-          testID={`file-explorer-ai-text-engine-storage-models-${descriptor.id}`}
-          openTestID={`file-explorer-ai-text-engine-open-models-${descriptor.id}`}
+          testID={`autumn-studio-ai-text-engine-storage-models-${descriptor.id}`}
+          openTestID={`autumn-studio-ai-text-engine-open-models-${descriptor.id}`}
         />
       ) : null}
       {revealMessage ? (
@@ -353,7 +353,7 @@ export function EngineCard({
               onPress={() => onOpenProfile(profile.id)}
               disabled={disabled}
               theme={theme}
-              testID={`file-explorer-ai-text-engine-profile-${descriptor.id}-${profile.id}`}
+              testID={`autumn-studio-ai-text-engine-profile-${descriptor.id}-${profile.id}`}
             />
           ))}
         </View>
@@ -365,7 +365,7 @@ export function EngineCard({
           onPress={onRefresh}
           disabled={disabled || state?.status === "loading"}
           theme={theme}
-          testID={`file-explorer-ai-text-engine-refresh-${descriptor.id}`}
+          testID={`autumn-studio-ai-text-engine-refresh-${descriptor.id}`}
         />
         {visibleOperations.map((op) => {
           const key = `${descriptor.id}:${op.id}`;
@@ -380,7 +380,7 @@ export function EngineCard({
               disabled={disabled || operation.operationBusy}
               tone={isConfirming ? "danger" : "default"}
               theme={theme}
-              testID={`file-explorer-ai-text-engine-op-${descriptor.id}-${op.id}`}
+              testID={`autumn-studio-ai-text-engine-op-${descriptor.id}-${op.id}`}
             />
           );
         })}
@@ -413,7 +413,7 @@ export function EngineCard({
                         [key]: next,
                       }))
                     }
-                    testID={`file-explorer-ai-text-engine-op-option-${descriptor.id}-${op.id}-${option.key}`}
+                    testID={`autumn-studio-ai-text-engine-op-option-${descriptor.id}-${op.id}-${option.key}`}
                   />
                 );
               }
@@ -430,7 +430,7 @@ export function EngineCard({
                       [key]: next,
                     }))
                   }
-                  testID={`file-explorer-ai-text-engine-op-option-${descriptor.id}-${op.id}-${option.key}`}
+                  testID={`autumn-studio-ai-text-engine-op-option-${descriptor.id}-${op.id}-${option.key}`}
                 />
               );
             })}

@@ -87,6 +87,24 @@ export const saveFileContent = defineRpc({
   }),
 });
 
+/**
+ * Maps an absolute host path (a native file tab's PluginFile.path) to its
+ * workspace-relative form, using the same realpath containment discipline as
+ * file.content. Null when the file lives outside the workspace — those files
+ * still view and edit through the file handle, but workspace-keyed features
+ * (AI Text, RPC save) do not apply to them.
+ */
+export const locateWorkspaceFile = defineRpc({
+  name: "files.locate",
+  input: z.object({
+    workspaceId: z.string(),
+    absPath: z.string(),
+  }),
+  output: z.object({
+    relPath: z.string().nullable(),
+  }),
+});
+
 /** Local pdfium.wasm binary bytes as a data URI for 100% offline PDF viewing. */
 export const getPdfWasm = defineRpc({
   name: "files.pdf_wasm",

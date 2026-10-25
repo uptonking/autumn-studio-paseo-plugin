@@ -1,5 +1,5 @@
 import type {
-  FileExplorerViewMode,
+  ExplorerViewMode,
   FileFormatOpenBehavior,
   FileNode,
   FileOpenMode,
@@ -7,6 +7,11 @@ import type {
 } from "../shared/contracts.js";
 import type { AiTextBridge } from "./ai-text/ai-text-context.js";
 import type { OpenedFileTab } from "./opened-tabs-store.js";
+import type { SurfacePersistenceHandle } from "./surface-persistence.ts";
+import {
+  TEXT_VIEWABLE_BASENAMES,
+  TEXT_VIEWABLE_EXTENSIONS,
+} from "./viewers/format-families.ts";
 import type {
   FileSaveCallbackInput,
   FileSaveCallbackResult,
@@ -43,7 +48,7 @@ export interface GetFileUrlOptions {
  * island's separate react-dom root, so the island stays purely presentational
  * and receives this snapshot plus plain callbacks as props.
  */
-export interface FileExplorerViewProps {
+export interface ExplorerViewProps {
   items: FileSystemItemView[];
   recentFiles?: OpenedFileTab[];
   isLoading: boolean;
@@ -52,7 +57,7 @@ export interface FileExplorerViewProps {
   error: string | null;
   enabled?: boolean;
   defaultFileOpenMode?: FileOpenMode;
-  defaultViewMode?: FileExplorerViewMode;
+  defaultViewMode?: ExplorerViewMode;
   autoSaveEdits?: boolean;
   pdfSettings?: PdfViewerPreferences;
   xlsxSettings?: XlsxViewerPreferences;
@@ -76,8 +81,12 @@ export interface FileExplorerViewProps {
   onRemoveRecentFile?(path: string): void;
   /** Clears the workspace's recent files list. */
   onClearRecentFiles?(): void;
-  /** Opens the File Explorer settings page. */
+  /** Opens the Autumn Studio settings page. */
   onOpenSettings?(): void;
+  /** True once the user dismissed the tree deprecation banner. */
+  treeDeprecationDismissed?: boolean;
+  /** Persists the tree deprecation banner dismissal in host settings. */
+  onDismissTreeDeprecation?(): void;
 }
 
 export interface FileViewerViewProps {
@@ -87,6 +96,8 @@ export interface FileViewerViewProps {
   maxOpenTabs?: number;
   enabled?: boolean;
   autoSaveEdits?: boolean;
+  /** Per-tab persisted view state; only the native file panel provides it. */
+  surfacePersistence?: SurfacePersistenceHandle;
   pdfSettings?: PdfViewerPreferences;
   xlsxSettings?: XlsxViewerPreferences;
   textSettings?: TextViewerSettings;
@@ -180,22 +191,11 @@ export function isMarkdownFileName(fileName?: string): boolean {
   return /\.(md|mdx|markdown)$/i.test(fileName.trim());
 }
 
-const TEXT_VIEWABLE_EXTENSIONS = new Set([
-  "c", "cc", "cfg", "cjs", "conf", "cpp", "css", "csv", "cts", "env",
-  "gitignore", "go", "graphql", "gql", "h", "hpp", "htm", "html", "ini",
-  "java", "js", "json", "jsonc", "jsonl", "jsx", "kt", "less", "lock", "log",
-  "lua", "md", "mdx", "mjs", "mts", "php", "pl", "prisma", "py", "r", "rb",
-  "rs", "sass", "scala", "scss", "sh", "sql", "svelte", "swift", "tf", "toml",
-  "ts", "tsv", "tsx", "txt", "vue", "xml", "yaml", "yml", "zig", "zsh",
-]);
+const TEXT_VIEWABLE_EXTENSION_SET = new Set<string>(
+  TEXT_VIEWABLE_EXTENSIONS,
+);
 
-const TEXT_VIEWABLE_BASENAMES = new Set([
-  ".babelrc", ".dockerignore", ".editorconfig", ".env", ".env.example",
-  ".env.local", ".eslintrc", ".gitattributes", ".gitignore", ".npmrc",
-  ".nvmrc", ".prettierrc", "agents.md", "cargo.lock", "cargo.toml",
-  "claude.md", "cmakelists.txt", "dockerfile", "gemfile", "go.mod", "go.sum",
-  "justfile", "license", "makefile", "procfile", "rakefile", "readme",
-]);
+const TEXT_VIEWABLE_BASENAME_SET = new Set<string>(TEXT_VIEWABLE_BASENAMES);
 
 export function isTextViewableFile(file: {
   name?: string;
@@ -224,11 +224,11 @@ export function isTextViewableFile(file: {
     ""
   ).toLowerCase();
   if (!rawName) return false;
-  if (TEXT_VIEWABLE_BASENAMES.has(rawName)) return true;
+  if (TEXT_VIEWABLE_BASENAME_SET.has(rawName)) return true;
 
   const dotIndex = rawName.lastIndexOf(".");
   if (dotIndex <= 0) return false;
   const ext = rawName.slice(dotIndex + 1);
-  return TEXT_VIEWABLE_EXTENSIONS.has(ext);
+  return TEXT_VIEWABLE_EXTENSION_SET.has(ext);
 }
 

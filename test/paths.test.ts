@@ -14,7 +14,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
-import { atomicWriteFile, safeResolve, workspaceRoot } from "../server/paths.ts";
+import { atomicWriteFile, locateInWorkspace, safeResolve, workspaceRoot } from "../server/paths.ts";
 
 describe("paths: safeResolve", () => {
   let tempDir: string;
@@ -119,6 +119,75 @@ describe("paths: safeResolve", () => {
       () => atomicWriteFile(join(tempDir, "sub"), Buffer.from("nope")),
       /Cannot overwrite a directory/,
     );
+  });
+});
+
+describe("paths: locateInWorkspace", () => {
+  let tempDir: string;
+  let outsideDir: string;
+
+  before(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "paseo-locate-test-"));
+    await mkdir(join(tempDir, "sub"), { recursive: true });
+    await writeFile(join(tempDir, "file.txt"), "hello");
+    await writeFile(join(tempDir, "sub", "nested.txt"), "nested");
+    outsideDir = await mkdtemp(join(tmpdir(), "paseo-locate-outside-"));
+    await writeFile(join(outsideDir, "secret.txt"), "secret");
+    await symlink(join(tempDir, "file.txt"), join(tempDir, "internal-symlink.txt"));
+    await symlink(join(outsideDir, "secret.txt"), join(tempDir, "escape-symlink.txt"));
+  });
+
+  after(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+    await rm(outsideDir, { recursive: true, force: true });
+  });
+
+  it("maps a nested file to its workspace-relative path", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(tempDir, "sub", "nested.txt")),
+      "sub/nested.txt",
+    );
+  });
+
+  it("maps a symlinked file to its target's identity", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(tempDir, "internal-symlink.txt")),
+      "file.txt",
+    );
+  });
+
+  it("rejects files outside the workspace", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(outsideDir, "secret.txt")),
+      null,
+    );
+  });
+
+  it("rejects escaping symlinks", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(tempDir, "escape-symlink.txt")),
+      null,
+    );
+  });
+
+  it("keeps identity for missing files inside the workspace (lexical fallback)", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(tempDir, "sub", "deleted.txt")),
+      "sub/deleted.txt",
+    );
+  });
+
+  it("rejects missing files outside the workspace", async () => {
+    assert.equal(
+      await locateInWorkspace(tempDir, join(outsideDir, "missing.txt")),
+      null,
+    );
+  });
+
+  it("rejects the workspace root itself, relative input, and null bytes", async () => {
+    assert.equal(await locateInWorkspace(tempDir, tempDir), null);
+    assert.equal(await locateInWorkspace(tempDir, "file.txt"), null);
+    assert.equal(await locateInWorkspace(tempDir, "file\0.txt"), null);
   });
 });
 

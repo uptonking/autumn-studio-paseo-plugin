@@ -4,8 +4,8 @@ import {
   type AiTextBridge,
 } from "../ai-text/ai-text-context.js";
 import { AiTextMenuInjector } from "../ai-text/ai-text-menu-items.js";
-import { isInAppSavedBlobUrl } from "../blob-url-cache.js";
 import { FileSurfacePreloadContext } from "../editing/surface-mode-controls.js";
+import type { SurfacePersistenceHandle } from "../surface-persistence.js";
 import {
   useFileEditSession,
   type FileEditSession,
@@ -26,6 +26,7 @@ import {
   FileViewerLoadingFallback,
   registerBuiltinSurfaceProviders,
 } from "./builtin-providers.js";
+import { useSurfaceSourceState } from "./surface-source-state.js";
 import {
   registerSurfaceProviderMeta,
   type FileSurfaceProviderMeta,
@@ -40,6 +41,8 @@ export interface FileSaveCallbackInput {
   relPath: string;
   payload: SerializedFilePayload;
   contentType?: string;
+  /** Overwrite a file that changed on disk since the save target last read it. */
+  force?: boolean;
 }
 
 export interface FileSaveCallbackResult {
@@ -69,6 +72,8 @@ export interface FileViewerRenderProps {
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
   onOpenSettings?(): void;
   onDirtyChange?: (isDirty: boolean) => void;
+  /** Per-tab persisted view state; surfaces without a tab omit it. */
+  surfacePersistence?: SurfacePersistenceHandle;
   extraMenuItems?: React.ReactNode;
   toolbarActions?: React.ReactNode;
   className?: string;
@@ -295,6 +300,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     autoSaveEdits = true,
     onSaveFile,
     onDirtyChange,
+    surfacePersistence,
     extraMenuItems,
   } = props;
 
@@ -314,8 +320,6 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
   const [providerOverride, setProviderOverride] = React.useState<string | null>(
     null,
   );
-  const latestSavedBlobUrlRef = React.useRef<string | null>(null);
-  const savedBlobUrlsRef = React.useRef<Set<string>>(new Set());
 
   const hasEditorSupport = React.useMemo(
     () => getRegisteredSurfaceProviders(kind, "editor").length > 0,
@@ -355,55 +359,17 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
   const surfaceSessionKeyRef = React.useRef(surfaceSessionKey);
   surfaceSessionKeyRef.current = surfaceSessionKey;
 
-  const [surfaceSourceState, setSurfaceSourceState] = React.useState(() => ({
+  const {
+    activeSrc,
+    latestSavedBlobUrlRef,
+    savedBlobUrlsRef,
+    setSurfaceSourceState,
+  } = useSurfaceSourceState({
     filePath,
+    src,
     sessionKey: surfaceSessionKey,
-    propSrc: src,
-    activeSrc: src,
-  }));
-
-  let activeSrc = surfaceSourceState.activeSrc;
-  if (surfaceSourceState.filePath !== filePath) {
-    latestSavedBlobUrlRef.current = null;
-    savedBlobUrlsRef.current.clear();
-    activeSrc = src;
-    setSurfaceSourceState({
-      filePath,
-      sessionKey: surfaceSessionKey,
-      propSrc: src,
-      activeSrc: src,
-    });
-  } else if (
-    surfaceSourceState.propSrc !== src ||
-    surfaceSourceState.sessionKey !== surfaceSessionKey
-  ) {
-    const propSrcChanged = surfaceSourceState.propSrc !== src;
-    const sessionChanged = surfaceSourceState.sessionKey !== surfaceSessionKey;
-    const isInAppSavedSrc =
-      savedBlobUrlsRef.current.has(src) || isInAppSavedBlobUrl(src);
-
-    if (propSrcChanged && isInAppSavedSrc) {
-      latestSavedBlobUrlRef.current = src;
-      savedBlobUrlsRef.current.add(src);
-    }
-
-    if (propSrcChanged && !isInAppSavedSrc) {
-      latestSavedBlobUrlRef.current = null;
-      savedBlobUrlsRef.current.clear();
-      activeSrc = src;
-    } else if (sessionChanged) {
-      activeSrc = latestSavedBlobUrlRef.current ?? src;
-    } else if (propSrcChanged && effectiveRole !== "editor") {
-      activeSrc = src;
-    }
-
-    setSurfaceSourceState({
-      filePath,
-      sessionKey: surfaceSessionKey,
-      propSrc: src,
-      activeSrc,
-    });
-  }
+    isEditor: effectiveRole === "editor",
+  });
 
   const availableRoleProviders = React.useMemo(
     () => getRegisteredSurfaceProviders(kind, effectiveRole),
@@ -415,12 +381,13 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     autoSave: autoSaveEdits,
     onSavePayload:
       filePath && onSaveFile
-        ? async (payload) => {
+        ? async (payload, options) => {
             const sessionAtSaveStart = surfaceSessionKeyRef.current;
             const saved = await onSaveFile({
               relPath: filePath,
               payload,
               contentType,
+              force: options?.force,
             });
             latestSavedBlobUrlRef.current = saved.blobUrl;
             savedBlobUrlsRef.current.add(saved.blobUrl);
@@ -437,6 +404,23 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
           }
         : undefined,
   });
+
+  const handleDiscardPendingChanges = React.useCallback(() => {
+    editSession.discardPendingChanges();
+    // A dirty editor pins its src; dropping the edits must unpin so the
+    // renderer re-initializes from the refreshed file URL.
+    setSurfaceSourceState((prev) =>
+      prev.activeSrc === src ? prev : { ...prev, activeSrc: src },
+    );
+  }, [editSession, setSurfaceSourceState, src]);
+
+  const surfacedEditSession = React.useMemo<FileEditSession | undefined>(
+    () =>
+      editSession
+        ? { ...editSession, discardPendingChanges: handleDiscardPendingChanges }
+        : undefined,
+    [editSession, handleDiscardPendingChanges],
+  );
 
   const previousEffectiveRoleRef = React.useRef<FileSurfaceRole>(effectiveRole);
   React.useEffect(() => {
@@ -543,6 +527,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
         fileName={props.fileName}
         variant={variant}
         aiText={props.aiText}
+        persistence={surfacePersistence}
         sourceUpdatedAt={props.sourceUpdatedAt}
         sourceFileSize={props.sourceFileSize}
         onSaveFile={onSaveFile}
@@ -570,7 +555,9 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
                     ? handleRoleChange
                     : undefined,
                 editSession:
-                  resolvedProvider.role === "editor" ? editSession : undefined,
+                  resolvedProvider.role === "editor"
+                    ? surfacedEditSession
+                    : undefined,
                 extraMenuItems: menuItems,
               }}
             />

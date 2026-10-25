@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_AI_TEXT_EXTRACTION,
   DEFAULT_AI_TEXT_SETTINGS,
-  DEFAULT_FILE_EXPLORER_SETTINGS,
+  DEFAULT_AUTUMN_STUDIO_SETTINGS,
   aiTextSettingsSchema,
-  fileExplorerSettingsSchema,
+  autumnStudioSettingsSchema,
   getAiTextSettings,
   isAiTextSupportedFormat,
   migrateAiTextSettingsV1,
@@ -15,7 +15,7 @@ import {
   withAiTextSettings,
   type AiTextDocumentMetadata,
   type AiTextVersionProvenance,
-  type FileExplorerSettingsValues,
+  type AutumnStudioSettingsValues,
 } from "../shared/contracts.ts";
 import { extractLocalDocumentFallback } from "../server/ai-text/local-ocr-extractor.ts";
 import {
@@ -68,9 +68,10 @@ function sampleMetadata(): AiTextDocumentMetadata {
 
 describe("ai-text: settings schema, profiles, and format helpers", () => {
   it("defaults to the ready-to-use MinerU Cloud Free profile", () => {
-    const parsed = fileExplorerSettingsSchema.parse({});
+    const parsed = autumnStudioSettingsSchema.parse({});
     assert.equal(parsed.aiText.enabled, true);
     assert.equal(parsed.aiText.openSplitViewByDefault, false);
+    assert.equal(parsed.aiText.showMetadataPanelByDefault, false);
     assert.equal(parsed.aiText.defaultViewerId, "text");
     assert.equal(parsed.aiText.showLayoutBlockOverlays, true);
     assert.equal(parsed.aiText.autoScrollToLayoutBlock, true);
@@ -98,7 +99,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
       ...DEFAULT_AI_TEXT_SETTINGS.profiles[0]!,
       route: "local-cli",
     };
-    const updated = withAiTextSettings(DEFAULT_FILE_EXPLORER_SETTINGS, {
+    const updated = withAiTextSettings(DEFAULT_AUTUMN_STUDIO_SETTINGS, {
       enabled: false,
       defaultViewerId: "layout-blocks",
       profiles: [profile],
@@ -123,7 +124,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
         profiles: [malformed, valid, { ...valid }],
         defaultProfileId: "missing-profile",
       },
-    } as unknown as FileExplorerSettingsValues);
+    } as unknown as AutumnStudioSettingsValues);
 
     assert.deepEqual(
       settings.profiles.map((profile) => profile.id),
@@ -139,7 +140,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
         profiles: [{ id: "broken" }],
         defaultProfileId: "broken",
       },
-    } as unknown as FileExplorerSettingsValues);
+    } as unknown as AutumnStudioSettingsValues);
 
     assert.deepEqual(
       settings.profiles.map((profile) => profile.id),
@@ -156,7 +157,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
         outputRootDir: "custom-out",
         profiles: [{ id: "broken" }],
       }
-    } as unknown as FileExplorerSettingsValues);
+    } as unknown as AutumnStudioSettingsValues);
 
     assert.equal(settings.enabled, false);
     assert.equal(settings.outputRootDir, "custom-out");
@@ -168,7 +169,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
         ...DEFAULT_AI_TEXT_SETTINGS,
         outputRootDir: "docs/../outside",
       }
-    } as unknown as FileExplorerSettingsValues);
+    } as unknown as AutumnStudioSettingsValues);
     assert.equal(broken.outputRootDir, ".autumn");
 
     const absolute = getAiTextSettings({
@@ -176,7 +177,7 @@ describe("ai-text: settings schema, profiles, and format helpers", () => {
         ...DEFAULT_AI_TEXT_SETTINGS,
         outputRootDir: "/data/ai-text/",
       }
-    } as unknown as FileExplorerSettingsValues);
+    } as unknown as AutumnStudioSettingsValues);
     assert.equal(absolute.outputRootDir, "/data/ai-text");
   });
 
