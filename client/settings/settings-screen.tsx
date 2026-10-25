@@ -52,6 +52,10 @@ function SettingsSectionsWorkspace({
         ...DEFAULT_AUTUMN_STUDIO_SETTINGS.xlsx,
         ...settings.values?.xlsx,
       },
+      docx: {
+        ...DEFAULT_AUTUMN_STUDIO_SETTINGS.docx,
+        ...settings.values?.docx,
+      },
       text: {
         ...DEFAULT_AUTUMN_STUDIO_SETTINGS.text,
         ...settings.values?.text,

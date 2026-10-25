@@ -167,6 +167,7 @@ export function FileViewerStage({
         ? preloadFileSurfaceForKind(tabKind, {
             pdfSettings: view.pdfSettings,
             xlsxSettings: view.xlsxSettings,
+            docxSettings: view.docxSettings,
             textSettings: view.textSettings,
             formatSettings: view.formatSettings,
           })
@@ -375,6 +376,7 @@ export function FileViewerStage({
           autoSaveEdits={view.autoSaveEdits}
           pdfSettings={view.pdfSettings}
           xlsxSettings={view.xlsxSettings}
+          docxSettings={view.docxSettings}
           textSettings={view.textSettings}
           formatSettings={view.formatSettings}
           aiText={view.aiText}

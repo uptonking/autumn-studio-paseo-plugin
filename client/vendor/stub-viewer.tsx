@@ -19,10 +19,6 @@ export interface StubViewerProps {
   toolbarActions?: React.ReactNode;
 }
 
-export function DocxViewerPreview(props: StubViewerProps) {
-  return <OfficeDocumentPlaceholder {...props} kind='DOCX' />;
-}
-
 export function PptxViewerPreview(props: StubViewerProps) {
   return <OfficeDocumentPlaceholder {...props} kind='PPTX' />;
 }
@@ -35,7 +31,7 @@ function OfficeDocumentPlaceholder({
   showToolbar = true,
   extraMenuItems,
   toolbarActions,
-}: StubViewerProps & { kind: 'DOCX' | 'PPTX' }) {
+}: StubViewerProps & { kind: 'PPTX' }) {
   const handleDownload = React.useCallback(() => {
     if (!src) return;
     const link = document.createElement('a');

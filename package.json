@@ -23,6 +23,9 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@datalking/begonia-browser": "0.1.0",
+    "@datalking/begonia-docx-bridge": "0.1.0",
+    "@datalking/begonia-react": "0.1.0",
     "@embedpdf/core": "^2.15.0",
     "@embedpdf/engines": "^2.15.0",
     "@embedpdf/models": "^2.15.0",

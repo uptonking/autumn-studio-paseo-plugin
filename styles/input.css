@@ -5,6 +5,10 @@
 
 @source "../client";
 @source not "../client/generated";
+/* Begonia (@datalking/begonia-react) renders with Tailwind utility classes; the
+ * pre-bundled docx vendor module must be scanned so those utilities exist
+ * inside the ShadowRoot island. */
+@source "../node_modules/.paseo-vendor/docx-vendor.js";
 
 /*
  * Semantic tokens. Values are supplied at runtime by theme-vars.ts (mapped
@@ -102,4 +106,67 @@
   --success-foreground: #000000;
   --info: #3b82f6;
   --info-foreground: #ffffff;
+}
+
+/*
+ * Begonia Word editor base styles (adapted from the begonia playground
+ * reference stylesheet to the island's theme tokens). The npm packages ship
+ * no CSS of their own: `.editor-frame` / `.editor-host` wrap the editor and
+ * `.ald-editor.ProseMirror` is the document surface.
+ */
+.editor-frame {
+  min-height: 420px;
+  border-radius: calc(var(--radius) * 1.8);
+  border: 1px solid var(--border);
+  background: var(--muted);
+  padding: 0.75rem;
+}
+
+.editor-host {
+  min-height: 384px;
+  overflow: auto;
+  border-radius: calc(var(--radius) * 1.25);
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+
+.ald-editor.ProseMirror {
+  min-height: 384px;
+  padding: 2rem 2.25rem 3rem;
+  outline: none;
+  color: var(--foreground);
+  font-family:
+    'Iowan Old Style', 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', 'STSong', 'SimSun',
+    'Baskerville', 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.72;
+  word-break: break-word;
+}
+
+.ald-editor.ProseMirror ::selection {
+  background: color-mix(in oklab, var(--selection) 22%, transparent);
+}
+
+.ald-editor p {
+  margin: 0 0 1em;
+}
+
+.ald-editor strong {
+  font-weight: 700;
+}
+
+.ald-editor em {
+  font-style: italic;
+}
+
+.ald-editor u {
+  text-decoration-thickness: 2px;
+}
+
+/* Begonia hardcodes light card colors (bg-white / border-slate-200) around the
+ * editor frame; retint that card in dark themes. Scoped via :has so plugin
+ * components using the same utilities are unaffected. */
+.dark div:has(> .editor-frame) {
+  background-color: var(--card);
+  border-color: var(--border);
 }

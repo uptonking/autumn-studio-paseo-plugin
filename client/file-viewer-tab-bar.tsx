@@ -201,6 +201,7 @@ export function FileViewerTabBar({
         void preloadFileSurfaceForKind(kind, {
           pdfSettings: view.pdfSettings,
           xlsxSettings: view.xlsxSettings,
+          docxSettings: view.docxSettings,
           textSettings: view.textSettings,
           formatSettings: view.formatSettings,
         });

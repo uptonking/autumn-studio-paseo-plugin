@@ -31,6 +31,14 @@ export interface XlsxViewerPreferences {
   showDownloadButton?: boolean;
 }
 
+export interface DocxViewerPreferences {
+  defaultOpenBehavior?: FileFormatOpenBehavior;
+  defaultViewer?: string;
+  defaultEditor?: string;
+  defaultFlowMode?: 'paginated' | 'web';
+  showDownloadButton?: boolean;
+}
+
 export interface GetFileUrlOptions {
   forceRefresh?: boolean;
   reuseIfUnchanged?: boolean;
@@ -55,6 +63,7 @@ export interface ExplorerViewProps {
   autoSaveEdits?: boolean;
   pdfSettings?: PdfViewerPreferences;
   xlsxSettings?: XlsxViewerPreferences;
+  docxSettings?: DocxViewerPreferences;
   textSettings?: TextViewerSettings;
   formatSettings?: Record<string, Record<string, unknown>>;
   aiText?: AiTextBridge;
@@ -94,6 +103,7 @@ export interface FileViewerViewProps {
   surfacePersistence?: SurfacePersistenceHandle;
   pdfSettings?: PdfViewerPreferences;
   xlsxSettings?: XlsxViewerPreferences;
+  docxSettings?: DocxViewerPreferences;
   textSettings?: TextViewerSettings;
   formatSettings?: Record<string, Record<string, unknown>>;
   aiText?: AiTextBridge;

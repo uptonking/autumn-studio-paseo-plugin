@@ -69,6 +69,7 @@ export function FileSystem({
   onOpenSettings,
   pdfSettings,
   xlsxSettings,
+  docxSettings,
   textSettings,
   formatSettings,
   aiText,
@@ -268,6 +269,7 @@ export function FileSystem({
 
   const { handleSaveFile, openedFile, openFileWithMode, setOpenedFile } = useOpenedFileSession({
     defaultFileOpenMode,
+    docxSettings,
     formatSettings,
     getFileUrl,
     index,
@@ -304,13 +306,22 @@ export function FileSystem({
           void preloadFileSurfaceForKind(kind, {
             pdfSettings,
             xlsxSettings,
+            docxSettings,
             textSettings,
             formatSettings,
           });
         }
       }
     },
-    [ensureChildren, formatSettings, pdfSettings, selectEntry, textSettings, xlsxSettings],
+    [
+      docxSettings,
+      ensureChildren,
+      formatSettings,
+      pdfSettings,
+      selectEntry,
+      textSettings,
+      xlsxSettings,
+    ],
   );
 
   const goBack = React.useCallback(() => {
@@ -430,6 +441,7 @@ export function FileSystem({
               urlCache={resolvedUrlCache}
               variant='in-place'
               xlsxSettings={xlsxSettings}
+              docxSettings={docxSettings}
             />
           </div>
         </>
@@ -535,6 +547,7 @@ export function FileSystem({
         stagePool={stagePool}
         textSettings={textSettings}
         xlsxSettings={xlsxSettings}
+        docxSettings={docxSettings}
         formatSettings={formatSettings}
         aiText={aiText}
       />

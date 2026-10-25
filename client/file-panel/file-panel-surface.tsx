@@ -42,6 +42,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
     settings,
     pdfSettings,
     xlsxSettings,
+    docxSettings,
     textSettings,
     aiText,
     getPdfWasmUrl,
@@ -150,6 +151,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
       autoSaveEdits: settings.general.autoSaveEdits,
       pdfSettings,
       xlsxSettings,
+      docxSettings,
       textSettings,
       formatSettings: settings.formats,
       // Out-of-workspace files have no workspace identity, so AI Text (which
@@ -169,6 +171,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
     [
       activeTab,
       aiText,
+      docxSettings,
       getPdfWasmUrl,
       getXlsxWasmDataUri,
       handleDirtyChange,

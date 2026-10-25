@@ -64,12 +64,12 @@ describe('surface-engines: lazy boundaries, Excel search, tree helpers & sync', 
     const serverSrc = readFileSync(path.join(pluginRoot, 'index.server.ts'), 'utf8');
 
     assert.equal(/^import\s+.*from\s+["']@extend-ai\/react-xlsx["']/m.test(wasmLoaderSrc), false);
-    assert.equal(wasmLoaderSrc.includes('import("@extend-ai/react-xlsx")'), true);
+    assert.equal(/import\((['"])@extend-ai\/react-xlsx\1\)/.test(wasmLoaderSrc), true);
     assert.equal(/^import\s+.*from\s+["']pdf-lib["']/m.test(pdfSaveSrc), false);
-    assert.equal(pdfSaveSrc.includes('import("pdf-lib")'), true);
+    assert.equal(/import\((['"])pdf-lib\1\)/.test(pdfSaveSrc), true);
     assert.equal(/^import\s+.*from\s+["']\.\/server\/generated\//m.test(serverSrc), false);
-    assert.equal(serverSrc.includes('import("./server/generated/pdfium-wasm.js")'), true);
-    assert.equal(serverSrc.includes('import("./server/generated/xlsx-wasm.js")'), true);
+    assert.equal(/import\((['"])\.\/server\/generated\/pdfium-wasm\.js\1\)/.test(serverSrc), true);
+    assert.equal(/import\((['"])\.\/server\/generated\/xlsx-wasm\.js\1\)/.test(serverSrc), true);
 
     let loadCalls = 0;
     let shouldFail = true;

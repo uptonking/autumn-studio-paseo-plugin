@@ -106,6 +106,7 @@ export function ExplorerContent({ view }: { view: ExplorerViewProps }) {
           autoSaveEdits={view.autoSaveEdits}
           pdfSettings={view.pdfSettings}
           xlsxSettings={view.xlsxSettings}
+          docxSettings={view.docxSettings}
           textSettings={view.textSettings}
           formatSettings={view.formatSettings}
           aiText={view.aiText}

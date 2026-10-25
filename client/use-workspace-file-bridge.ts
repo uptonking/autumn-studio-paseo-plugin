@@ -167,6 +167,23 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     ],
   );
 
+  const docxSettings = useMemo(
+    () => ({
+      defaultOpenBehavior: settings.docx.defaultOpenBehavior,
+      defaultViewer: settings.docx.defaultViewer,
+      defaultEditor: settings.docx.defaultEditor,
+      defaultFlowMode: settings.docx.defaultFlowMode,
+      showDownloadButton: settings.docx.showDownloadButton,
+    }),
+    [
+      settings.docx.defaultOpenBehavior,
+      settings.docx.defaultViewer,
+      settings.docx.defaultEditor,
+      settings.docx.defaultFlowMode,
+      settings.docx.showDownloadButton,
+    ],
+  );
+
   const textSettings = useMemo(() => getTextViewerSettings(settings), [settings]);
 
   const aiTextSettings = useMemo(() => getAiTextSettings(settings), [settings]);
@@ -291,6 +308,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     settings,
     pdfSettings,
     xlsxSettings,
+    docxSettings,
     textSettings,
     aiText,
     getFileUrl,

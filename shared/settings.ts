@@ -32,6 +32,9 @@ export type PdfDefaultZoom = z.infer<typeof pdfDefaultZoomSchema>;
 export const xlsxDefaultZoomSchema = z.enum(['50', '75', '100', '125', '150', '200']);
 export type XlsxDefaultZoom = z.infer<typeof xlsxDefaultZoomSchema>;
 
+export const docxFlowModeSchema = z.enum(['paginated', 'web']);
+export type DocxFlowMode = z.infer<typeof docxFlowModeSchema>;
+
 export const DEFAULT_MAX_OPEN_TABS = 8;
 
 export const generalSettingsSchema = z.object({
@@ -65,6 +68,15 @@ export const xlsxSettingsSchema = z.object({
   showDownloadButton: z.boolean().default(true),
 });
 export type XlsxSettings = z.infer<typeof xlsxSettingsSchema>;
+
+export const docxSettingsSchema = z.object({
+  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('editor'),
+  defaultViewer: z.string().default('begonia-docx-viewer'),
+  defaultEditor: z.string().default('begonia-docx-editor'),
+  defaultFlowMode: docxFlowModeSchema.default('paginated'),
+  showDownloadButton: z.boolean().default(true),
+});
+export type DocxSettings = z.infer<typeof docxSettingsSchema>;
 
 export const textSettingsSchema = z.object({
   defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('viewer'),
@@ -104,6 +116,14 @@ export const DEFAULT_XLSX_SETTINGS: XlsxSettings = {
   showDownloadButton: true,
 };
 
+export const DEFAULT_DOCX_SETTINGS: DocxSettings = {
+  defaultOpenBehavior: 'editor',
+  defaultViewer: 'begonia-docx-viewer',
+  defaultEditor: 'begonia-docx-editor',
+  defaultFlowMode: 'paginated',
+  showDownloadButton: true,
+};
+
 export const DEFAULT_TEXT_VIEWER_SETTINGS: TextViewerSettings = {
   defaultOpenBehavior: 'viewer',
   defaultViewer: 'code-text-viewer',
@@ -116,11 +136,12 @@ export const autumnStudioSettingsSchema = z.object({
   general: generalSettingsSchema.default(DEFAULT_GENERAL_SETTINGS),
   pdf: pdfSettingsSchema.default(DEFAULT_PDF_SETTINGS),
   xlsx: xlsxSettingsSchema.default(DEFAULT_XLSX_SETTINGS),
+  docx: docxSettingsSchema.default(DEFAULT_DOCX_SETTINGS),
   text: textSettingsSchema.default(DEFAULT_TEXT_VIEWER_SETTINGS),
   aiText: aiTextSettingsSchema.default(() => createDefaultAiTextSettings()),
   /**
    * Extensible map for additional file format viewers/editors
-   * (e.g. docx, pptx, image, markdown).
+   * (e.g. pptx, image, markdown).
    */
   formats: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
 });
@@ -131,17 +152,31 @@ export const DEFAULT_AUTUMN_STUDIO_SETTINGS: AutumnStudioSettingsValues = {
   general: DEFAULT_GENERAL_SETTINGS,
   pdf: DEFAULT_PDF_SETTINGS,
   xlsx: DEFAULT_XLSX_SETTINGS,
+  docx: DEFAULT_DOCX_SETTINGS,
   text: DEFAULT_TEXT_VIEWER_SETTINGS,
   aiText: createDefaultAiTextSettings(),
   formats: {},
 };
 
+/**
+ * Converts a previous stored settings version to the current schema.
+ * - v1 → v2: normalize the legacy AI Text block (`migrateAutumnStudioSettingsV1`).
+ * - v2 → v3: adds the dedicated `docx` block; the zod schema default fills it,
+ *   so no data transformation is required.
+ */
+export function migrateAutumnStudioSettings(values: unknown, fromVersion: number): unknown {
+  if (fromVersion < 2) {
+    return migrateAutumnStudioSettingsV1(values);
+  }
+  return values;
+}
+
 export const autumnStudioSettings = defineSettings({
   id: 'preferences',
   scope: 'host',
-  version: 2,
+  version: 3,
   schema: autumnStudioSettingsSchema,
-  migrate: migrateAutumnStudioSettingsV1,
+  migrate: migrateAutumnStudioSettings,
 });
 
 export function toPdfViewerZoom(zoom: PdfDefaultZoom): 'fit-width' | 'fit-page' | number {
@@ -198,6 +233,28 @@ export function withXlsxSettings(
   };
 }
 
+export function getDocxSettings(
+  values: Partial<AutumnStudioSettingsValues> | undefined,
+): DocxSettings {
+  return {
+    ...DEFAULT_DOCX_SETTINGS,
+    ...values?.docx,
+  };
+}
+
+export function withDocxSettings(
+  values: AutumnStudioSettingsValues,
+  patch: Partial<DocxSettings>,
+): AutumnStudioSettingsValues {
+  return {
+    ...values,
+    docx: {
+      ...getDocxSettings(values),
+      ...patch,
+    },
+  };
+}
+
 export interface FormatBehaviorConfig {
   defaultOpenBehavior: FileFormatOpenBehavior;
   defaultViewer?: string;
@@ -222,6 +279,14 @@ export function getFormatBehaviorConfig(
       defaultOpenBehavior: xlsx.defaultOpenBehavior,
       defaultViewer: xlsx.defaultViewer,
       defaultEditor: xlsx.defaultEditor,
+    };
+  }
+  if (kind === 'docx') {
+    const docx = getDocxSettings(values);
+    return {
+      defaultOpenBehavior: docx.defaultOpenBehavior,
+      defaultViewer: docx.defaultViewer,
+      defaultEditor: docx.defaultEditor,
     };
   }
   if (kind === 'text') {
@@ -265,6 +330,9 @@ export function withFormatBehaviorConfig(
         ...patch,
       },
     };
+  }
+  if (kind === 'docx') {
+    return withDocxSettings(values, patch);
   }
   if (kind === 'text') {
     return withTextViewerSettings(values, patch);

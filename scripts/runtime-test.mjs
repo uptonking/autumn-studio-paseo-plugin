@@ -1,5 +1,4 @@
-// Runtime test: evaluate the compiled client bundle inside JSDOM and verify
-// sidebar item, settings sections, FileSystem rendering, and editor persistence.
+// Runtime test: evaluate the compiled client bundle inside JSDOM (sidebar, settings, FileSystem, docx).
 import { readFileSync } from 'fs';
 import { hostProps } from './runtime-test-host-props.mjs';
 import {
@@ -7,6 +6,7 @@ import {
   dom,
   pluginRequire,
   React,
+  registerSimulatedFile,
   rpcInputs,
   runtimeRequire,
   simulatedDiskFiles,
@@ -18,7 +18,18 @@ import {
   verifyNativeFilePanelMount,
   verifyNativeFilePanelRegistrations,
 } from './runtime-test-file-panel.mjs';
+import {
+  createMinimalDocxBuffer,
+  DOCX_FIXTURE_NAME,
+  verifyDocxEditorSurface,
+} from './runtime-test-docx.mjs';
 
+// The Begonia .docx fixture must be on the simulated disk before the first
+// tree fetch: the explorer's items are flattened from the initial RPC result.
+{
+  const { buffer, contentType } = await createMinimalDocxBuffer();
+  registerSimulatedFile(DOCX_FIXTURE_NAME, buffer, contentType);
+}
 const bundleText = process.env.CLIENT_BUNDLE ?? '/tmp/fe-client-bundle.js';
 const text2 = readFileSync(bundleText, 'utf-8');
 
@@ -310,6 +321,8 @@ if (textareaAfterExternal.value !== '# Edited Externally on Mac Filesystem') {
   );
 }
 console.log('✓ external Mac filesystem edit after in-app edit shows fresh content on reopen');
+
+await verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFileName: 'README.md' });
 
 // Switch to Viewer mode and verify Cmd/Ctrl+F in-file text search + <mark> highlighting
 const modeSwitcherBtn = [

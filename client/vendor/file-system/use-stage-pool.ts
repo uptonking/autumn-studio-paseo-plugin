@@ -6,6 +6,7 @@ import {
   GALLERY_STAGE_POOL_SIZE,
   viewerKindForFile,
   type FileEntry,
+  type FileSystemDocxSettings,
   type FileSystemFormatSettingsMap,
   type FileSystemIndex,
   type FileSystemOpenMode,
@@ -111,6 +112,7 @@ export function useStagePool({ index }: { index: FileSystemIndex }) {
 
 export function useOpenedFileSession({
   defaultFileOpenMode,
+  docxSettings,
   formatSettings,
   getFileUrl,
   index,
@@ -125,6 +127,7 @@ export function useOpenedFileSession({
   xlsxSettings,
 }: {
   defaultFileOpenMode?: FileSystemOpenMode;
+  docxSettings?: FileSystemDocxSettings;
   formatSettings?: FileSystemFormatSettingsMap;
   getFileUrl?: FileSystemProps['getFileUrl'];
   index: FileSystemIndex;
@@ -186,6 +189,7 @@ export function useOpenedFileSession({
           await preloadFileSurfaceForKind(kind, {
             pdfSettings,
             xlsxSettings,
+            docxSettings,
             textSettings,
             formatSettings,
           });
@@ -211,6 +215,7 @@ export function useOpenedFileSession({
     },
     [
       defaultFileOpenMode,
+      docxSettings,
       formatSettings,
       getFileUrl,
       onFileOpen,

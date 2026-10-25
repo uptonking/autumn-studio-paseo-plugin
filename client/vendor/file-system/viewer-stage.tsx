@@ -19,6 +19,7 @@ import {
   VIEWER_DIALOG_CLASSNAMES,
   viewerKindForFile,
   type FileEntry,
+  type FileSystemDocxSettings,
   type FileSystemFileItem,
   type FileSystemFormatSettingsMap,
   type FileSystemIndex,
@@ -36,6 +37,7 @@ export function FileSystemGalleryStage({
   activeUrl,
   aiText,
   autoSaveEdits,
+  docxSettings,
   extraMenuItems,
   file,
   formatSettings,
@@ -55,6 +57,7 @@ export function FileSystemGalleryStage({
   activeUrl?: string | null;
   aiText?: AiTextBridge;
   autoSaveEdits?: boolean;
+  docxSettings?: FileSystemDocxSettings;
   extraMenuItems?: React.ReactNode;
   file: FileEntry;
   formatSettings?: FileSystemFormatSettingsMap;
@@ -156,6 +159,7 @@ export function FileSystemGalleryStage({
           variant={variant}
           pdfSettings={pdfSettings}
           xlsxSettings={xlsxSettings}
+          docxSettings={docxSettings}
           textSettings={textSettings}
           formatSettings={formatSettings}
           aiText={aiText}
@@ -186,6 +190,7 @@ export function FileSystemGalleryStage({
 export function FileSystemViewerDialogAndPool({
   aiText,
   autoSaveEdits,
+  docxSettings,
   formatSettings,
   getFileUrl,
   index,
@@ -207,6 +212,7 @@ export function FileSystemViewerDialogAndPool({
 }: {
   aiText?: AiTextBridge;
   autoSaveEdits?: boolean;
+  docxSettings?: FileSystemDocxSettings;
   formatSettings?: FileSystemFormatSettingsMap;
   getFileUrl?: (
     file: FileSystemFileItem,
@@ -292,6 +298,7 @@ export function FileSystemViewerDialogAndPool({
               urlCache={resolvedUrlCache}
               variant='dialog'
               xlsxSettings={xlsxSettings}
+              docxSettings={docxSettings}
             />
           </div>
         </DialogContent>
@@ -319,6 +326,7 @@ export function FileSystemViewerDialogAndPool({
             urlCache={resolvedUrlCache}
             variant='stage'
             xlsxSettings={xlsxSettings}
+            docxSettings={docxSettings}
           />,
           container,
           path,

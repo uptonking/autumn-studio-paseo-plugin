@@ -10,6 +10,7 @@ import {
 } from '../editing/use-file-edit-session.js';
 import { DropdownMenuItem, DropdownMenuSeparator } from '../vendor/components/ui/dropdown-menu.js';
 import type {
+  FileSystemDocxSettings,
   FileSystemFormatSettingsMap,
   FileSystemPdfSettings,
   FileSystemTextSettings,
@@ -54,6 +55,7 @@ export interface FileViewerRenderProps {
   providerId?: string;
   pdfSettings?: FileSystemPdfSettings;
   xlsxSettings?: FileSystemXlsxSettings;
+  docxSettings?: FileSystemDocxSettings;
   textSettings?: FileSystemTextSettings;
   formatSettings?: FileSystemFormatSettingsMap;
   aiText?: AiTextBridge;
@@ -137,6 +139,7 @@ export function getFormatSettingsPreference(
   settings?: {
     pdfSettings?: FileSystemPdfSettings;
     xlsxSettings?: FileSystemXlsxSettings;
+    docxSettings?: FileSystemDocxSettings;
     textSettings?: FileSystemTextSettings;
     formatSettings?: FileSystemFormatSettingsMap;
   },
@@ -161,6 +164,14 @@ export function getFormatSettingsPreference(
       defaultEditor: settings?.xlsxSettings?.defaultEditor,
     };
   }
+  if (kind === 'docx') {
+    return {
+      defaultOpenBehavior:
+        settings?.docxSettings?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer',
+      defaultViewer: settings?.docxSettings?.defaultViewer,
+      defaultEditor: settings?.docxSettings?.defaultEditor,
+    };
+  }
   if (kind === 'text') {
     return {
       defaultOpenBehavior:
@@ -182,6 +193,7 @@ export function resolveDefaultSurfaceForFile(
   settings?: {
     pdfSettings?: FileSystemPdfSettings;
     xlsxSettings?: FileSystemXlsxSettings;
+    docxSettings?: FileSystemDocxSettings;
     textSettings?: FileSystemTextSettings;
     formatSettings?: FileSystemFormatSettingsMap;
   },
@@ -237,6 +249,7 @@ export function preloadFileSurfaceForKind(
   settings?: {
     pdfSettings?: FileSystemPdfSettings;
     xlsxSettings?: FileSystemXlsxSettings;
+    docxSettings?: FileSystemDocxSettings;
     textSettings?: FileSystemTextSettings;
     formatSettings?: FileSystemFormatSettingsMap;
   },
@@ -265,6 +278,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     providerId: explicitProviderId,
     pdfSettings,
     xlsxSettings,
+    docxSettings,
     textSettings,
     formatSettings,
     autoSaveEdits = true,
@@ -279,10 +293,11 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
       getFormatSettingsPreference(kind, {
         pdfSettings,
         xlsxSettings,
+        docxSettings,
         textSettings,
         formatSettings,
       }),
-    [formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
+    [docxSettings, formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
   );
 
   const [roleOverride, setRoleOverride] = React.useState<FileSurfaceRole | null>(null);
@@ -393,18 +408,18 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     (targetRole: FileSurfaceRole) => {
       void preloadFileSurfaceForKind(
         kind,
-        { pdfSettings, xlsxSettings, textSettings, formatSettings },
+        { pdfSettings, xlsxSettings, docxSettings, textSettings, formatSettings },
         targetRole,
       );
     },
-    [formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
+    [docxSettings, formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
   );
 
   const handleRoleChange = React.useCallback(
     (nextRole: FileSurfaceRole) => {
       void preloadFileSurfaceForKind(
         kind,
-        { pdfSettings, xlsxSettings, textSettings, formatSettings },
+        { pdfSettings, xlsxSettings, docxSettings, textSettings, formatSettings },
         nextRole,
       );
       if (effectiveRoleRef.current === 'editor' && nextRole === 'viewer') {
@@ -441,7 +456,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
         setRoleOverride(nextRole);
       });
     },
-    [editSession, formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
+    [docxSettings, editSession, formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
   );
 
   if (!resolvedProvider) return null;

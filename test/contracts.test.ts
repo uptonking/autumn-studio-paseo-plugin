@@ -12,6 +12,7 @@ import {
   DEFAULT_AUTUMN_STUDIO_SETTINGS,
   DEFAULT_TEXT_VIEWER_SETTINGS,
   DEFAULT_XLSX_SETTINGS,
+  DEFAULT_DOCX_SETTINGS,
   getTextViewerSettings,
   withTextViewerSettings,
   getFormatBehaviorConfig,
@@ -177,6 +178,7 @@ describe('contracts: autumnStudioSettings', () => {
     assert.equal(parsed.pdf.showRotateControls, true);
     assert.equal(parsed.pdf.showDownloadButton, true);
     assert.deepEqual(parsed.xlsx, DEFAULT_XLSX_SETTINGS);
+    assert.deepEqual(parsed.docx, DEFAULT_DOCX_SETTINGS);
     assert.deepEqual(parsed.text, DEFAULT_TEXT_VIEWER_SETTINGS);
   });
 
@@ -215,6 +217,13 @@ describe('contracts: autumnStudioSettings', () => {
         showLineNumbers: false,
         wordWrap: false,
       },
+      docx: {
+        defaultOpenBehavior: 'viewer' as const,
+        defaultViewer: 'begonia-docx-viewer',
+        defaultEditor: 'begonia-docx-editor',
+        defaultFlowMode: 'web' as const,
+        showDownloadButton: false,
+      },
       formats: {
         markdown: { previewByDefault: true },
       },
@@ -224,7 +233,7 @@ describe('contracts: autumnStudioSettings', () => {
     assert.deepEqual(parsed, custom);
     assert.equal(autumnStudioSettings.id, 'preferences');
     assert.equal(autumnStudioSettings.scope, 'host');
-    assert.equal(autumnStudioSettings.version, 2);
+    assert.equal(autumnStudioSettings.version, 3);
   });
 
   it('maps PdfDefaultZoom and XlsxDefaultZoom values', () => {
@@ -262,15 +271,15 @@ describe('contracts: autumnStudioSettings', () => {
     });
     assert.equal(getFormatBehaviorConfig(withXlsxEditor, 'xlsx').defaultOpenBehavior, 'editor');
 
-    const withDocxEditor = withFormatBehaviorConfig(withXlsxEditor, 'docx', {
+    const withPptxEditor = withFormatBehaviorConfig(withXlsxEditor, 'pptx', {
       defaultOpenBehavior: 'editor',
-      defaultViewer: 'custom-docx-viewer',
-      defaultEditor: 'custom-docx-editor',
+      defaultViewer: 'custom-pptx-viewer',
+      defaultEditor: 'custom-pptx-editor',
     });
-    assert.deepEqual(getFormatBehaviorConfig(withDocxEditor, 'docx'), {
+    assert.deepEqual(getFormatBehaviorConfig(withPptxEditor, 'pptx'), {
       defaultOpenBehavior: 'editor',
-      defaultViewer: 'custom-docx-viewer',
-      defaultEditor: 'custom-docx-editor',
+      defaultViewer: 'custom-pptx-viewer',
+      defaultEditor: 'custom-pptx-editor',
     });
   });
 });

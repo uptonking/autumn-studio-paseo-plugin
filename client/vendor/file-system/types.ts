@@ -67,6 +67,14 @@ export interface FileSystemXlsxSettings {
   showDownloadButton?: boolean;
 }
 
+export interface FileSystemDocxSettings {
+  defaultOpenBehavior?: 'viewer' | 'editor';
+  defaultViewer?: string;
+  defaultEditor?: string;
+  defaultFlowMode?: 'paginated' | 'web';
+  showDownloadButton?: boolean;
+}
+
 export interface FileSystemTextSettings {
   defaultOpenBehavior?: 'viewer' | 'editor';
   defaultViewer?: string;
@@ -115,6 +123,8 @@ export interface FileSystemProps {
   pdfSettings?: FileSystemPdfSettings;
   /** Excel viewer/editor preferences from Autumn Studio settings. */
   xlsxSettings?: FileSystemXlsxSettings;
+  /** Word document viewer/editor preferences from Autumn Studio settings. */
+  docxSettings?: FileSystemDocxSettings;
   /** Code & text viewer/editor preferences from Autumn Studio settings. */
   textSettings?: FileSystemTextSettings;
   /** Additional format preferences keyed by viewer kind (e.g. image, docx, pptx). */

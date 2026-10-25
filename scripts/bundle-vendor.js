@@ -56,8 +56,13 @@ function checkReactDomMatchesHost() {
       'utf8',
     ),
   ).version;
-  const hostAppPackagePath = path.resolve(pluginDir, '../../paseo/packages/app/package.json');
-  if (!fs.existsSync(hostAppPackagePath)) {
+  // The paseo checkout can sit as a sibling of this plugin's parent directory
+  // (…/all-agi-harness/paseo) or one level further up.
+  const hostAppPackagePath = [
+    path.resolve(pluginDir, '../paseo/packages/app/package.json'),
+    path.resolve(pluginDir, '../../paseo/packages/app/package.json'),
+  ].find((candidate) => fs.existsSync(candidate));
+  if (!hostAppPackagePath) {
     console.log(
       `⚠ No paseo checkout found next to this plugin; skipping the react-dom ↔ host react check (react-dom ${reactDomVersion}).`,
     );
@@ -224,6 +229,16 @@ function classifyBundleGroup(specifier) {
   if (specifier === '@extend-ai/react-xlsx') {
     return 'xlsx';
   }
+  if (
+    specifier === '@datalking/begonia-react' ||
+    specifier.startsWith('@datalking/begonia-react/') ||
+    specifier === '@datalking/begonia-browser' ||
+    specifier.startsWith('@datalking/begonia-browser/') ||
+    specifier === '@datalking/begonia-docx-bridge' ||
+    specifier.startsWith('@datalking/begonia-docx-bridge/')
+  ) {
+    return 'docx';
+  }
   if (specifier === '@pierre/trees' || specifier.startsWith('@pierre/trees/')) {
     return 'trees';
   }
@@ -284,8 +299,8 @@ function buildBundleEntrySource(group, entries) {
 }
 
 const bindingsBySpecifier = collectClientThirdPartyImports();
-/** @type {Record<"ui" | "pdf" | "pdf-lib" | "xlsx" | "trees", Array<[string, Set<string>]>>} */
-const groups = { ui: [], pdf: [], 'pdf-lib': [], xlsx: [], trees: [] };
+/** @type {Record<"ui" | "pdf" | "pdf-lib" | "xlsx" | "docx" | "trees", Array<[string, Set<string>]>>} */
+const groups = { ui: [], pdf: [], 'pdf-lib': [], xlsx: [], docx: [], trees: [] };
 
 for (const [specifier, bindings] of byCodeUnit([...bindingsBySpecifier.entries()])) {
   if (bindings.size === 0) continue;
@@ -311,17 +326,24 @@ const COMMON_OPTIONS = {
   bundle: true,
   minify: true,
   format: 'esm',
-  platform: 'neutral',
   target: 'es2020',
   mainFields: ['module', 'main'],
   external: EXTERNAL,
   logLevel: 'warning',
 };
 
+// The begonia closure includes jszip, whose Node-only readable-stream paths are
+// only remapped through its package.json "browser" field. The plugin ships for
+// the Electron renderer / web, so bundle the docx group for the browser.
+function resolvePlatformForGroup(group) {
+  return group === 'docx' ? 'browser' : 'neutral';
+}
+
 await Promise.all(
   Object.entries(groups).map(([group, entries]) =>
     esbuild.build({
       ...COMMON_OPTIONS,
+      platform: resolvePlatformForGroup(group),
       stdin: {
         resolveDir: pluginDir,
         contents: buildBundleEntrySource(group, entries),
@@ -331,4 +353,4 @@ await Promise.all(
   ),
 );
 
-console.log('✓ Built .paseo-vendor bundles (ui, pdf, pdf-lib, xlsx, trees)');
+console.log('✓ Built .paseo-vendor bundles (ui, pdf, pdf-lib, xlsx, docx, trees)');

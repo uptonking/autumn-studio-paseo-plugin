@@ -1,5 +1,6 @@
 import type { SettingsSectionDescriptor } from '../registry.js';
 import { aiTextSectionDescriptor } from './ai-text-section.js';
+import { docxSectionDescriptor } from './docx-section.js';
 import { generalSectionDescriptor } from './general-section.js';
 import { imageSectionDescriptor } from './image-section.js';
 import { pdfSectionDescriptor } from './pdf-section.js';
@@ -8,12 +9,13 @@ import { xlsxSectionDescriptor } from './xlsx-section.js';
 
 /**
  * Ordered registry of settings sections for `autumn-studio-paseo-plugin`.
- * Future file viewers/editors (e.g. Office DOCX/PPTX, Images)
+ * Future file viewers/editors (e.g. Office PPTX, Images)
  * can add a section descriptor here without changing the settings page shell.
  */
 const registeredSections: SettingsSectionDescriptor[] = [
   generalSectionDescriptor,
   pdfSectionDescriptor,
+  docxSectionDescriptor,
   aiTextSectionDescriptor,
   xlsxSectionDescriptor,
   textSectionDescriptor,

@@ -4,6 +4,7 @@ import { LayoutPageOverlay } from '../ai-text/layout-page-overlay.js';
 import { SurfaceModeSwitcher } from '../editing/surface-mode-controls.js';
 import { lazyWithPreload } from '../lazy-with-preload.js';
 import { Spinner } from '../vendor/components/ui/spinner.js';
+import { DocxStagePreview } from '../vendor/docx-viewer/docx-stage-preview.js';
 import { loadSharedPdfEngine } from '../vendor/lib/pdf-thumbnail-utils.js';
 import { cn } from '../vendor/lib/utils.js';
 import type { PDFViewerPageOverlayProps } from '../vendor/pdf-viewer/types.js';
@@ -53,9 +54,15 @@ const LazyImageViewer = lazyWithPreload(() =>
   })),
 );
 
-const LazyDocxViewerPreview = lazyWithPreload(() =>
-  import('../vendor/stub-viewer.js').then((mod) => ({
-    default: mod.DocxViewerPreview,
+const LazyBegoniaDocxViewer = lazyWithPreload(() =>
+  import('../vendor/docx-viewer/index.js').then((mod) => ({
+    default: mod.BegoniaDocxViewer,
+  })),
+);
+
+const LazyBegoniaDocxEditor = lazyWithPreload(() =>
+  import('../vendor/docx-viewer/index.js').then((mod) => ({
+    default: mod.BegoniaDocxEditor,
   })),
 );
 
@@ -431,45 +438,85 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: 'docx-stub-viewer',
+    id: 'begonia-docx-viewer',
     kind: 'docx',
     role: 'viewer',
-    label: 'Word Document Preview',
+    label: 'Begonia Word Viewer (Default)',
     isDefault: true,
     preload: async () => {
-      await LazyDocxViewerPreview.preload();
+      await LazyBegoniaDocxViewer.preload();
     },
     renderer: ({
       src,
       fileName,
       variant = 'in-place',
-      role,
       canSwitchRole,
       onRoleChange,
+      docxSettings,
       extraMenuItems,
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== 'stage';
-      const combinedActions = hasFullChrome ? (
-        <div className='flex items-center gap-1.5'>
-          <SurfaceModeSwitcher role={role} canEdit={canSwitchRole} onRoleChange={onRoleChange} />
-          {toolbarActions}
-        </div>
-      ) : undefined;
+      if (variant === 'stage') {
+        return <DocxStagePreview fileName={fileName} />;
+      }
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
-          <LazyDocxViewerPreview
+          <LazyBegoniaDocxViewer
             src={src}
             fileName={fileName}
-            showToolbar={hasFullChrome}
-            extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
-            toolbarActions={combinedActions}
-            className={cn(
-              'h-full min-h-0',
-              variant === 'dialog' && 'overflow-hidden rounded-2xl',
-              className,
-            )}
+            canSwitchRole={canSwitchRole}
+            onRoleChange={onRoleChange}
+            docxSettings={docxSettings}
+            showToolbar
+            extraMenuItems={extraMenuItems}
+            toolbarActions={toolbarActions}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
+          />
+        </React.Suspense>
+      );
+    },
+  });
+
+  register({
+    id: 'begonia-docx-editor',
+    kind: 'docx',
+    role: 'editor',
+    label: 'Begonia Word Editor (Default)',
+    isDefault: true,
+    preload: async () => {
+      await LazyBegoniaDocxEditor.preload();
+    },
+    renderer: ({
+      src,
+      fileName,
+      variant = 'in-place',
+      canSwitchRole,
+      onRoleChange,
+      editSession,
+      docxSettings,
+      extraMenuItems,
+      toolbarActions,
+      className,
+    }) => {
+      if (variant === 'stage') {
+        return <DocxStagePreview fileName={fileName} />;
+      }
+      const isDialog = variant === 'dialog';
+      return (
+        <React.Suspense fallback={<FileViewerLoadingFallback />}>
+          <LazyBegoniaDocxEditor
+            src={src}
+            fileName={fileName}
+            canSwitchRole={canSwitchRole}
+            onRoleChange={onRoleChange}
+            editSession={editSession}
+            docxSettings={docxSettings}
+            showToolbar
+            extraMenuItems={extraMenuItems}
+            toolbarActions={toolbarActions}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
           />
         </React.Suspense>
       );

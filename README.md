@@ -6,10 +6,18 @@ Requires Paseo 0.13.0 or later on both the daemon and the app.
 
 ## Features
 
-- **PDF**: support to get text with agent powered mineru/docling/...
-- **Code & Text**: support Markdown, JSON, YAML, TOML, SQL, shell scripts, and plain text files.
+- **PDF**: viewer/editor plus agent powered text extraction (mineru/docling/…,
+  see AI Text Mode below).
+- **Excel**: `.xlsx`/`.xls` viewer and editor with formula bar and sheet tabs.
+- **Word (Docx/Doc)**: `.docx` viewer and editor built on the
+  [Begonia](https://www.npmjs.com/package/@datalking/begonia-react) editor —
+  opens in editor mode by default, switches between paginated and continuous
+  (web) layout from the toolbar, and autosaves back to the file.
+- **Code & Text**: Markdown, JSON, YAML, TOML, SQL, shell scripts, and plain
+  text files.
 - **Extensible Format Sections**: register additional format sections in
-  `client/settings/registry.ts` backed by `settings.formats.<formatId>` .
+  `client/settings/registry.ts`; PDF, Excel, and Docx have dedicated settings
+  blocks, other formats fall back to `settings.formats.<formatId>` .
 
 ## AI Text Mode (beta)
 

@@ -67,10 +67,17 @@ const DEFAULT_SURFACE_PROVIDERS: FileSurfaceProviderMeta[] = [
     isDefault: true,
   },
   {
-    id: 'docx-stub-viewer',
+    id: 'begonia-docx-viewer',
     kind: 'docx',
     role: 'viewer',
-    label: 'Word Document Preview (Default)',
+    label: 'Begonia Word Viewer (Default)',
+    isDefault: true,
+  },
+  {
+    id: 'begonia-docx-editor',
+    kind: 'docx',
+    role: 'editor',
+    label: 'Begonia Word Editor (Default)',
     isDefault: true,
   },
   {

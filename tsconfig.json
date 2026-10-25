@@ -17,6 +17,12 @@
       "@embedpdf/*": ["./node_modules/.paseo-vendor/pdf-vendor.js"],
       "pdf-lib": ["./node_modules/.paseo-vendor/pdf-lib-vendor.js"],
       "@extend-ai/react-xlsx": ["./node_modules/.paseo-vendor/xlsx-vendor.js"],
+      "@datalking/begonia-react": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-react/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-browser": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-browser/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-docx-bridge": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-docx-bridge/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
       "@pierre/trees": ["./node_modules/.paseo-vendor/trees-vendor.js"],
       "@pierre/trees/*": ["./node_modules/.paseo-vendor/trees-vendor.js"]
     },

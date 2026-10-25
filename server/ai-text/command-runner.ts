@@ -123,15 +123,18 @@ export async function runProcess(options: RunProcessOptions): Promise<RunProcess
   let timedOut = false;
   let aborted = false;
   let settled = false;
-  let timeoutHandle: NodeJS.Timeout | null = null;
+  // Node's timers expose unref(); the DOM-typed overload does not, so keep the
+  // handle type ambient and narrow only at the unref call site.
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   const stopChild = () => {
     void terminateProcess(child, 'SIGTERM').catch(() => undefined);
-    setTimeout(() => {
+    const killTimer = setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
         void terminateProcess(child, 'SIGKILL').catch(() => undefined);
       }
-    }, 3000).unref?.();
+    }, 3000);
+    (killTimer as { unref?: () => void }).unref?.();
   };
 
   const onAbort = () => {

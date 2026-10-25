@@ -255,6 +255,13 @@ let currentSettingsData = {
     showHiddenSheets: false,
     showDownloadButton: true,
   },
+  docx: {
+    defaultOpenBehavior: 'editor',
+    defaultViewer: 'begonia-docx-viewer',
+    defaultEditor: 'begonia-docx-editor',
+    defaultFlowMode: 'paginated',
+    showDownloadButton: true,
+  },
   text: {
     defaultOpenBehavior: 'editor',
     defaultViewer: 'code-text-viewer',
@@ -277,6 +284,24 @@ export const simulatedDiskFiles = new Map([
   ['README.md', diskFile('# Hello Paseo', 'text/markdown')],
   ['report.html', diskFile('<h1>Annual Report</h1><p>Summary</p>', 'text/html')],
 ]);
+
+/** Adds a binary fixture (e.g. a .docx for the Begonia editor test) to the
+ * simulated disk and the workspace tree the fake RPC serves. */
+export function registerSimulatedFile(path, bytes, contentType, size) {
+  simulatedDiskFiles.set(path, {
+    content: bytes,
+    contentType,
+    mtime: Date.now(),
+  });
+  fakeTree.children.push({
+    kind: 'file',
+    path,
+    name: path.split('/').pop(),
+    size: size ?? bytes.byteLength,
+    mtime: Date.now(),
+    contentType,
+  });
+}
 
 export const sdkClient = {
   useTabState: (tab, _schema, defaultState) => {
