@@ -1,14 +1,11 @@
-import type { ComponentType } from "react";
-import type {
-  AiTextLayoutBlock,
-  AiTextLayoutDocument,
-} from "../../../shared/ai-text/layout.js";
+import type { ComponentType } from 'react';
+import type { AiTextLayoutBlock, AiTextLayoutDocument } from '../../../shared/ai-text/layout.js';
 import {
   parseAiTextViewerDescriptor,
   type AiTextViewerDescriptor,
-} from "../../../shared/ai-text/viewers.js";
-import type { AiTextLayoutStatus } from "../ai-text-types.js";
-import { registerAiTextViewerDescriptor } from "./catalog.js";
+} from '../../../shared/ai-text/viewers.js';
+import type { AiTextLayoutStatus } from '../ai-text-types.js';
+import { registerAiTextViewerDescriptor } from './catalog.js';
 
 export interface AiTextViewerProps {
   content: string;
@@ -71,9 +68,7 @@ export function listAiTextViewers(): AiTextViewerRegistration[] {
     );
 }
 
-export function getAiTextViewer(
-  viewerId: string,
-): AiTextViewerRegistration | null {
+export function getAiTextViewer(viewerId: string): AiTextViewerRegistration | null {
   const descriptor = descriptors.get(viewerId);
   const component = components.get(viewerId);
   return descriptor && component ? { descriptor, component } : null;

@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react';
 
 import {
   fileMatchesFilter,
@@ -9,7 +9,7 @@ import {
   type FileSystemDateFilterType,
   type FileSystemFilter,
   type FileTypeFilterOption,
-} from "./filter-types"
+} from './filter-types';
 import {
   compareEntriesBySort,
   DEFAULT_SORT,
@@ -20,202 +20,185 @@ import {
   type FileSystemEntry,
   type FileSystemIndex,
   type FileSystemSortKey,
-} from "./types"
+} from './types';
 
 export function useFileSystemFilters({
   currentPath,
   index,
 }: {
-  currentPath: string
-  index: FileSystemIndex
+  currentPath: string;
+  index: FileSystemIndex;
 }) {
-  const [searchInput, setSearchInput] = React.useState("")
-  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
-  const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
-  const searchQuery = normalizeSearchQuery(searchInput)
-  const isSearching = searchQuery.length > 0
+  const [searchInput, setSearchInput] = React.useState('');
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
+  const searchQuery = normalizeSearchQuery(searchInput);
+  const isSearching = searchQuery.length > 0;
 
-  const [sort, setSort] = React.useState(DEFAULT_SORT)
-  const [filters, setFilters] = React.useState<FileSystemFilter[]>([])
-  const hasActiveFilters = filters.length > 0
+  const [sort, setSort] = React.useState(DEFAULT_SORT);
+  const [filters, setFilters] = React.useState<FileSystemFilter[]>([]);
+  const hasActiveFilters = filters.length > 0;
 
   const fileFilter = React.useMemo(() => {
-    if (filters.length === 0) return null
-    return (file: FileEntry) =>
-      filters.every((filter) => fileMatchesFilter(file, filter))
-  }, [filters])
+    if (filters.length === 0) return null;
+    return (file: FileEntry) => filters.every((filter) => fileMatchesFilter(file, filter));
+  }, [filters]);
 
   const visiblePaths = React.useMemo(() => {
-    if (!isSearching && !fileFilter) return null
+    if (!isSearching && !fileFilter) return null;
 
-    const visible = new Set<string>()
+    const visible = new Set<string>();
     const markVisible = (path: string) => {
       while (path && path !== currentPath && !visible.has(path)) {
-        visible.add(path)
-        path = pathParent(path)
+        visible.add(path);
+        path = pathParent(path);
       }
-    }
+    };
     const matchesQuery = (path: string) =>
-      !isSearching ||
-      path.slice(currentPath.length).toLowerCase().includes(searchQuery)
+      !isSearching || path.slice(currentPath.length).toLowerCase().includes(searchQuery);
 
     for (const [path, file] of index.files) {
-      if (path === currentPath) continue
-      if (currentPath && !path.startsWith(currentPath)) continue
-      if (!matchesQuery(path)) continue
-      if (fileFilter && !fileFilter(file)) continue
-      markVisible(path)
+      if (path === currentPath) continue;
+      if (currentPath && !path.startsWith(currentPath)) continue;
+      if (!matchesQuery(path)) continue;
+      if (fileFilter && !fileFilter(file)) continue;
+      markVisible(path);
     }
     if (!fileFilter) {
       for (const path of index.folders.keys()) {
-        if (path === currentPath) continue
-        if (currentPath && !path.startsWith(currentPath)) continue
-        if (matchesQuery(path)) markVisible(path)
+        if (path === currentPath) continue;
+        if (currentPath && !path.startsWith(currentPath)) continue;
+        if (matchesQuery(path)) markVisible(path);
       }
     }
-    return visible
-  }, [currentPath, fileFilter, index, isSearching, searchQuery])
+    return visible;
+  }, [currentPath, fileFilter, index, isSearching, searchQuery]);
 
   const visibleIndex = React.useMemo(() => {
-    if (!visiblePaths) return index
+    if (!visiblePaths) return index;
 
-    const children = new Map<string, FileSystemEntry[]>()
+    const children = new Map<string, FileSystemEntry[]>();
 
     for (const [parentPath, parentChildren] of index.children) {
-      const visibleChildren = parentChildren.filter((entry) =>
-        visiblePaths.has(entry.path)
-      )
+      const visibleChildren = parentChildren.filter((entry) => visiblePaths.has(entry.path));
 
-      if (visibleChildren.length) children.set(parentPath, visibleChildren)
+      if (visibleChildren.length) children.set(parentPath, visibleChildren);
     }
-    return { ...index, children }
-  }, [index, visiblePaths])
+    return { ...index, children };
+  }, [index, visiblePaths]);
 
   const sortedIndex = React.useMemo(() => {
-    if (
-      sort.key === DEFAULT_SORT.key &&
-      sort.direction === DEFAULT_SORT.direction
-    ) {
-      return visibleIndex
+    if (sort.key === DEFAULT_SORT.key && sort.direction === DEFAULT_SORT.direction) {
+      return visibleIndex;
     }
 
-    const children = new Map<string, FileSystemEntry[]>()
+    const children = new Map<string, FileSystemEntry[]>();
 
     for (const [parentPath, parentChildren] of visibleIndex.children) {
       children.set(
         parentPath,
-        [...parentChildren].sort((left, right) =>
-          compareEntriesBySort(left, right, sort)
-        )
-      )
+        [...parentChildren].sort((left, right) => compareEntriesBySort(left, right, sort)),
+      );
     }
-    return { ...visibleIndex, children }
-  }, [sort, visibleIndex])
+    return { ...visibleIndex, children };
+  }, [sort, visibleIndex]);
 
   const applySortKey = React.useCallback((key: FileSystemSortKey) => {
     setSort((previous) =>
-      previous.key === key
-        ? previous
-        : { direction: defaultSortDirection(key), key }
-    )
-  }, [])
+      previous.key === key ? previous : { direction: defaultSortDirection(key), key },
+    );
+  }, []);
 
   const toggleSortColumn = React.useCallback((key: FileSystemSortKey) => {
     setSort((previous) =>
       previous.key === key
-        ? { direction: previous.direction === "asc" ? "desc" : "asc", key }
-        : { direction: defaultSortDirection(key), key }
-    )
-  }, [])
+        ? { direction: previous.direction === 'asc' ? 'desc' : 'asc', key }
+        : { direction: defaultSortDirection(key), key },
+    );
+  }, []);
 
   const fileTypeOptions = React.useMemo(() => {
-    const byMime = new Map<string, FileTypeFilterOption>()
+    const byMime = new Map<string, FileTypeFilterOption>();
 
     for (const file of index.files.values()) {
-      const mime = mimeTypeForFile(file)
+      const mime = mimeTypeForFile(file);
 
       if (!byMime.has(mime)) {
-        const dotIndex = file.name.lastIndexOf(".")
-        const extension =
-          dotIndex > 0 ? file.name.slice(dotIndex + 1).toLowerCase() : ""
+        const dotIndex = file.name.lastIndexOf('.');
+        const extension = dotIndex > 0 ? file.name.slice(dotIndex + 1).toLowerCase() : '';
 
         byMime.set(mime, {
           group: fileTypeFilterGroup(mime),
           iconFileName: extension ? `file.${extension}` : file.name,
           label: MIME_TYPE_LABELS[mime] ?? mime,
           mime,
-        })
+        });
       }
     }
-    return [...byMime.values()].sort((left, right) =>
-      left.label.localeCompare(right.label)
-    )
-  }, [index])
+    return [...byMime.values()].sort((left, right) => left.label.localeCompare(right.label));
+  }, [index]);
 
-  const filterIdRef = React.useRef(0)
+  const filterIdRef = React.useRef(0);
   const [dateRangeDialog, setDateRangeDialog] = React.useState<{
-    initialRange?: { from: Date; to: Date }
-    type: FileSystemDateFilterType
-  } | null>(null)
+    initialRange?: { from: Date; to: Date };
+    type: FileSystemDateFilterType;
+  } | null>(null);
 
-  const toggleFileTypeFilterValue = React.useCallback(
-    (mime: string, checked: boolean) => {
-      const id = `filter-${++filterIdRef.current}`
+  const toggleFileTypeFilterValue = React.useCallback((mime: string, checked: boolean) => {
+    const id = `filter-${++filterIdRef.current}`;
 
-      setFilters((previous) => {
-        const existing = previous.find((filter) => filter.type === "fileType")
+    setFilters((previous) => {
+      const existing = previous.find((filter) => filter.type === 'fileType');
 
-        if (!existing) {
-          if (!checked) return previous
-          return [
-            ...previous,
-            {
-              id,
-              operator: "is" as const,
-              type: "fileType" as const,
-              value: [mime],
-            },
-          ]
-        }
+      if (!existing) {
+        if (!checked) return previous;
+        return [
+          ...previous,
+          {
+            id,
+            operator: 'is' as const,
+            type: 'fileType' as const,
+            value: [mime],
+          },
+        ];
+      }
 
-        const value = checked
-          ? [...new Set([...existing.value, mime])]
-          : existing.value.filter((entry) => entry !== mime)
+      const value = checked
+        ? [...new Set([...existing.value, mime])]
+        : existing.value.filter((entry) => entry !== mime);
 
-        if (value.length === 0) {
-          return previous.filter((filter) => filter !== existing)
-        }
+      if (value.length === 0) {
+        return previous.filter((filter) => filter !== existing);
+      }
 
-        const operator =
-          existing.operator === "is" || existing.operator === "is-any-of"
-            ? value.length > 1
-              ? ("is-any-of" as const)
-              : ("is" as const)
-            : existing.operator
+      const operator =
+        existing.operator === 'is' || existing.operator === 'is-any-of'
+          ? value.length > 1
+            ? ('is-any-of' as const)
+            : ('is' as const)
+          : existing.operator;
 
-        return previous.map((filter) =>
-          filter === existing ? { ...filter, operator, value } : filter
-        )
-      })
-    },
-    []
-  )
+      return previous.map((filter) =>
+        filter === existing ? { ...filter, operator, value } : filter,
+      );
+    });
+  }, []);
 
   const setDatePresetFilter = React.useCallback(
     (type: FileSystemDateFilterType, preset: string) => {
-      const id = `filter-${++filterIdRef.current}`
+      const id = `filter-${++filterIdRef.current}`;
 
       setFilters((previous) => [
         ...previous.filter((filter) => filter.type !== type),
-        { id, operator: "after", type, value: [preset] },
-      ])
+        { id, operator: 'after', type, value: [preset] },
+      ]);
     },
-    []
-  )
+    [],
+  );
 
   const openDateRangeDialog = React.useCallback(
     (type: FileSystemDateFilterType) => {
-      const existing = filters.find((filter) => filter.type === type)
+      const existing = filters.find((filter) => filter.type === type);
 
       setDateRangeDialog({
         initialRange:
@@ -226,34 +209,34 @@ export function useFileSystemFilters({
               }
             : undefined,
         type,
-      })
+      });
     },
-    [filters]
-  )
+    [filters],
+  );
 
   const applyCustomDateRange = React.useCallback(
     (type: FileSystemDateFilterType, from: Date, to: Date) => {
-      const id = `filter-${++filterIdRef.current}`
+      const id = `filter-${++filterIdRef.current}`;
 
       setFilters((previous) => {
-        const existing = previous.find((filter) => filter.type === type)
+        const existing = previous.find((filter) => filter.type === type);
 
         return [
           ...previous.filter((filter) => filter.type !== type),
           {
             id,
             operator:
-              existing?.operator === "not-in-range"
-                ? ("not-in-range" as const)
-                : ("in-range" as const),
+              existing?.operator === 'not-in-range'
+                ? ('not-in-range' as const)
+                : ('in-range' as const),
             type,
             value: [from.toISOString(), to.toISOString()],
           },
-        ]
-      })
+        ];
+      });
     },
-    []
-  )
+    [],
+  );
 
   return {
     applyCustomDateRange,
@@ -279,5 +262,5 @@ export function useFileSystemFilters({
     toggleFileTypeFilterValue,
     toggleSortColumn,
     visiblePaths,
-  }
+  };
 }

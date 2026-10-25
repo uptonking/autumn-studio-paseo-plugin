@@ -1,28 +1,26 @@
-import { z } from "zod";
-import type { AiTextEngineOperation } from "./engines.ts";
-import { aiTextDocumentMetadataSchema, aiTextVersionRecordSchema } from "./settings.ts";
+import { z } from 'zod';
+import type { AiTextEngineOperation } from './engines.ts';
+import { aiTextDocumentMetadataSchema, aiTextVersionRecordSchema } from './settings.ts';
 
-export const aiTextTaskKindSchema = z.enum(["parse", "engine.operation"]);
+export const aiTextTaskKindSchema = z.enum(['parse', 'engine.operation']);
 export type AiTextTaskKind = z.infer<typeof aiTextTaskKindSchema>;
 
 export const aiTextTaskStatusSchema = z.enum([
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'cancelled',
 ]);
 export type AiTextTaskStatus = z.infer<typeof aiTextTaskStatusSchema>;
 
 export const aiTextEngineComponentStatusSchema = z.enum([
-  "ready",
-  "missing",
-  "outdated",
-  "unknown",
+  'ready',
+  'missing',
+  'outdated',
+  'unknown',
 ]);
-export type AiTextEngineComponentStatus = z.infer<
-  typeof aiTextEngineComponentStatusSchema
->;
+export type AiTextEngineComponentStatus = z.infer<typeof aiTextEngineComponentStatusSchema>;
 
 export const aiTextEngineComponentSchema = z.object({
   id: z.string(),
@@ -31,19 +29,15 @@ export const aiTextEngineComponentSchema = z.object({
   version: z.string().nullable().default(null),
   detail: z.string().nullable().default(null),
 });
-export type AiTextEngineComponent = z.infer<
-  typeof aiTextEngineComponentSchema
->;
+export type AiTextEngineComponent = z.infer<typeof aiTextEngineComponentSchema>;
 
 export const aiTextEngineRouteStatusValueSchema = z.enum([
-  "ready",
-  "needs-setup",
-  "unavailable",
-  "unknown",
+  'ready',
+  'needs-setup',
+  'unavailable',
+  'unknown',
 ]);
-export type AiTextEngineRouteStatusValue = z.infer<
-  typeof aiTextEngineRouteStatusValueSchema
->;
+export type AiTextEngineRouteStatusValue = z.infer<typeof aiTextEngineRouteStatusValueSchema>;
 
 export const aiTextEngineRouteStatusSchema = z.object({
   id: z.string(),
@@ -51,19 +45,15 @@ export const aiTextEngineRouteStatusSchema = z.object({
   status: aiTextEngineRouteStatusValueSchema,
   message: z.string().nullable().default(null),
 });
-export type AiTextEngineRouteStatus = z.infer<
-  typeof aiTextEngineRouteStatusSchema
->;
+export type AiTextEngineRouteStatus = z.infer<typeof aiTextEngineRouteStatusSchema>;
 
 export const aiTextEngineEnvironmentStatusSchema = z.enum([
-  "ready",
-  "needs-setup",
-  "unavailable",
-  "unknown",
+  'ready',
+  'needs-setup',
+  'unavailable',
+  'unknown',
 ]);
-export type AiTextEngineEnvironmentStatus = z.infer<
-  typeof aiTextEngineEnvironmentStatusSchema
->;
+export type AiTextEngineEnvironmentStatus = z.infer<typeof aiTextEngineEnvironmentStatusSchema>;
 
 /** On-disk footprint of an engine install, for the card's storage rows. */
 export const aiTextEngineStorageSchema = z.object({
@@ -92,9 +82,7 @@ export const aiTextEngineEnvironmentSchema = z.object({
   /** Engine-specific scalar facts for the card (model path, tier, ...). */
   details: z.record(z.string(), z.string()).default({}),
 });
-export type AiTextEngineEnvironment = z.infer<
-  typeof aiTextEngineEnvironmentSchema
->;
+export type AiTextEngineEnvironment = z.infer<typeof aiTextEngineEnvironmentSchema>;
 
 /**
  * Evaluates an operation's `showWhen` condition against a detection snapshot
@@ -106,13 +94,13 @@ export function isAiTextEngineOperationVisible(
   environment: AiTextEngineEnvironment | null,
 ): boolean {
   switch (operation.showWhen) {
-    case "installed":
+    case 'installed':
       return environment?.version != null;
-    case "not-installed":
+    case 'not-installed':
       return environment == null || environment.version == null;
-    case "update-available":
+    case 'update-available':
       return environment?.updateAvailable === true;
-    case "models-present":
+    case 'models-present':
       return (environment?.storage?.modelBytes ?? 0) > 0;
     default:
       return true;

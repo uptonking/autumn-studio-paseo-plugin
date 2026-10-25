@@ -1,39 +1,25 @@
-import { realpath } from "node:fs/promises";
-import type { AiTextEngineEnvironment } from "../../../../shared/ai-text/task.ts";
-import type { MineruConfig } from "../../../../shared/ai-text/engine-configs.ts";
-import { runProcess } from "../../command-runner.ts";
-import {
-  resolveExecutable,
-  uvToolDirFromExecutablePath,
-} from "../../executable.ts";
-import { computeDirectorySize } from "../../disk.ts";
-import {
-  compareVersions,
-  fetchLatestEngineVersion,
-} from "../../engine-versions.ts";
-import { normalizeModelTier, probeModels } from "./environment-models.ts";
+import { realpath } from 'node:fs/promises';
+import type { AiTextEngineEnvironment } from '../../../../shared/ai-text/task.ts';
+import type { MineruConfig } from '../../../../shared/ai-text/engine-configs.ts';
+import { runProcess } from '../../command-runner.ts';
+import { resolveExecutable, uvToolDirFromExecutablePath } from '../../executable.ts';
+import { computeDirectorySize } from '../../disk.ts';
+import { compareVersions, fetchLatestEngineVersion } from '../../engine-versions.ts';
+import { normalizeModelTier, probeModels } from './environment-models.ts';
 
 export {
   normalizeModelTier,
   parseModelRepos,
   parseModelsShowOutput,
   parseModelsVerifyOutput,
-} from "./environment-models.ts";
-export type {
-  MineruModelRepoStatus,
-  MineruModelsInfo,
-} from "./environment-models.ts";
+} from './environment-models.ts';
+export type { MineruModelRepoStatus, MineruModelsInfo } from './environment-models.ts';
 
 const ENVIRONMENT_CACHE_MS = 60_000;
 const VERSION_TIMEOUT_MS = 15_000;
 const LOCAL_API_TIMEOUT_MS = 2_500;
 
-export type MineruCliKind =
-  | "mineru-kit"
-  | "mineru-doclib"
-  | "mineru-legacy"
-  | "uv"
-  | "unknown";
+export type MineruCliKind = 'mineru-kit' | 'mineru-doclib' | 'mineru-legacy' | 'uv' | 'unknown';
 
 export interface MineruCliInfo {
   command: string;
@@ -56,10 +42,7 @@ const environmentCache = new Map<string, CacheEntry>();
 const MAX_CACHE_ENTRIES = 8;
 const inflight = new Map<string, Promise<AiTextEngineEnvironment>>();
 
-function emptyCliInfo(
-  command: string,
-  kind: MineruCliKind,
-): MineruCliInfo {
+function emptyCliInfo(command: string, kind: MineruCliKind): MineruCliInfo {
   return {
     command,
     resolvedPath: null,
@@ -70,9 +53,10 @@ function emptyCliInfo(
   };
 }
 
-function parseVersionText(
-  text: string,
-): { version: string | null; pythonVersion: string | null } {
+function parseVersionText(text: string): {
+  version: string | null;
+  pythonVersion: string | null;
+} {
   const labeled = /MinerU version:\s*([^\s]+)/i.exec(text);
   const python = /Python version:\s*([^\s]+)/i.exec(text);
   if (labeled) {
@@ -86,8 +70,8 @@ function parseVersionText(
 }
 
 function extractJsonObject(text: string): unknown {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
   if (start < 0 || end <= start) return null;
   try {
     return JSON.parse(text.slice(start, end + 1));
@@ -113,7 +97,7 @@ export async function probeCli(input: {
     kind: input.kind,
   };
 
-  const attempts = [input.versionArgs ?? ["--version"], ["version", "--json"]];
+  const attempts = [input.versionArgs ?? ['--version'], ['version', '--json']];
   for (const args of attempts) {
     try {
       const result = await runProcess({
@@ -123,18 +107,16 @@ export async function probeCli(input: {
       });
       if (result.code !== 0) continue;
       const json = extractJsonObject(result.stdout);
-      if (json && typeof json === "object") {
+      if (json && typeof json === 'object') {
         const record = json as Record<string, unknown>;
         const version =
-          typeof record.mineru_version === "string"
+          typeof record.mineru_version === 'string'
             ? record.mineru_version
-            : typeof record.version === "string"
+            : typeof record.version === 'string'
               ? record.version
               : null;
         const pythonVersion =
-          typeof record.python_version === "string"
-            ? record.python_version
-            : null;
+          typeof record.python_version === 'string' ? record.python_version : null;
         if (version) {
           info = { ...info, version, pythonVersion };
           break;
@@ -150,10 +132,10 @@ export async function probeCli(input: {
     }
   }
 
-  if (input.kind === "mineru-doclib" && info.version) {
-    const major = Number.parseInt(info.version.split(".")[0] ?? "", 10);
+  if (input.kind === 'mineru-doclib' && info.version) {
+    const major = Number.parseInt(info.version.split('.')[0] ?? '', 10);
     if (Number.isFinite(major) && major < 4) {
-      info = { ...info, kind: "mineru-legacy" };
+      info = { ...info, kind: 'mineru-legacy' };
     }
   }
   return info;
@@ -167,7 +149,7 @@ interface LocalApiProbe {
 }
 
 async function probeLocalApi(url: string): Promise<LocalApiProbe> {
-  const base = url.replace(/\/+$/, "");
+  const base = url.replace(/\/+$/, '');
   if (!base) return { url, reachable: false, version: null, tiers: [] };
 
   let version: string | null = null;
@@ -177,7 +159,7 @@ async function probeLocalApi(url: string): Promise<LocalApiProbe> {
     });
     if (!health.ok) return { url, reachable: false, version: null, tiers: [] };
     const body = (await health.json()) as { version?: unknown };
-    version = typeof body.version === "string" ? body.version : null;
+    version = typeof body.version === 'string' ? body.version : null;
   } catch {
     return { url, reachable: false, version: null, tiers: [] };
   }
@@ -193,7 +175,7 @@ async function probeLocalApi(url: string): Promise<LocalApiProbe> {
         data?: Array<{ id?: unknown }>;
       };
       tiers = (body.data ?? [])
-        .map((entry) => (typeof entry.id === "string" ? entry.id : null))
+        .map((entry) => (typeof entry.id === 'string' ? entry.id : null))
         .filter((id): id is string => Boolean(id));
     }
   } catch {
@@ -210,20 +192,18 @@ async function probeLocalApi(url: string): Promise<LocalApiProbe> {
  */
 export async function detectInstallKind(
   kitPath: string | null,
-): Promise<"uv-tool" | "pip" | "unknown"> {
-  if (!kitPath) return "unknown";
+): Promise<'uv-tool' | 'pip' | 'unknown'> {
+  if (!kitPath) return 'unknown';
   const resolved = await realpath(kitPath).catch(() => kitPath);
-  const candidates = [kitPath, resolved].map((path) => path.replace(/\\/g, "/"));
+  const candidates = [kitPath, resolved].map((path) => path.replace(/\\/g, '/'));
   if (
     candidates.some(
-      (path) =>
-        path.includes("/uv/tools/mineru/") ||
-        path.includes("/uv/tools/mineru-"),
+      (path) => path.includes('/uv/tools/mineru/') || path.includes('/uv/tools/mineru-'),
     )
   ) {
-    return "uv-tool";
+    return 'uv-tool';
   }
-  return "pip";
+  return 'pip';
 }
 
 export async function getMineruEnvironment(input: {
@@ -231,16 +211,16 @@ export async function getMineruEnvironment(input: {
   indexUrl?: string;
   refresh?: boolean;
 }): Promise<AiTextEngineEnvironment> {
-  const kitCommand = input.config.kitCommand.trim() || "mineru-kit";
-  const indexUrl = input.indexUrl?.trim() ?? "";
+  const kitCommand = input.config.kitCommand.trim() || 'mineru-kit';
+  const indexUrl = input.indexUrl?.trim() ?? '';
   const key = [
     kitCommand,
     input.config.localApiUrl,
     input.config.apiBaseUrl,
     input.config.tier,
-    input.config.apiToken.trim() ? "token" : "no-token",
+    input.config.apiToken.trim() ? 'token' : 'no-token',
     indexUrl,
-  ].join("|");
+  ].join('|');
   const cached = input.refresh ? undefined : environmentCache.get(key);
   if (cached && Date.now() - cached.checkedAtMs < ENVIRONMENT_CACHE_MS) {
     return cached.environment;
@@ -267,11 +247,11 @@ async function probeMineruEnvironment(
   const [kit, mineruCli, uv] = await Promise.all([
     probeCli({
       command: kitCommand,
-      kind: "mineru-kit",
-      versionArgs: ["version", "--json"],
+      kind: 'mineru-kit',
+      versionArgs: ['version', '--json'],
     }),
-    probeCli({ command: "mineru", kind: "mineru-doclib" }),
-    probeCli({ command: "uv", kind: "uv" }),
+    probeCli({ command: 'mineru', kind: 'mineru-doclib' }),
+    probeCli({ command: 'uv', kind: 'uv' }),
   ]);
 
   const [models, localApi] = await Promise.all([
@@ -286,52 +266,50 @@ async function probeMineruEnvironment(
 
   const routes = [
     {
-      id: "auto",
-      label: "Auto",
-      status: "ready" as const,
+      id: 'auto',
+      label: 'Auto',
+      status: 'ready' as const,
       message: modelsReady
-        ? "Local models are ready."
-        : "Falls back to the local API or MinerU cloud.",
+        ? 'Local models are ready.'
+        : 'Falls back to the local API or MinerU cloud.',
     },
     {
-      id: "local-cli",
-      label: "Local CLI",
-      status: kit.available && modelsReady ? ("ready" as const) : ("needs-setup" as const),
+      id: 'local-cli',
+      label: 'Local CLI',
+      status: kit.available && modelsReady ? ('ready' as const) : ('needs-setup' as const),
       message: !kit.available
-        ? "mineru-kit was not found."
+        ? 'mineru-kit was not found.'
         : !modelsReady
-          ? "Models are missing for this tier."
+          ? 'Models are missing for this tier.'
           : null,
     },
     {
-      id: "local-api",
-      label: "Local API",
-      status: localApi.reachable ? ("ready" as const) : ("needs-setup" as const),
+      id: 'local-api',
+      label: 'Local API',
+      status: localApi.reachable ? ('ready' as const) : ('needs-setup' as const),
       message: localApi.reachable
         ? localApi.tiers.length > 0
-          ? `Tiers: ${localApi.tiers.join(", ")}`
+          ? `Tiers: ${localApi.tiers.join(', ')}`
           : null
         : `No mineru-kit api-server at ${config.localApiUrl}.`,
     },
     {
-      id: "cloud-token",
-      label: "Cloud API (token)",
-      status: hasToken ? ("ready" as const) : ("needs-setup" as const),
-      message: hasToken ? null : "Add an API token in the profile.",
+      id: 'cloud-token',
+      label: 'Cloud API (token)',
+      status: hasToken ? ('ready' as const) : ('needs-setup' as const),
+      message: hasToken ? null : 'Add an API token in the profile.',
     },
     {
-      id: "cloud-free",
-      label: "Cloud API (free)",
-      status: "ready" as const,
-      message: "Markdown only; no layout blocks.",
+      id: 'cloud-free',
+      label: 'Cloud API (free)',
+      status: 'ready' as const,
+      message: 'Markdown only; no layout blocks.',
     },
   ];
 
   const recommendations: string[] = [];
   if (!kit.available) {
-    recommendations.push(
-      'Install MinerU 4 with "uv tool install mineru", then refresh this card.',
-    );
+    recommendations.push('Install MinerU 4 with "uv tool install mineru", then refresh this card.');
   }
   if (kit.available && models && !models.tierReady) {
     recommendations.push(
@@ -343,7 +321,7 @@ async function probeMineruEnvironment(
       `The ${config.tier} tier is not a downloadable model set; model checks use standard.`,
     );
   }
-  if (mineruCli.available && mineruCli.kind === "mineru-doclib") {
+  if (mineruCli.available && mineruCli.kind === 'mineru-doclib') {
     recommendations.push(
       '"mineru" on PATH is the MinerU 4 document-library CLI. Use "mineru-kit" for layout metadata.',
     );
@@ -354,15 +332,11 @@ async function probeMineruEnvironment(
     );
   }
   if (!hasToken) {
-    recommendations.push(
-      "A MinerU cloud token enables layout geometry without local models.",
-    );
+    recommendations.push('A MinerU cloud token enables layout geometry without local models.');
   }
 
-  const status: AiTextEngineEnvironment["status"] =
-    kit.available || localApi.reachable || hasToken
-      ? "ready"
-      : "needs-setup";
+  const status: AiTextEngineEnvironment['status'] =
+    kit.available || localApi.reachable || hasToken ? 'ready' : 'needs-setup';
 
   const details: Record<string, string> = {
     tier: config.tier,
@@ -374,34 +348,25 @@ async function probeMineruEnvironment(
   if (models?.vlmEngine) details.vlmEngine = models.vlmEngine;
   if (localApi.version) details.localApiVersion = localApi.version;
   if (localApi.reachable) details.localApiUrl = localApi.url;
-  if (adjustedTier) details.modelCheckTier = "standard";
+  if (adjustedTier) details.modelCheckTier = 'standard';
 
   const installedVersion = kit.version ?? mineruCli.version ?? null;
   // The release check is fail-soft: unreachable index → null, no update badge.
   const latestVersion = installedVersion
-    ? await fetchLatestEngineVersion("mineru", indexUrl)
+    ? await fetchLatestEngineVersion('mineru', indexUrl)
     : null;
   const updateAvailable = Boolean(
-    latestVersion &&
-      installedVersion &&
-      compareVersions(installedVersion, latestVersion) < 0,
+    latestVersion && installedVersion && compareVersions(installedVersion, latestVersion) < 0,
   );
 
   const kitRealPath = kit.resolvedPath
     ? await realpath(kit.resolvedPath).catch(() => kit.resolvedPath)
     : null;
-  const enginePath =
-    installKind === "uv-tool"
-      ? uvToolDirFromExecutablePath(kitRealPath)
-      : null;
+  const enginePath = installKind === 'uv-tool' ? uvToolDirFromExecutablePath(kitRealPath) : null;
   const modelPath = models?.baseDir ?? null;
   const [engineBytes, modelBytes] = await Promise.all([
-    enginePath
-      ? computeDirectorySize(enginePath, { maxEntries: 10_000 })
-      : Promise.resolve(null),
-    modelPath
-      ? computeDirectorySize(modelPath, { maxEntries: 10_000 })
-      : Promise.resolve(null),
+    enginePath ? computeDirectorySize(enginePath, { maxEntries: 10_000 }) : Promise.resolve(null),
+    modelPath ? computeDirectorySize(modelPath, { maxEntries: 10_000 }) : Promise.resolve(null),
   ]);
   const storage =
     enginePath || modelPath
@@ -414,7 +379,7 @@ async function probeMineruEnvironment(
       : null;
 
   const environment: AiTextEngineEnvironment = {
-    engineId: "mineru",
+    engineId: 'mineru',
     checkedAt: new Date().toISOString(),
     status,
     version: installedVersion,
@@ -424,37 +389,37 @@ async function probeMineruEnvironment(
     routes,
     components: [
       {
-        id: "mineru-kit",
-        label: "mineru-kit",
-        status: kit.available ? "ready" : "missing",
+        id: 'mineru-kit',
+        label: 'mineru-kit',
+        status: kit.available ? 'ready' : 'missing',
         version: kit.version,
         detail: kit.resolvedPath,
       },
       {
-        id: "models",
+        id: 'models',
         label: `${config.tier} models`,
-        status: models ? (models.tierReady ? "ready" : "missing") : "unknown",
+        status: models ? (models.tierReady ? 'ready' : 'missing') : 'unknown',
         version: null,
         detail: models?.baseDir ?? null,
       },
       {
-        id: "local-api",
-        label: "Local API",
-        status: localApi.reachable ? "ready" : "missing",
+        id: 'local-api',
+        label: 'Local API',
+        status: localApi.reachable ? 'ready' : 'missing',
         version: localApi.version,
         detail: localApi.reachable ? localApi.url : null,
       },
       {
-        id: "uv",
-        label: "uv",
-        status: uv.available ? "ready" : "missing",
+        id: 'uv',
+        label: 'uv',
+        status: uv.available ? 'ready' : 'missing',
         version: uv.version,
         detail: uv.resolvedPath,
       },
       {
-        id: "python",
-        label: "Python",
-        status: kit.pythonVersion ? "ready" : "unknown",
+        id: 'python',
+        label: 'Python',
+        status: kit.pythonVersion ? 'ready' : 'unknown',
         version: kit.pythonVersion,
         detail: null,
       },

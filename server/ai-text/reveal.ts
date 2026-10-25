@@ -1,5 +1,5 @@
-import { execCommand } from "@getpaseo/plugin/server";
-import { stat } from "node:fs/promises";
+import { execCommand } from '@getpaseo/plugin/server';
+import { stat } from 'node:fs/promises';
 
 const REVEAL_TIMEOUT_MS = 10_000;
 
@@ -8,13 +8,13 @@ export function buildRevealCommand(
   platform: NodeJS.Platform,
   targetPath: string,
 ): { command: string; args: string[] } {
-  if (platform === "darwin") {
-    return { command: "open", args: ["-R", targetPath] };
+  if (platform === 'darwin') {
+    return { command: 'open', args: ['-R', targetPath] };
   }
-  if (platform === "win32") {
-    return { command: "explorer", args: [`/select,${targetPath}`] };
+  if (platform === 'win32') {
+    return { command: 'explorer', args: [`/select,${targetPath}`] };
   }
-  return { command: "xdg-open", args: [targetPath] };
+  return { command: 'xdg-open', args: [targetPath] };
 }
 
 /**

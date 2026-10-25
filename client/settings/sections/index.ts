@@ -1,10 +1,10 @@
-import type { SettingsSectionDescriptor } from "../registry.js";
-import { aiTextSectionDescriptor } from "./ai-text-section.js";
-import { generalSectionDescriptor } from "./general-section.js";
-import { imageSectionDescriptor } from "./image-section.js";
-import { pdfSectionDescriptor } from "./pdf-section.js";
-import { textSectionDescriptor } from "./text-section.js";
-import { xlsxSectionDescriptor } from "./xlsx-section.js";
+import type { SettingsSectionDescriptor } from '../registry.js';
+import { aiTextSectionDescriptor } from './ai-text-section.js';
+import { generalSectionDescriptor } from './general-section.js';
+import { imageSectionDescriptor } from './image-section.js';
+import { pdfSectionDescriptor } from './pdf-section.js';
+import { textSectionDescriptor } from './text-section.js';
+import { xlsxSectionDescriptor } from './xlsx-section.js';
 
 /**
  * Ordered registry of settings sections for `autumn-studio-paseo-plugin`.
@@ -20,12 +20,8 @@ const registeredSections: SettingsSectionDescriptor[] = [
   imageSectionDescriptor,
 ];
 
-export function registerSettingsSection(
-  descriptor: SettingsSectionDescriptor,
-): () => void {
-  const existingIdx = registeredSections.findIndex(
-    (s) => s.id === descriptor.id,
-  );
+export function registerSettingsSection(descriptor: SettingsSectionDescriptor): () => void {
+  const existingIdx = registeredSections.findIndex((s) => s.id === descriptor.id);
   if (existingIdx !== -1) {
     registeredSections.splice(existingIdx, 1, descriptor);
   } else {

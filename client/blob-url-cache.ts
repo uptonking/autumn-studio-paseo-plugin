@@ -1,10 +1,10 @@
-import { clearPdfThumbnailCaches } from "./vendor/lib/pdf-thumbnail-utils.ts";
+import { clearPdfThumbnailCaches } from './vendor/lib/pdf-thumbnail-utils.ts';
 import {
   dataUriToObjectUrl,
   fileBlobCacheKey,
   type FileOpenRef,
   type GetFileUrlOptions,
-} from "./view-props.ts";
+} from './view-props.ts';
 
 interface CachedBlobEntry {
   cacheKey: string;
@@ -17,7 +17,7 @@ interface CachedBlobEntry {
 export function hashFileBytes(bytes: Uint8Array): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < bytes.byteLength; i++) {
-    hash ^= bytes[i]!;
+    hash ^= bytes[i];
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;
@@ -27,17 +27,17 @@ function decodeDataUriBytes(dataUri: string): {
   bytes: Uint8Array;
   mimeType: string;
 } {
-  const comma = dataUri.indexOf(",");
+  const comma = dataUri.indexOf(',');
   if (comma === -1) {
-    throw new Error("Malformed data URI");
+    throw new Error('Malformed data URI');
   }
   const header = dataUri.slice(0, comma);
   const body = dataUri.slice(comma + 1);
   const mimeMatch = /^data:([^;,]+)/i.exec(header);
-  const mimeType = mimeMatch?.[1] || "application/octet-stream";
+  const mimeType = mimeMatch?.[1] || 'application/octet-stream';
   if (/;base64/i.test(header)) {
-    if (typeof Buffer !== "undefined") {
-      const buf = Buffer.from(body, "base64");
+    if (typeof Buffer !== 'undefined') {
+      const buf = Buffer.from(body, 'base64');
       const out = new Uint8Array(buf.byteLength);
       out.set(buf);
       return { bytes: out, mimeType };
@@ -83,9 +83,7 @@ export function trackWorkspaceFileSave<T>(
     workspaceInFlightSaves.set(workspaceId, wsSaves);
   }
   const previous = wsSaves.get(filePath);
-  const chained = (
-    previous ? previous.catch(() => undefined) : Promise.resolve()
-  ).then(task);
+  const chained = (previous ? previous.catch(() => undefined) : Promise.resolve()).then(task);
   wsSaves.set(filePath, chained);
   void chained
     .finally(() => {
@@ -101,20 +99,14 @@ function revokePromiseUrl(promise: Promise<string>): void {
   promise
     .then((url) => {
       inAppSavedBlobUrls.delete(url);
-      if (
-        typeof URL !== "undefined" &&
-        typeof URL.revokeObjectURL === "function"
-      ) {
+      if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
         URL.revokeObjectURL(url);
       }
     })
     .catch(() => {});
 }
 
-function retireWorkspaceUrl(
-  workspaceId: string,
-  promise: Promise<string>,
-): void {
+function retireWorkspaceUrl(workspaceId: string, promise: Promise<string>): void {
   let retired = workspaceRetiredUrls.get(workspaceId);
   if (!retired) {
     retired = new Set<Promise<string>>();
@@ -126,9 +118,7 @@ function retireWorkspaceUrl(
 export function getOrCreateFileBlobUrl(
   workspaceId: string,
   file: FileOpenRef,
-  fetchDataUri: (
-    relPath: string,
-  ) => Promise<{ dataUri: string; size?: number; mtime?: number }>,
+  fetchDataUri: (relPath: string) => Promise<{ dataUri: string; size?: number; mtime?: number }>,
   options?: GetFileUrlOptions,
 ): Promise<string> {
   let wsMap = workspaceFileCache.get(workspaceId);
@@ -195,20 +185,15 @@ export function getOrCreateFileBlobUrl(
     }
 
     const resolvedUpdatedAt =
-      typeof result.mtime === "number"
-        ? new Date(result.mtime).toISOString()
-        : file.updatedAt;
+      typeof result.mtime === 'number' ? new Date(result.mtime).toISOString() : file.updatedAt;
     const resolvedSize =
-      typeof result.size === "number"
-        ? result.size
-        : (nextByteLength ?? file.size);
+      typeof result.size === 'number' ? result.size : (nextByteLength ?? file.size);
     const resolvedKey = fileBlobCacheKey({
       path: file.path,
       updatedAt: resolvedUpdatedAt,
       size: resolvedSize,
     });
-    const resolvedUpdatedAtMs =
-      typeof result.mtime === "number" ? result.mtime : nextUpdatedAtMs;
+    const resolvedUpdatedAtMs = typeof result.mtime === 'number' ? result.mtime : nextUpdatedAtMs;
 
     const latestExisting = currentMap.get(file.path);
     if (
@@ -233,9 +218,7 @@ export function getOrCreateFileBlobUrl(
     if (decodedPayload) {
       const copy = new Uint8Array(decodedPayload.bytes.byteLength);
       copy.set(decodedPayload.bytes);
-      objectUrl = URL.createObjectURL(
-        new Blob([copy], { type: decodedPayload.mimeType }),
-      );
+      objectUrl = URL.createObjectURL(new Blob([copy], { type: decodedPayload.mimeType }));
     } else {
       objectUrl = await dataUriToObjectUrl(result.dataUri);
     }
@@ -278,7 +261,7 @@ export function replaceCachedFileBlobUrl(
   workspaceId: string,
   file: FileOpenRef,
   bytes: Uint8Array,
-  mimeType = "application/octet-stream",
+  mimeType = 'application/octet-stream',
 ): string {
   let wsMap = workspaceFileCache.get(workspaceId);
   if (!wsMap) {
@@ -313,10 +296,7 @@ export function replaceCachedFileBlobUrl(
  * revoking the URL an active editor may still hold. Used when another
  * surface (a native file panel's PluginFile write) changed the file on disk.
  */
-export function invalidateWorkspaceFileBlobUrl(
-  workspaceId: string,
-  path: string,
-): void {
+export function invalidateWorkspaceFileBlobUrl(workspaceId: string, path: string): void {
   const wsMap = workspaceFileCache.get(workspaceId);
   const existing = wsMap?.get(path);
   if (!wsMap || !existing) return;
@@ -348,9 +328,7 @@ export function getOrCreatePdfWasmBlobUrl(
   fetchWasmDataUri: () => Promise<{ dataUri: string }>,
 ): Promise<string> {
   if (!sharedWasmUrlPromise) {
-    const promise = fetchWasmDataUri().then((result) =>
-      dataUriToObjectUrl(result.dataUri),
-    );
+    const promise = fetchWasmDataUri().then((result) => dataUriToObjectUrl(result.dataUri));
     sharedWasmUrlPromise = promise;
     promise.catch(() => {
       if (sharedWasmUrlPromise === promise) {
@@ -378,10 +356,7 @@ export function getOrCreateXlsxWasmDataUri(
 
 export function disposeAllBlobUrls(): void {
   clearPdfThumbnailCaches();
-  const workspaceIds = new Set([
-    ...workspaceFileCache.keys(),
-    ...workspaceRetiredUrls.keys(),
-  ]);
+  const workspaceIds = new Set([...workspaceFileCache.keys(), ...workspaceRetiredUrls.keys()]);
   for (const workspaceId of workspaceIds) {
     clearWorkspaceBlobUrls(workspaceId);
   }

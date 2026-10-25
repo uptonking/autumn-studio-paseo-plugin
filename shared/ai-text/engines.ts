@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * JSON-safe description of an extraction engine. The daemon registers the
@@ -19,53 +19,40 @@ export const aiTextEngineCapabilitiesSchema = z.object({
   /** Installs or repairs a local dependency from the Engines tab. */
   localInstall: z.boolean(),
 });
-export type AiTextEngineCapabilities = z.infer<
-  typeof aiTextEngineCapabilitiesSchema
->;
+export type AiTextEngineCapabilities = z.infer<typeof aiTextEngineCapabilitiesSchema>;
 
-export const aiTextEngineRouteKindSchema = z.enum([
-  "auto",
-  "local",
-  "cloud",
-  "builtin",
-]);
+export const aiTextEngineRouteKindSchema = z.enum(['auto', 'local', 'cloud', 'builtin']);
 export type AiTextEngineRouteKind = z.infer<typeof aiTextEngineRouteKindSchema>;
 
 export const aiTextEngineRouteSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
-  description: z.string().default(""),
+  description: z.string().default(''),
   kind: aiTextEngineRouteKindSchema,
 });
 export type AiTextEngineRoute = z.infer<typeof aiTextEngineRouteSchema>;
 
 export const aiTextEngineFieldKindSchema = z.enum([
-  "text",
-  "password",
-  "number",
-  "switch",
-  "select",
+  'text',
+  'password',
+  'number',
+  'switch',
+  'select',
 ]);
-export type AiTextEngineFieldKind = z.infer<
-  typeof aiTextEngineFieldKindSchema
->;
+export type AiTextEngineFieldKind = z.infer<typeof aiTextEngineFieldKindSchema>;
 
 export const aiTextEngineFieldOptionSchema = z.object({
   label: z.string(),
   value: z.string(),
 });
-export type AiTextEngineFieldOption = z.infer<
-  typeof aiTextEngineFieldOptionSchema
->;
+export type AiTextEngineFieldOption = z.infer<typeof aiTextEngineFieldOptionSchema>;
 
 /** Show a field only when another config value matches exactly. */
 export const aiTextEngineFieldVisibilitySchema = z.object({
   key: z.string(),
   equals: z.union([z.string(), z.number(), z.boolean()]),
 });
-export type AiTextEngineFieldVisibility = z.infer<
-  typeof aiTextEngineFieldVisibilitySchema
->;
+export type AiTextEngineFieldVisibility = z.infer<typeof aiTextEngineFieldVisibilitySchema>;
 
 export const aiTextEngineFieldSchema = z.object({
   key: z.string().min(1),
@@ -86,13 +73,11 @@ export type AiTextEngineField = z.infer<typeof aiTextEngineFieldSchema>;
 export const aiTextEngineOperationOptionSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
-  kind: z.enum(["select", "text"]),
-  defaultValue: z.string().default(""),
+  kind: z.enum(['select', 'text']),
+  defaultValue: z.string().default(''),
   options: z.array(aiTextEngineFieldOptionSchema).default([]),
 });
-export type AiTextEngineOperationOption = z.infer<
-  typeof aiTextEngineOperationOptionSchema
->;
+export type AiTextEngineOperationOption = z.infer<typeof aiTextEngineOperationOptionSchema>;
 
 /**
  * When the operation button is visible. The client evaluates the condition
@@ -100,42 +85,36 @@ export type AiTextEngineOperationOption = z.infer<
  * detected, models-present = the storage probe found a model cache).
  */
 export const aiTextEngineOperationShowWhenSchema = z.enum([
-  "always",
-  "installed",
-  "not-installed",
-  "update-available",
-  "models-present",
+  'always',
+  'installed',
+  'not-installed',
+  'update-available',
+  'models-present',
 ]);
-export type AiTextEngineOperationShowWhen = z.infer<
-  typeof aiTextEngineOperationShowWhenSchema
->;
+export type AiTextEngineOperationShowWhen = z.infer<typeof aiTextEngineOperationShowWhenSchema>;
 
 export const aiTextEngineOperationSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
-  description: z.string().default(""),
+  description: z.string().default(''),
   requiresConfirmation: z.boolean().default(false),
-  showWhen: aiTextEngineOperationShowWhenSchema.default("always"),
+  showWhen: aiTextEngineOperationShowWhenSchema.default('always'),
   options: z.array(aiTextEngineOperationOptionSchema).default([]),
 });
-export type AiTextEngineOperation = z.infer<
-  typeof aiTextEngineOperationSchema
->;
+export type AiTextEngineOperation = z.infer<typeof aiTextEngineOperationSchema>;
 
 export const aiTextEngineDescriptorSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().min(1),
-    description: z.string().default(""),
+    description: z.string().default(''),
     /** Lowercase extensions without the dot. */
     formats: z.array(z.string()).default([]),
     capabilities: aiTextEngineCapabilitiesSchema,
     routes: z.array(aiTextEngineRouteSchema).min(1),
     defaultRoute: z.string().min(1),
     /** Per-route overrides for capabilities that only some routes honor. */
-    routeCapabilities: z
-      .record(z.string(), aiTextEngineCapabilitiesSchema.partial())
-      .default({}),
+    routeCapabilities: z.record(z.string(), aiTextEngineCapabilitiesSchema.partial()).default({}),
     fields: z.array(aiTextEngineFieldSchema).default([]),
     /** Defaults merged into every new profile that selects this engine. */
     configDefaults: z.record(z.string(), z.unknown()).default({}),
@@ -149,30 +128,28 @@ export const aiTextEngineDescriptorSchema = z
   .superRefine((descriptor, context) => {
     if (!descriptor.routes.some((route) => route.id === descriptor.defaultRoute)) {
       context.addIssue({
-        code: "custom",
+        code: 'custom',
         message: `defaultRoute "${descriptor.defaultRoute}" is not in routes`,
-        path: ["defaultRoute"],
+        path: ['defaultRoute'],
       });
     }
     for (const routeId of Object.keys(descriptor.routeCapabilities)) {
       if (!descriptor.routes.some((route) => route.id === routeId)) {
         context.addIssue({
-          code: "custom",
+          code: 'custom',
           message: `routeCapabilities contains unknown route "${routeId}"`,
-          path: ["routeCapabilities", routeId],
+          path: ['routeCapabilities', routeId],
         });
       }
     }
   });
-export type AiTextEngineDescriptor = z.infer<
-  typeof aiTextEngineDescriptorSchema
->;
+export type AiTextEngineDescriptor = z.infer<typeof aiTextEngineDescriptorSchema>;
 
 export function engineSupportsFormat(
   descriptor: AiTextEngineDescriptor,
   formatKind: string,
 ): boolean {
-  const normalized = formatKind.trim().toLowerCase().replace(/^\./, "");
+  const normalized = formatKind.trim().toLowerCase().replace(/^\./, '');
   return descriptor.formats.includes(normalized);
 }
 
@@ -193,9 +170,7 @@ export function getEngineCapabilities(
   descriptor: AiTextEngineDescriptor,
   routeId?: string | null,
 ): AiTextEngineCapabilities {
-  const override = routeId
-    ? descriptor.routeCapabilities[routeId]
-    : undefined;
+  const override = routeId ? descriptor.routeCapabilities[routeId] : undefined;
   return override ? { ...descriptor.capabilities, ...override } : descriptor.capabilities;
 }
 

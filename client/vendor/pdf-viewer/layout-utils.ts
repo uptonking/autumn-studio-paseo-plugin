@@ -1,85 +1,82 @@
-import type * as React from "react"
-import type { PdfDocumentObject, Rotation } from "@embedpdf/models"
+import type * as React from 'react';
+import type { PdfDocumentObject, Rotation } from '@embedpdf/models';
 import {
   ScrollStrategy,
   type PageLayout,
   type ScrollerLayout,
   type VirtualItem,
-} from "@embedpdf/plugin-scroll/react"
-import type { ThumbMeta } from "@embedpdf/plugin-thumbnail/react"
+} from '@embedpdf/plugin-scroll/react';
+import type { ThumbMeta } from '@embedpdf/plugin-thumbnail/react';
 
-export type PageRotationDeltas = Map<number, Rotation>
-export type ThumbnailSelectionMode = "replace" | "toggle" | "range"
+export type PageRotationDeltas = Map<number, Rotation>;
+export type ThumbnailSelectionMode = 'replace' | 'toggle' | 'range';
 
 export function getPageIndexRange(from: number, to: number): Set<number> {
-  const start = Math.min(from, to)
-  const end = Math.max(from, to)
-  const range = new Set<number>()
+  const start = Math.min(from, to);
+  const end = Math.max(from, to);
+  const range = new Set<number>();
 
   for (let pageIndex = start; pageIndex <= end; pageIndex += 1) {
-    range.add(pageIndex)
+    range.add(pageIndex);
   }
 
-  return range
+  return range;
 }
 
 export function arePageIndexSetsEqual(left: Set<number>, right: Set<number>) {
-  if (left.size !== right.size) return false
+  if (left.size !== right.size) return false;
 
   for (const value of left) {
-    if (!right.has(value)) return false
+    if (!right.has(value)) return false;
   }
 
-  return true
+  return true;
 }
 
 export function normalizeRotation(rotation: number): Rotation {
-  return (((rotation % 4) + 4) % 4) as Rotation
+  return (((rotation % 4) + 4) % 4) as Rotation;
 }
 
 export function rotationToDegrees(rotation: Rotation) {
-  return (rotation as number) * 90
+  return (rotation as number) * 90;
 }
 
 export function normalizeDegrees(rotation: number) {
-  return ((rotation % 360) + 360) % 360
+  return ((rotation % 360) + 360) % 360;
 }
 
 function ensurePdfExtension(fileName: string) {
-  return fileName.toLowerCase().endsWith(".pdf") ? fileName : `${fileName}.pdf`
+  return fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`;
 }
 
-export function getPdfDownloadFileName(
-  fileName: string | undefined,
-  src: string
-) {
-  if (fileName?.trim()) return ensurePdfExtension(fileName.trim())
+export function getPdfDownloadFileName(fileName: string | undefined, src: string) {
+  if (fileName?.trim()) return ensurePdfExtension(fileName.trim());
 
-  const pathname = src.split(/[?#]/)[0] ?? ""
-  const rawName = pathname.split("/").pop() || "document.pdf"
+  const pathname = src.split(/[?#]/)[0] ?? '';
+  const rawName = pathname.split('/').pop() || 'document.pdf';
 
   try {
-    return ensurePdfExtension(decodeURIComponent(rawName))
+    return ensurePdfExtension(decodeURIComponent(rawName));
   } catch {
-    return ensurePdfExtension(rawName)
+    return ensurePdfExtension(rawName);
   }
 }
 
 function getRotatedPdfDownloadFileName(fileName: string) {
-  return fileName.replace(/\.pdf$/i, "-rotated.pdf")
+  return fileName.replace(/\.pdf$/i, '-rotated.pdf');
 }
 
 export function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
 
-  anchor.href = url
-  anchor.download = fileName
-  anchor.rel = "noopener"
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = 'noopener';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export async function downloadPdfWithPageRotations({
@@ -87,49 +84,45 @@ export async function downloadPdfWithPageRotations({
   pageRotationDeltas,
   src,
 }: {
-  fileName: string
-  pageRotationDeltas: PageRotationDeltas
-  src: string
+  fileName: string;
+  pageRotationDeltas: PageRotationDeltas;
+  src: string;
 }) {
-  const response = await fetch(src)
+  const response = await fetch(src);
 
   if (!response.ok) {
-    throw new Error(`Failed to download PDF (${response.status})`)
+    throw new Error(`Failed to download PDF (${response.status})`);
   }
 
   if (pageRotationDeltas.size === 0) {
-    downloadBlob(await response.blob(), fileName)
-    return
+    downloadBlob(await response.blob(), fileName);
+    return;
   }
 
   const [{ PDFDocument, degrees }, pdfBytes] = await Promise.all([
-    import("pdf-lib"),
+    import('pdf-lib'),
     response.arrayBuffer(),
-  ])
-  const pdfDocument = await PDFDocument.load(pdfBytes)
+  ]);
+  const pdfDocument = await PDFDocument.load(pdfBytes);
 
   pdfDocument.getPages().forEach((page, pageIndex) => {
-    const rotationDelta = pageRotationDeltas.get(pageIndex)
+    const rotationDelta = pageRotationDeltas.get(pageIndex);
 
-    if (!rotationDelta) return
+    if (!rotationDelta) return;
 
     page.setRotation(
-      degrees(
-        normalizeDegrees(
-          page.getRotation().angle + rotationToDegrees(rotationDelta)
-        )
-      )
-    )
-  })
+      degrees(normalizeDegrees(page.getRotation().angle + rotationToDegrees(rotationDelta))),
+    );
+  });
 
-  const nextPdfBytes = await pdfDocument.save()
-  const nextPdfBuffer = new ArrayBuffer(nextPdfBytes.byteLength)
-  new Uint8Array(nextPdfBuffer).set(nextPdfBytes)
+  const nextPdfBytes = await pdfDocument.save();
+  const nextPdfBuffer = new ArrayBuffer(nextPdfBytes.byteLength);
+  new Uint8Array(nextPdfBuffer).set(nextPdfBytes);
 
   downloadBlob(
-    new Blob([nextPdfBuffer], { type: "application/pdf" }),
-    getRotatedPdfDownloadFileName(fileName)
-  )
+    new Blob([nextPdfBuffer], { type: 'application/pdf' }),
+    getRotatedPdfDownloadFileName(fileName),
+  );
 }
 
 export function getThumbnailMetaForPage({
@@ -141,19 +134,19 @@ export function getThumbnailMetaForPage({
   labelHeight,
   top,
 }: {
-  page: PdfDocumentObject["pages"][number]
-  pageIndex: number
-  rotation: Rotation
-  width: number
-  imagePadding: number
-  labelHeight: number
-  top: number
+  page: PdfDocumentObject['pages'][number];
+  pageIndex: number;
+  rotation: Rotation;
+  width: number;
+  imagePadding: number;
+  labelHeight: number;
+  top: number;
 }): ThumbMeta {
-  const innerWidth = Math.max(1, width - imagePadding * 2)
-  const pageWidth = rotation % 2 === 1 ? page.size.height : page.size.width
-  const pageHeight = rotation % 2 === 1 ? page.size.width : page.size.height
-  const imageHeight = Math.round(innerWidth * (pageHeight / pageWidth))
-  const wrapperHeight = imagePadding + imageHeight + imagePadding + labelHeight
+  const innerWidth = Math.max(1, width - imagePadding * 2);
+  const pageWidth = rotation % 2 === 1 ? page.size.height : page.size.width;
+  const pageHeight = rotation % 2 === 1 ? page.size.width : page.size.height;
+  const imageHeight = Math.round(innerWidth * (pageHeight / pageWidth));
+  const wrapperHeight = imagePadding + imageHeight + imagePadding + labelHeight;
 
   return {
     pageIndex,
@@ -163,7 +156,7 @@ export function getThumbnailMetaForPage({
     top,
     labelHeight,
     padding: imagePadding,
-  }
+  };
 }
 
 export function buildThumbnailLayout({
@@ -176,24 +169,23 @@ export function buildThumbnailLayout({
   labelHeight,
   paddingY,
 }: {
-  basePageRotations: Rotation[]
-  pageRotationDeltas: PageRotationDeltas
-  pdfDocument: PdfDocumentObject | null
-  width: number
-  gap: number
-  imagePadding: number
-  labelHeight: number
-  paddingY: number
+  basePageRotations: Rotation[];
+  pageRotationDeltas: PageRotationDeltas;
+  pdfDocument: PdfDocumentObject | null;
+  width: number;
+  gap: number;
+  imagePadding: number;
+  labelHeight: number;
+  paddingY: number;
 }) {
-  if (!pdfDocument) return null
+  if (!pdfDocument) return null;
 
-  let top = paddingY
+  let top = paddingY;
   const items = pdfDocument.pages.map((page, pageIndex) => {
-    const basePageRotation =
-      basePageRotations[pageIndex] ?? normalizeRotation(page.rotation)
+    const basePageRotation = basePageRotations[pageIndex] ?? normalizeRotation(page.rotation);
     const pageRotation = normalizeRotation(
-      basePageRotation + (pageRotationDeltas.get(pageIndex) ?? 0)
-    )
+      basePageRotation + (pageRotationDeltas.get(pageIndex) ?? 0),
+    );
     const meta = getThumbnailMetaForPage({
       page,
       pageIndex,
@@ -202,16 +194,16 @@ export function buildThumbnailLayout({
       imagePadding,
       labelHeight,
       top,
-    })
+    });
 
-    top += meta.wrapperHeight + gap
-    return meta
-  })
+    top += meta.wrapperHeight + gap;
+    return meta;
+  });
 
   return {
     items,
     totalHeight: items.length ? top - gap + paddingY : paddingY * 2,
-  }
+  };
 }
 
 export function getVisibleThumbnailItems({
@@ -220,48 +212,39 @@ export function getVisibleThumbnailItems({
   items,
   scrollTop,
 }: {
-  buffer: number
-  clientHeight: number
-  items: ThumbMeta[]
-  scrollTop: number
+  buffer: number;
+  clientHeight: number;
+  items: ThumbMeta[];
+  scrollTop: number;
 }) {
-  if (items.length === 0) return []
-  if (clientHeight <= 0)
-    return items.slice(0, Math.min(items.length, buffer * 2))
+  if (items.length === 0) return [];
+  if (clientHeight <= 0) return items.slice(0, Math.min(items.length, buffer * 2));
 
-  const viewportBottom = scrollTop + clientHeight
-  let start = items.findIndex(
-    (item) => item.top + item.wrapperHeight >= scrollTop
-  )
+  const viewportBottom = scrollTop + clientHeight;
+  let start = items.findIndex((item) => item.top + item.wrapperHeight >= scrollTop);
 
-  if (start === -1) start = items.length - 1
+  if (start === -1) start = items.length - 1;
 
-  let end = start
+  let end = start;
   while (end < items.length && items[end].top <= viewportBottom) {
-    end += 1
+    end += 1;
   }
 
-  return items.slice(
-    Math.max(0, start - buffer),
-    Math.min(items.length, end + buffer)
-  )
+  return items.slice(Math.max(0, start - buffer), Math.min(items.length, end + buffer));
 }
 
-export function setPdfViewerRef<T>(
-  ref: React.Ref<T> | undefined,
-  value: T | null
-) {
-  if (!ref) return
+export function setPdfViewerRef<T>(ref: React.Ref<T> | undefined, value: T | null) {
+  if (!ref) return;
 
-  if (typeof ref === "function") {
-    ref(value)
+  if (typeof ref === 'function') {
+    ref(value);
   } else {
-    ref.current = value
+    ref.current = value;
   }
 }
 
 export function isQuarterTurn(rotation: Rotation) {
-  return rotation % 2 === 1
+  return rotation % 2 === 1;
 }
 
 export function getRotatedDimensions({
@@ -269,13 +252,11 @@ export function getRotatedDimensions({
   rotation,
   width,
 }: {
-  height: number
-  rotation: Rotation
-  width: number
+  height: number;
+  rotation: Rotation;
+  width: number;
 }) {
-  return isQuarterTurn(rotation)
-    ? { height: width, width: height }
-    : { height, width }
+  return isQuarterTurn(rotation) ? { height: width, width: height } : { height, width };
 }
 
 export function getRotatedPageDimensions(page: PageLayout, rotation: Rotation) {
@@ -283,7 +264,7 @@ export function getRotatedPageDimensions(page: PageLayout, rotation: Rotation) {
     height: page.height,
     rotation,
     width: page.width,
-  })
+  });
 }
 
 export function applyPageRotationDeltasToScrollerLayout({
@@ -291,36 +272,31 @@ export function applyPageRotationDeltasToScrollerLayout({
   layout,
   pageRotationDeltas,
 }: {
-  basePageRotations: Rotation[]
-  layout: ScrollerLayout
-  pageRotationDeltas: PageRotationDeltas
+  basePageRotations: Rotation[];
+  layout: ScrollerLayout;
+  pageRotationDeltas: PageRotationDeltas;
 }): ScrollerLayout {
-  if (pageRotationDeltas.size === 0) return layout
+  if (pageRotationDeltas.size === 0) return layout;
 
-  let maxWidth = 0
-  let maxHeight = 0
-  let offset = 0
-  const pageGap = layout.pageGap
-  let startSpacingAdjustment = 0
+  let maxWidth = 0;
+  let maxHeight = 0;
+  let offset = 0;
+  const pageGap = layout.pageGap;
+  let startSpacingAdjustment = 0;
   const items: VirtualItem[] = layout.items.map((item, itemIndex) => {
-    let pageOffset = 0
-    let itemWidth = 0
-    let itemHeight = 0
+    let pageOffset = 0;
+    let itemWidth = 0;
+    let itemHeight = 0;
     const pageLayouts = item.pageLayouts.map((page) => {
-      const basePageRotation =
-        basePageRotations[page.pageIndex] ?? normalizeRotation(0)
+      const basePageRotation = basePageRotations[page.pageIndex] ?? normalizeRotation(0);
       const pageRotation = normalizeRotation(
-        basePageRotation + (pageRotationDeltas.get(page.pageIndex) ?? 0)
-      )
-      const rotatedSize = getRotatedPageDimensions(page, pageRotation)
+        basePageRotation + (pageRotationDeltas.get(page.pageIndex) ?? 0),
+      );
+      const rotatedSize = getRotatedPageDimensions(page, pageRotation);
       const oldScrollAxisSize =
-        layout.strategy === ScrollStrategy.Horizontal
-          ? page.rotatedWidth
-          : page.rotatedHeight
+        layout.strategy === ScrollStrategy.Horizontal ? page.rotatedWidth : page.rotatedHeight;
       const newScrollAxisSize =
-        layout.strategy === ScrollStrategy.Horizontal
-          ? rotatedSize.width
-          : rotatedSize.height
+        layout.strategy === ScrollStrategy.Horizontal ? rotatedSize.width : rotatedSize.height;
 
       if (
         layout.startSpacing === 0 &&
@@ -330,8 +306,8 @@ export function applyPageRotationDeltasToScrollerLayout({
       ) {
         startSpacingAdjustment = Math.max(
           startSpacingAdjustment,
-          (oldScrollAxisSize - newScrollAxisSize) / 2
-        )
+          (oldScrollAxisSize - newScrollAxisSize) / 2,
+        );
       }
 
       const nextPageLayout = {
@@ -340,29 +316,28 @@ export function applyPageRotationDeltasToScrollerLayout({
         rotatedWidth: rotatedSize.width,
         x: layout.strategy === ScrollStrategy.Horizontal ? 0 : pageOffset,
         y: layout.strategy === ScrollStrategy.Horizontal ? pageOffset : 0,
-      }
+      };
 
       pageOffset +=
-        (layout.strategy === ScrollStrategy.Horizontal
-          ? rotatedSize.height
-          : rotatedSize.width) + pageGap
+        (layout.strategy === ScrollStrategy.Horizontal ? rotatedSize.height : rotatedSize.width) +
+        pageGap;
       itemWidth =
         layout.strategy === ScrollStrategy.Horizontal
           ? Math.max(itemWidth, rotatedSize.width)
-          : itemWidth + rotatedSize.width
+          : itemWidth + rotatedSize.width;
       itemHeight =
         layout.strategy === ScrollStrategy.Horizontal
           ? itemHeight + rotatedSize.height
-          : Math.max(itemHeight, rotatedSize.height)
+          : Math.max(itemHeight, rotatedSize.height);
 
-      return nextPageLayout
-    })
+      return nextPageLayout;
+    });
 
     if (pageLayouts.length > 1) {
       if (layout.strategy === ScrollStrategy.Horizontal) {
-        itemHeight -= pageGap
+        itemHeight -= pageGap;
       } else {
-        itemWidth -= pageGap
+        itemWidth -= pageGap;
       }
     }
 
@@ -374,21 +349,21 @@ export function applyPageRotationDeltasToScrollerLayout({
       width: itemWidth,
       x: layout.strategy === ScrollStrategy.Horizontal ? offset : item.x,
       y: layout.strategy === ScrollStrategy.Horizontal ? item.y : offset,
-    }
+    };
 
     if (layout.strategy === ScrollStrategy.Horizontal) {
-      offset += itemWidth + pageGap
-      maxHeight = Math.max(maxHeight, itemHeight)
+      offset += itemWidth + pageGap;
+      maxHeight = Math.max(maxHeight, itemHeight);
     } else {
-      offset += itemHeight + pageGap
-      maxWidth = Math.max(maxWidth, itemWidth)
+      offset += itemHeight + pageGap;
+      maxWidth = Math.max(maxWidth, itemWidth);
     }
 
-    return nextItem
-  })
+    return nextItem;
+  });
 
   if (items.length > 0) {
-    offset -= pageGap
+    offset -= pageGap;
   }
 
   return {
@@ -399,16 +374,10 @@ export function applyPageRotationDeltasToScrollerLayout({
     totalHeight:
       layout.strategy === ScrollStrategy.Horizontal
         ? maxHeight
-        : layout.startSpacing +
-          startSpacingAdjustment +
-          offset +
-          layout.endSpacing,
+        : layout.startSpacing + startSpacingAdjustment + offset + layout.endSpacing,
     totalWidth:
       layout.strategy === ScrollStrategy.Horizontal
-        ? layout.startSpacing +
-          startSpacingAdjustment +
-          offset +
-          layout.endSpacing
+        ? layout.startSpacing + startSpacingAdjustment + offset + layout.endSpacing
         : maxWidth,
-  }
+  };
 }

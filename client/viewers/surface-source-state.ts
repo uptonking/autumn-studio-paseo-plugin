@@ -1,5 +1,5 @@
-import * as React from "react";
-import { isInAppSavedBlobUrl } from "../blob-url-cache.js";
+import * as React from 'react';
+import { isInAppSavedBlobUrl } from '../blob-url-cache.js';
 
 export interface SurfaceSourceState {
   filePath?: string;
@@ -31,13 +31,12 @@ export function useSurfaceSourceState({
   const latestSavedBlobUrlRef = React.useRef<string | null>(null);
   const savedBlobUrlsRef = React.useRef<Set<string>>(new Set());
 
-  const [surfaceSourceState, setSurfaceSourceState] =
-    React.useState<SurfaceSourceState>(() => ({
-      filePath,
-      sessionKey,
-      propSrc: src,
-      activeSrc: src,
-    }));
+  const [surfaceSourceState, setSurfaceSourceState] = React.useState<SurfaceSourceState>(() => ({
+    filePath,
+    sessionKey,
+    propSrc: src,
+    activeSrc: src,
+  }));
 
   let activeSrc = surfaceSourceState.activeSrc;
   if (surfaceSourceState.filePath !== filePath) {
@@ -50,14 +49,10 @@ export function useSurfaceSourceState({
       propSrc: src,
       activeSrc: src,
     });
-  } else if (
-    surfaceSourceState.propSrc !== src ||
-    surfaceSourceState.sessionKey !== sessionKey
-  ) {
+  } else if (surfaceSourceState.propSrc !== src || surfaceSourceState.sessionKey !== sessionKey) {
     const propSrcChanged = surfaceSourceState.propSrc !== src;
     const sessionChanged = surfaceSourceState.sessionKey !== sessionKey;
-    const isInAppSavedSrc =
-      savedBlobUrlsRef.current.has(src) || isInAppSavedBlobUrl(src);
+    const isInAppSavedSrc = savedBlobUrlsRef.current.has(src) || isInAppSavedBlobUrl(src);
 
     if (propSrcChanged && isInAppSavedSrc) {
       latestSavedBlobUrlRef.current = src;

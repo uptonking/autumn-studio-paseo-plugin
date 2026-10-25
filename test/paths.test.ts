@@ -1,5 +1,5 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
 import {
   chmod,
   mkdtemp,
@@ -11,29 +11,29 @@ import {
   stat,
   symlink,
   writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, basename } from "node:path";
-import { atomicWriteFile, locateInWorkspace, safeResolve, workspaceRoot } from "../server/paths.ts";
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, basename } from 'node:path';
+import { atomicWriteFile, locateInWorkspace, safeResolve, workspaceRoot } from '../server/paths.ts';
 
-describe("paths: safeResolve", () => {
+describe('paths: safeResolve', () => {
   let tempDir: string;
   let outsideDir: string;
 
   before(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "paseo-paths-test-"));
-    await mkdir(join(tempDir, "sub"), { recursive: true });
-    await writeFile(join(tempDir, "file.txt"), "hello");
-    await writeFile(join(tempDir, "sub", "nested.txt"), "nested");
+    tempDir = await mkdtemp(join(tmpdir(), 'paseo-paths-test-'));
+    await mkdir(join(tempDir, 'sub'), { recursive: true });
+    await writeFile(join(tempDir, 'file.txt'), 'hello');
+    await writeFile(join(tempDir, 'sub', 'nested.txt'), 'nested');
 
     // Outside directory with existing file for containment test
-    outsideDir = await mkdtemp(join(tmpdir(), "paseo-outside-test-"));
-    await writeFile(join(outsideDir, "secret.txt"), "secret");
+    outsideDir = await mkdtemp(join(tmpdir(), 'paseo-outside-test-'));
+    await writeFile(join(outsideDir, 'secret.txt'), 'secret');
 
     // Internal symlink
-    await symlink(join(tempDir, "file.txt"), join(tempDir, "internal-symlink.txt"));
+    await symlink(join(tempDir, 'file.txt'), join(tempDir, 'internal-symlink.txt'));
     // Escaping symlink
-    await symlink(join(outsideDir, "secret.txt"), join(tempDir, "escape-symlink.txt"));
+    await symlink(join(outsideDir, 'secret.txt'), join(tempDir, 'escape-symlink.txt'));
   });
 
   after(async () => {
@@ -41,100 +41,91 @@ describe("paths: safeResolve", () => {
     await rm(outsideDir, { recursive: true, force: true });
   });
 
-  it("resolves valid path inside root", async () => {
-    const resolved = await safeResolve(tempDir, "file.txt");
-    const expected = await realpath(join(tempDir, "file.txt"));
+  it('resolves valid path inside root', async () => {
+    const resolved = await safeResolve(tempDir, 'file.txt');
+    const expected = await realpath(join(tempDir, 'file.txt'));
     assert.equal(resolved, expected);
   });
 
-  it("resolves valid nested path inside root", async () => {
-    const resolved = await safeResolve(tempDir, "sub/nested.txt");
-    const expected = await realpath(join(tempDir, "sub", "nested.txt"));
+  it('resolves valid nested path inside root', async () => {
+    const resolved = await safeResolve(tempDir, 'sub/nested.txt');
+    const expected = await realpath(join(tempDir, 'sub', 'nested.txt'));
     assert.equal(resolved, expected);
   });
 
-  it("resolves internal symlink inside root", async () => {
-    const resolved = await safeResolve(tempDir, "internal-symlink.txt");
-    const expected = await realpath(join(tempDir, "file.txt"));
+  it('resolves internal symlink inside root', async () => {
+    const resolved = await safeResolve(tempDir, 'internal-symlink.txt');
+    const expected = await realpath(join(tempDir, 'file.txt'));
     assert.equal(resolved, expected);
   });
 
-  it("rejects traversal to existing outside file", async () => {
-    const relToSecret = join("..", basename(outsideDir), "secret.txt");
+  it('rejects traversal to existing outside file', async () => {
+    const relToSecret = join('..', basename(outsideDir), 'secret.txt');
+    await assert.rejects(() => safeResolve(tempDir, relToSecret), /Path escapes the workspace/);
+  });
+
+  it('rejects traversal through nested directory to existing outside file', async () => {
+    const relToSecret = join('sub', '..', '..', basename(outsideDir), 'secret.txt');
+    await assert.rejects(() => safeResolve(tempDir, relToSecret), /Path escapes the workspace/);
+  });
+
+  it('rejects paths with null bytes', async () => {
+    await assert.rejects(() => safeResolve(tempDir, 'file\0.txt'), /Invalid path/);
+  });
+
+  it('rejects symlink pointing outside the workspace', async () => {
     await assert.rejects(
-      () => safeResolve(tempDir, relToSecret),
-      /Path escapes the workspace/
+      () => safeResolve(tempDir, 'escape-symlink.txt'),
+      /Path escapes the workspace/,
     );
   });
 
-  it("rejects traversal through nested directory to existing outside file", async () => {
-    const relToSecret = join("sub", "..", "..", basename(outsideDir), "secret.txt");
-    await assert.rejects(
-      () => safeResolve(tempDir, relToSecret),
-      /Path escapes the workspace/
-    );
-  });
-
-  it("rejects paths with null bytes", async () => {
-    await assert.rejects(
-      () => safeResolve(tempDir, "file\0.txt"),
-      /Invalid path/
-    );
-  });
-
-  it("rejects symlink pointing outside the workspace", async () => {
-    await assert.rejects(
-      () => safeResolve(tempDir, "escape-symlink.txt"),
-      /Path escapes the workspace/
-    );
-  });
-
-  it("normalizes leading slashes inside the workspace root", async () => {
-    const resolved = await safeResolve(tempDir, "/sub/nested.txt");
-    const expected = await realpath(join(tempDir, "sub", "nested.txt"));
+  it('normalizes leading slashes inside the workspace root', async () => {
+    const resolved = await safeResolve(tempDir, '/sub/nested.txt');
+    const expected = await realpath(join(tempDir, 'sub', 'nested.txt'));
     assert.equal(resolved, expected);
   });
 
-  it("atomically writes file contents, preserves file mode, and cleans up temp files", async () => {
-    const targetFile = join(tempDir, "atomic-target.sh");
-    await writeFile(targetFile, "#!/bin/sh\necho old\n", { mode: 0o755 });
+  it('atomically writes file contents, preserves file mode, and cleans up temp files', async () => {
+    const targetFile = join(tempDir, 'atomic-target.sh');
+    await writeFile(targetFile, '#!/bin/sh\necho old\n', { mode: 0o755 });
     await chmod(targetFile, 0o755);
 
-    const updatedPayload = Buffer.from("#!/bin/sh\necho updated\n", "utf8");
+    const updatedPayload = Buffer.from('#!/bin/sh\necho updated\n', 'utf8');
     const result = await atomicWriteFile(targetFile, updatedPayload);
 
     assert.equal(result.size, updatedPayload.byteLength);
-    assert.equal(await readFile(targetFile, "utf8"), "#!/bin/sh\necho updated\n");
+    assert.equal(await readFile(targetFile, 'utf8'), '#!/bin/sh\necho updated\n');
 
     const fileStats = await stat(targetFile);
     assert.equal(fileStats.mode & 0o777, 0o755);
 
     const entries = await readdir(tempDir);
     assert.equal(
-      entries.some((name) => name.includes(".paseo-") && name.endsWith(".tmp")),
+      entries.some((name) => name.includes('.paseo-') && name.endsWith('.tmp')),
       false,
     );
 
     await assert.rejects(
-      () => atomicWriteFile(join(tempDir, "sub"), Buffer.from("nope")),
+      () => atomicWriteFile(join(tempDir, 'sub'), Buffer.from('nope')),
       /Cannot overwrite a directory/,
     );
   });
 });
 
-describe("paths: locateInWorkspace", () => {
+describe('paths: locateInWorkspace', () => {
   let tempDir: string;
   let outsideDir: string;
 
   before(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "paseo-locate-test-"));
-    await mkdir(join(tempDir, "sub"), { recursive: true });
-    await writeFile(join(tempDir, "file.txt"), "hello");
-    await writeFile(join(tempDir, "sub", "nested.txt"), "nested");
-    outsideDir = await mkdtemp(join(tmpdir(), "paseo-locate-outside-"));
-    await writeFile(join(outsideDir, "secret.txt"), "secret");
-    await symlink(join(tempDir, "file.txt"), join(tempDir, "internal-symlink.txt"));
-    await symlink(join(outsideDir, "secret.txt"), join(tempDir, "escape-symlink.txt"));
+    tempDir = await mkdtemp(join(tmpdir(), 'paseo-locate-test-'));
+    await mkdir(join(tempDir, 'sub'), { recursive: true });
+    await writeFile(join(tempDir, 'file.txt'), 'hello');
+    await writeFile(join(tempDir, 'sub', 'nested.txt'), 'nested');
+    outsideDir = await mkdtemp(join(tmpdir(), 'paseo-locate-outside-'));
+    await writeFile(join(outsideDir, 'secret.txt'), 'secret');
+    await symlink(join(tempDir, 'file.txt'), join(tempDir, 'internal-symlink.txt'));
+    await symlink(join(outsideDir, 'secret.txt'), join(tempDir, 'escape-symlink.txt'));
   });
 
   after(async () => {
@@ -142,67 +133,58 @@ describe("paths: locateInWorkspace", () => {
     await rm(outsideDir, { recursive: true, force: true });
   });
 
-  it("maps a nested file to its workspace-relative path", async () => {
+  it('maps a nested file to its workspace-relative path', async () => {
     assert.equal(
-      await locateInWorkspace(tempDir, join(tempDir, "sub", "nested.txt")),
-      "sub/nested.txt",
+      await locateInWorkspace(tempDir, join(tempDir, 'sub', 'nested.txt')),
+      'sub/nested.txt',
     );
   });
 
   it("maps a symlinked file to its target's identity", async () => {
     assert.equal(
-      await locateInWorkspace(tempDir, join(tempDir, "internal-symlink.txt")),
-      "file.txt",
+      await locateInWorkspace(tempDir, join(tempDir, 'internal-symlink.txt')),
+      'file.txt',
     );
   });
 
-  it("rejects files outside the workspace", async () => {
+  it('rejects files outside the workspace', async () => {
+    assert.equal(await locateInWorkspace(tempDir, join(outsideDir, 'secret.txt')), null);
+  });
+
+  it('rejects escaping symlinks', async () => {
+    assert.equal(await locateInWorkspace(tempDir, join(tempDir, 'escape-symlink.txt')), null);
+  });
+
+  it('keeps identity for missing files inside the workspace (lexical fallback)', async () => {
     assert.equal(
-      await locateInWorkspace(tempDir, join(outsideDir, "secret.txt")),
-      null,
+      await locateInWorkspace(tempDir, join(tempDir, 'sub', 'deleted.txt')),
+      'sub/deleted.txt',
     );
   });
 
-  it("rejects escaping symlinks", async () => {
-    assert.equal(
-      await locateInWorkspace(tempDir, join(tempDir, "escape-symlink.txt")),
-      null,
-    );
+  it('rejects missing files outside the workspace', async () => {
+    assert.equal(await locateInWorkspace(tempDir, join(outsideDir, 'missing.txt')), null);
   });
 
-  it("keeps identity for missing files inside the workspace (lexical fallback)", async () => {
-    assert.equal(
-      await locateInWorkspace(tempDir, join(tempDir, "sub", "deleted.txt")),
-      "sub/deleted.txt",
-    );
-  });
-
-  it("rejects missing files outside the workspace", async () => {
-    assert.equal(
-      await locateInWorkspace(tempDir, join(outsideDir, "missing.txt")),
-      null,
-    );
-  });
-
-  it("rejects the workspace root itself, relative input, and null bytes", async () => {
+  it('rejects the workspace root itself, relative input, and null bytes', async () => {
     assert.equal(await locateInWorkspace(tempDir, tempDir), null);
-    assert.equal(await locateInWorkspace(tempDir, "file.txt"), null);
-    assert.equal(await locateInWorkspace(tempDir, "file\0.txt"), null);
+    assert.equal(await locateInWorkspace(tempDir, 'file.txt'), null);
+    assert.equal(await locateInWorkspace(tempDir, 'file\0.txt'), null);
   });
 });
 
-describe("paths: workspaceRoot", () => {
-  it("resolves workspaceDirectory from mock Paseo client", async () => {
-    const mockDir = await mkdtemp(join(tmpdir(), "paseo-ws-root-"));
+describe('paths: workspaceRoot', () => {
+  it('resolves workspaceDirectory from mock Paseo client', async () => {
+    const mockDir = await mkdtemp(join(tmpdir(), 'paseo-ws-root-'));
     try {
       const mockPaseo = {
         workspaces: {
           list: async () => ({
-            entries: [{ id: "ws-1", workspaceDirectory: mockDir }],
+            entries: [{ id: 'ws-1', workspaceDirectory: mockDir }],
           }),
         },
       };
-      const root = await workspaceRoot(mockPaseo, "ws-1");
+      const root = await workspaceRoot(mockPaseo, 'ws-1');
       const expected = await realpath(mockDir);
       assert.equal(root, expected);
     } finally {
@@ -210,17 +192,17 @@ describe("paths: workspaceRoot", () => {
     }
   });
 
-  it("falls back to projectRootPath", async () => {
-    const mockDir = await mkdtemp(join(tmpdir(), "paseo-ws-proj-"));
+  it('falls back to projectRootPath', async () => {
+    const mockDir = await mkdtemp(join(tmpdir(), 'paseo-ws-proj-'));
     try {
       const mockPaseo = {
         workspaces: {
           list: async () => ({
-            entries: [{ id: "ws-2", projectRootPath: mockDir }],
+            entries: [{ id: 'ws-2', projectRootPath: mockDir }],
           }),
         },
       };
-      const root = await workspaceRoot(mockPaseo, "ws-2");
+      const root = await workspaceRoot(mockPaseo, 'ws-2');
       const expected = await realpath(mockDir);
       assert.equal(root, expected);
     } finally {
@@ -228,27 +210,24 @@ describe("paths: workspaceRoot", () => {
     }
   });
 
-  it("throws on unknown workspace id", async () => {
+  it('throws on unknown workspace id', async () => {
     const mockPaseo = {
       workspaces: {
         list: async () => ({ entries: [] }),
       },
     };
-    await assert.rejects(
-      () => workspaceRoot(mockPaseo, "unknown"),
-      /Unknown workspace: unknown/
-    );
+    await assert.rejects(() => workspaceRoot(mockPaseo, 'unknown'), /Unknown workspace: unknown/);
   });
 
-  it("throws when workspace has no directory", async () => {
+  it('throws when workspace has no directory', async () => {
     const mockPaseo = {
       workspaces: {
-        list: async () => ({ entries: [{ id: "ws-empty" }] }),
+        list: async () => ({ entries: [{ id: 'ws-empty' }] }),
       },
     };
     await assert.rejects(
-      () => workspaceRoot(mockPaseo, "ws-empty"),
-      /Workspace ws-empty has no directory on disk/
+      () => workspaceRoot(mockPaseo, 'ws-empty'),
+      /Workspace ws-empty has no directory on disk/,
     );
   });
 });

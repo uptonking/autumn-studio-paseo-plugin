@@ -4,9 +4,9 @@ import {
   refineMarkdownLocally,
   validateRefinedMarkdown,
   type AiTextRefinementSettings,
-} from "../../shared/ai-text/refinement.ts";
-import type { AiTextRefinementProvenance } from "../../shared/ai-text/settings.ts";
-import { discoverAiTextAgents } from "./agent-runner.ts";
+} from '../../shared/ai-text/refinement.ts';
+import type { AiTextRefinementProvenance } from '../../shared/ai-text/settings.ts';
+import { discoverAiTextAgents } from './agent-runner.ts';
 
 const AGENT_REFINEMENT_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -67,7 +67,7 @@ export interface AiTextRefinementInput {
 
 class RefinementAbortError extends Error {
   constructor() {
-    super("AI text refinement was cancelled");
+    super('AI text refinement was cancelled');
   }
 }
 
@@ -75,22 +75,19 @@ function abortError(): Error {
   return new RefinementAbortError();
 }
 
-async function raceAbort<T>(
-  promise: Promise<T>,
-  signal: AbortSignal | undefined,
-): Promise<T> {
+async function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (!signal) return await promise;
   if (signal.aborted) throw abortError();
   return await new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(abortError());
-    signal.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener('abort', onAbort, { once: true });
     promise.then(
       (value) => {
-        signal.removeEventListener("abort", onAbort);
+        signal.removeEventListener('abort', onAbort);
         resolve(value);
       },
       (error) => {
-        signal.removeEventListener("abort", onAbort);
+        signal.removeEventListener('abort', onAbort);
         reject(error);
       },
     );
@@ -105,24 +102,24 @@ export async function refineAiTextMarkdown(
   input: AiTextRefinementInput,
 ): Promise<AiTextRefinementOutcome> {
   const { settings } = input;
-  if (settings.mode === "none") {
+  if (settings.mode === 'none') {
     return {
       markdown: input.markdown,
-      provenance: { mode: "none", didRun: false },
+      provenance: { mode: 'none', didRun: false },
       warnings: [],
     };
   }
 
-  if (settings.mode === "local") {
+  if (settings.mode === 'local') {
     return {
       markdown: refineMarkdownLocally(input.markdown),
-      provenance: { mode: "local", didRun: false },
+      provenance: { mode: 'local', didRun: false },
       warnings: [],
     };
   }
 
   const baseProvenance: AiTextRefinementProvenance = {
-    mode: "agent",
+    mode: 'agent',
     agentId: settings.agentId,
     ...(settings.model.trim() ? { model: settings.model.trim() } : {}),
     promptPresetId: settings.promptPresetId,
@@ -141,7 +138,7 @@ export async function refineAiTextMarkdown(
     );
   }
   if (!settings.agentId.trim()) {
-    return fallback("no agent is selected in this profile");
+    return fallback('no agent is selected in this profile');
   }
   if (input.signal?.aborted) throw abortError();
 
@@ -153,15 +150,13 @@ export async function refineAiTextMarkdown(
     markdown: input.markdown,
   });
 
-  input.onProgress?.("Refining with agent");
+  input.onProgress?.('Refining with agent');
   const resolution = await raceAbort(
     resolveAgentProvider(input, settings.agentId.trim()),
     input.signal,
   );
   if (!resolution.provider) {
-    return fallback(
-      resolution.reason ?? "no usable model is available for this agent",
-    );
+    return fallback(resolution.reason ?? 'no usable model is available for this agent');
   }
   const provenance: AiTextRefinementProvenance = resolution.model
     ? { ...baseProvenance, model: resolution.model }
@@ -174,7 +169,7 @@ export async function refineAiTextMarkdown(
       config: { provider: resolution.provider, systemPrompt },
       cwd: input.workspaceRootPath,
       title: `AI Text refinement · ${input.fileName}`,
-      labels: { "autumn-studio.role": "ai-text-refinement" },
+      labels: { 'autumn-studio.role': 'ai-text-refinement' },
       autoArchive: true,
       prompt,
     });
@@ -190,33 +185,29 @@ export async function refineAiTextMarkdown(
     );
     handle = await raceAbort(createPromise, input.signal);
     const result = (await raceAbort(
-      handle.waitForFinish(
-        input.timeoutMs ?? AGENT_REFINEMENT_TIMEOUT_MS,
-      ),
+      handle.waitForFinish(input.timeoutMs ?? AGENT_REFINEMENT_TIMEOUT_MS),
       input.signal,
     )) as {
       status: string;
       error?: string | null;
       lastMessage?: string | null;
     };
-    if (result.status === "timeout") {
-      return fallback("the agent did not finish within the time limit");
+    if (result.status === 'timeout') {
+      return fallback('the agent did not finish within the time limit');
     }
-    if (result.status !== "idle") {
-      return fallback(
-        result.error?.trim() || `the agent reported ${result.status}`,
-      );
+    if (result.status !== 'idle') {
+      return fallback(result.error?.trim() || `the agent reported ${result.status}`);
     }
-    const raw = typeof result.lastMessage === "string" ? result.lastMessage : "";
+    const raw = typeof result.lastMessage === 'string' ? result.lastMessage : '';
     if (!raw.trim()) {
-      return fallback("the agent returned no text");
+      return fallback('the agent returned no text');
     }
     const validation = validateRefinedMarkdown(input.markdown, raw);
     if (!validation.ok) {
-      return fallback(validation.error ?? "the agent output was not usable");
+      return fallback(validation.error ?? 'the agent output was not usable');
     }
     return {
-      markdown: validation.markdown.endsWith("\n")
+      markdown: validation.markdown.endsWith('\n')
         ? validation.markdown
         : `${validation.markdown}\n`,
       provenance: { ...provenance, didRun: true },

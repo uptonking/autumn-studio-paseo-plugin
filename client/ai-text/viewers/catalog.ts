@@ -2,7 +2,7 @@ import {
   AI_TEXT_BUILTIN_VIEWERS,
   parseAiTextViewerDescriptor,
   type AiTextViewerDescriptor,
-} from "../../../shared/ai-text/viewers.js";
+} from '../../../shared/ai-text/viewers.js';
 
 /**
  * Light registry of viewer metadata. Settings imports only this module, so
@@ -13,9 +13,7 @@ const descriptors = new Map<string, AiTextViewerDescriptor>(
   AI_TEXT_BUILTIN_VIEWERS.map((descriptor) => [descriptor.id, descriptor]),
 );
 
-export function registerAiTextViewerDescriptor(
-  descriptor: AiTextViewerDescriptor,
-): () => void {
+export function registerAiTextViewerDescriptor(descriptor: AiTextViewerDescriptor): () => void {
   const normalized = parseAiTextViewerDescriptor(descriptor);
   descriptors.set(normalized.id, normalized);
   return () => {
@@ -32,14 +30,10 @@ export function listAiTextViewerDescriptors(): AiTextViewerDescriptor[] {
   );
 }
 
-export function getAiTextViewerDescriptor(
-  viewerId: string,
-): AiTextViewerDescriptor | null {
+export function getAiTextViewerDescriptor(viewerId: string): AiTextViewerDescriptor | null {
   return descriptors.get(viewerId) ?? null;
 }
 
 export function getDefaultableAiTextViewerDescriptors(): AiTextViewerDescriptor[] {
-  return listAiTextViewerDescriptors().filter(
-    (descriptor) => descriptor.selectableAsDefault,
-  );
+  return listAiTextViewerDescriptors().filter((descriptor) => descriptor.selectableAsDefault);
 }

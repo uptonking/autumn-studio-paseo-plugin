@@ -1,26 +1,23 @@
-import type { ComponentType } from "react";
-import type { PluginSurfaceProps, SettingsState } from "@getpaseo/plugin/client";
-import type {
-  autumnStudioSettings,
-  AutumnStudioSettingsValues,
-} from "../../shared/settings.js";
+import type { ComponentType } from 'react';
+import type { PluginSurfaceProps, SettingsState } from '@getpaseo/plugin/client';
+import type { autumnStudioSettings, AutumnStudioSettingsValues } from '../../shared/settings.js';
 
 export type ReadyAutumnStudioSettings = Extract<
   SettingsState<typeof autumnStudioSettings.schema>,
-  { status: "ready" }
+  { status: 'ready' }
 >;
 
 export interface SettingsSectionComponentProps {
   settings: ReadyAutumnStudioSettings;
   values: AutumnStudioSettingsValues;
   disabled: boolean;
-  theme: PluginSurfaceProps["theme"];
+  theme: PluginSurfaceProps['theme'];
   updateValues: (
-    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues
+    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues,
   ) => void;
 }
 
-export type SettingsSidebarGroup = "primary" | "more";
+export type SettingsSidebarGroup = 'primary' | 'more';
 
 export interface SettingsSectionDescriptor {
   /** Unique section id (e.g. "general", "pdf", "xlsx", "text", "image", "docx"). */
@@ -45,9 +42,7 @@ export interface SettingsSectionDescriptor {
   /** Optional visibility predicate given current settings values. */
   isVisible?: (values: AutumnStudioSettingsValues) => boolean;
   /** Optional section-scoped reset updater. */
-  resetSection?: (
-    current: AutumnStudioSettingsValues
-  ) => AutumnStudioSettingsValues;
+  resetSection?: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues;
   /** Section UI component. */
   Component: ComponentType<SettingsSectionComponentProps>;
 }

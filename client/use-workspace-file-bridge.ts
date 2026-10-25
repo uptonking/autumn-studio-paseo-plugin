@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react";
-import { useRpc, useSettings } from "@getpaseo/plugin/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from 'react';
+import { useRpc, useSettings } from '@getpaseo/plugin/client';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   cancelAiTextTask,
   DEFAULT_AUTUMN_STUDIO_SETTINGS,
@@ -21,16 +21,16 @@ import {
   startAiTextTask,
   toPdfViewerZoom,
   toXlsxViewerZoom,
-} from "../shared/contracts.js";
-import type { AiTextBridge } from "./ai-text/ai-text-context.js";
+} from '../shared/contracts.js';
+import type { AiTextBridge } from './ai-text/ai-text-context.js';
 import {
   getOrCreateFileBlobUrl,
   getOrCreatePdfWasmBlobUrl,
   getOrCreateXlsxWasmDataUri,
-} from "./blob-url-cache.js";
-import { persistSerializedFile } from "./editing/use-file-edit-session.js";
-import type { FileSaveCallbackInput } from "./viewers/registry.js";
-import type { FileOpenRef, GetFileUrlOptions } from "./view-props.js";
+} from './blob-url-cache.js';
+import { persistSerializedFile } from './editing/use-file-edit-session.js';
+import type { FileSaveCallbackInput } from './viewers/registry.js';
+import type { FileOpenRef, GetFileUrlOptions } from './view-props.js';
 
 export function useWorkspaceFileBridge(workspaceId: string) {
   const queryClient = useQueryClient();
@@ -49,12 +49,10 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   const callDeleteAiTextVersion = useRpc(deleteAiTextVersion);
   const settingsState = useSettings(autumnStudioSettings);
   const settings =
-    settingsState.status === "ready"
-      ? settingsState.values
-      : DEFAULT_AUTUMN_STUDIO_SETTINGS;
+    settingsState.status === 'ready' ? settingsState.values : DEFAULT_AUTUMN_STUDIO_SETTINGS;
 
   const dismissTreeDeprecation = useCallback(() => {
-    if (settingsState.status !== "ready") return;
+    if (settingsState.status !== 'ready') return;
     void settingsState.save(
       {
         ...settingsState.values,
@@ -89,11 +87,9 @@ export function useWorkspaceFileBridge(workspaceId: string) {
           });
           if (options?.forceRefresh) {
             const mtimeIso =
-              typeof result.mtime === "number"
-                ? new Date(result.mtime).toISOString()
-                : undefined;
+              typeof result.mtime === 'number' ? new Date(result.mtime).toISOString() : undefined;
             if (
-              (typeof result.size === "number" &&
+              (typeof result.size === 'number' &&
                 file.size !== undefined &&
                 result.size !== file.size) ||
               (mtimeIso !== undefined &&
@@ -101,7 +97,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
                 mtimeIso !== file.updatedAt)
             ) {
               void queryClient.invalidateQueries({
-                queryKey: ["autumn-studio:tree", workspaceId],
+                queryKey: ['autumn-studio:tree', workspaceId],
               });
             }
           }
@@ -122,7 +118,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
         callSaveRpc: callSaveFile,
         onSaved: () => {
           void queryClient.invalidateQueries({
-            queryKey: ["autumn-studio:tree", workspaceId],
+            queryKey: ['autumn-studio:tree', workspaceId],
           });
         },
       }),
@@ -171,15 +167,9 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     ],
   );
 
-  const textSettings = useMemo(
-    () => getTextViewerSettings(settings),
-    [settings],
-  );
+  const textSettings = useMemo(() => getTextViewerSettings(settings), [settings]);
 
-  const aiTextSettings = useMemo(
-    () => getAiTextSettings(settings),
-    [settings],
-  );
+  const aiTextSettings = useMemo(() => getAiTextSettings(settings), [settings]);
 
   const getAiTextMetadataForFile = useCallback(
     (relPath: string) => callGetAiTextMetadata({ workspaceId, relPath }),
@@ -188,10 +178,9 @@ export function useWorkspaceFileBridge(workspaceId: string) {
 
   const startAiTextTaskForFile = useCallback(
     (
-      input: Omit<
-        Parameters<AiTextBridge["startTask"]>[0],
-        "relPath"
-      > & { relPath?: string },
+      input: Omit<Parameters<AiTextBridge['startTask']>[0], 'relPath'> & {
+        relPath?: string;
+      },
     ) =>
       callStartAiTextTask({
         workspaceId,
@@ -204,12 +193,12 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     async (taskId: string) => {
       const result = await callGetAiTextTask({ taskId });
       if (
-        result.task.status === "succeeded" ||
-        result.task.status === "failed" ||
-        result.task.status === "cancelled"
+        result.task.status === 'succeeded' ||
+        result.task.status === 'failed' ||
+        result.task.status === 'cancelled'
       ) {
         void queryClient.invalidateQueries({
-          queryKey: ["autumn-studio:tree", workspaceId],
+          queryKey: ['autumn-studio:tree', workspaceId],
         });
       }
       return result;
@@ -240,10 +229,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   );
 
   const getAiTextEngineEnvironmentForWorkspace = useCallback(
-    (
-      engineId: string,
-      options?: { config?: Record<string, unknown>; refresh?: boolean },
-    ) =>
+    (engineId: string, options?: { config?: Record<string, unknown>; refresh?: boolean }) =>
       callGetAiTextEngineEnvironment({
         engineId,
         ...(options?.config ? { config: options.config } : {}),
@@ -266,7 +252,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
         versionId,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["autumn-studio:tree", workspaceId],
+        queryKey: ['autumn-studio:tree', workspaceId],
       });
       return result;
     },

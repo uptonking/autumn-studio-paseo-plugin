@@ -1,39 +1,39 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Shared block vocabulary. Engines normalize their native block labels into
  * these types so the Blocks viewer, overlays, and filters stay engine-neutral.
  */
 export const AI_TEXT_LAYOUT_BLOCK_TYPES = [
-  "image",
-  "table",
-  "chart",
-  "text",
-  "equation",
-  "list",
-  "index",
-  "code",
-  "ref_text",
-  "header",
-  "footer",
-  "page_number",
-  "aside_text",
-  "page_footnote",
-  "doc_title",
-  "paragraph_title",
-  "unknown",
+  'image',
+  'table',
+  'chart',
+  'text',
+  'equation',
+  'list',
+  'index',
+  'code',
+  'ref_text',
+  'header',
+  'footer',
+  'page_number',
+  'aside_text',
+  'page_footnote',
+  'doc_title',
+  'paragraph_title',
+  'unknown',
 ] as const;
 
-export const aiTextLayoutBlockTypeSchema = z.enum(
-  AI_TEXT_LAYOUT_BLOCK_TYPES,
-);
-export type AiTextLayoutBlockType = z.infer<
-  typeof aiTextLayoutBlockTypeSchema
->;
+export const aiTextLayoutBlockTypeSchema = z.enum(AI_TEXT_LAYOUT_BLOCK_TYPES);
+export type AiTextLayoutBlockType = z.infer<typeof aiTextLayoutBlockTypeSchema>;
 
 /** Page furniture that the Blocks panel can hide in one click. */
-export const AI_TEXT_PAGE_FURNITURE_TYPES: ReadonlySet<AiTextLayoutBlockType> =
-  new Set(["header", "footer", "page_number", "aside_text"]);
+export const AI_TEXT_PAGE_FURNITURE_TYPES: ReadonlySet<AiTextLayoutBlockType> = new Set([
+  'header',
+  'footer',
+  'page_number',
+  'aside_text',
+]);
 
 const normalizedCoordinateSchema = z.number().min(0).max(1);
 
@@ -52,7 +52,7 @@ export const aiTextLayoutBlockSchema = z.object({
   type: aiTextLayoutBlockTypeSchema,
   /** Normalized [x0, y0, x1, y1] with a top-left origin. */
   bbox: aiTextLayoutBboxSchema,
-  text: z.string().default(""),
+  text: z.string().default(''),
   /** `table_body` HTML or `code_body` source. */
   html: z.string().optional(),
   level: z.number().int().min(1).max(6).optional(),
@@ -63,11 +63,11 @@ export const aiTextLayoutBlockSchema = z.object({
 export type AiTextLayoutBlock = z.infer<typeof aiTextLayoutBlockSchema>;
 
 export const aiTextLayoutSourceSchema = z.enum([
-  "mineru-kit",
-  "mineru-local-api",
-  "mineru-cloud",
-  "docling",
-  "local-ocr",
+  'mineru-kit',
+  'mineru-local-api',
+  'mineru-cloud',
+  'docling',
+  'local-ocr',
 ]);
 export type AiTextLayoutSource = z.infer<typeof aiTextLayoutSourceSchema>;
 
@@ -89,30 +89,24 @@ export const aiTextVersionLayoutRefSchema = z.object({
   pageCount: z.number().int().min(0),
   source: aiTextLayoutSourceSchema,
 });
-export type AiTextVersionLayoutRef = z.infer<
-  typeof aiTextVersionLayoutRefSchema
->;
+export type AiTextVersionLayoutRef = z.infer<typeof aiTextVersionLayoutRefSchema>;
 
 export const aiTextVersionAssetsRefSchema = z.object({
   dirName: z.string(),
   imageCount: z.number().int().min(0),
   totalBytes: z.number().int().min(0),
 });
-export type AiTextVersionAssetsRef = z.infer<
-  typeof aiTextVersionAssetsRefSchema
->;
+export type AiTextVersionAssetsRef = z.infer<typeof aiTextVersionAssetsRefSchema>;
 
 export const AI_TEXT_ASSET_MIME_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
 ] as const;
 
-export function isAiTextPageFurniture(
-  type: AiTextLayoutBlockType,
-): boolean {
+export function isAiTextPageFurniture(type: AiTextLayoutBlockType): boolean {
   return AI_TEXT_PAGE_FURNITURE_TYPES.has(type);
 }
 

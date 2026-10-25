@@ -1,28 +1,21 @@
-import { lazy, Suspense, useCallback, useMemo } from "react";
-import { Platform, Text, View } from "react-native";
-import {
-  useRpc,
-  type PluginWorkspacePanelProps,
-} from "@getpaseo/plugin/client";
-import { useQuery } from "@tanstack/react-query";
-import { getFileTree } from "../shared/contracts.js";
+import { lazy, Suspense, useCallback, useMemo } from 'react';
+import { Platform, Text, View } from 'react-native';
+import { useRpc, type PluginWorkspacePanelProps } from '@getpaseo/plugin/client';
+import { useQuery } from '@tanstack/react-query';
+import { getFileTree } from '../shared/contracts.js';
 import {
   clearRecentFilesInStore,
   recordRecentFileInStore,
   removeRecentFileInStore,
   useWorkspaceOpenedTabs,
-} from "./opened-tabs-store.js";
-import { useWorkspaceFileBridge } from "./use-workspace-file-bridge.js";
-import {
-  flattenTree,
-  type ExplorerViewProps,
-  type FileOpenRef,
-} from "./view-props.js";
+} from './opened-tabs-store.js';
+import { useWorkspaceFileBridge } from './use-workspace-file-bridge.js';
+import { flattenTree, type ExplorerViewProps, type FileOpenRef } from './view-props.js';
 
 // The island pulls in react-dom and the whole DOM component tree; the dynamic
 // import keeps all of it unevaluated on native, where it must never load.
 const ExplorerIsland = lazy(() =>
-  import("./explorer-island.web.js").then((m) => ({
+  import('./explorer-island.web.js').then((m) => ({
     default: m.ExplorerIsland,
   })),
 );
@@ -43,7 +36,7 @@ export function ExplorerPanel(
     onOpenSettings?: (workspaceId: string) => void;
   },
 ) {
-  const isWeb = Platform.OS === "web";
+  const isWeb = Platform.OS === 'web';
   const fetchTree = useRpc(getFileTree);
   const {
     settings,
@@ -62,7 +55,7 @@ export function ExplorerPanel(
   const isEnabled = settings.general.enabled;
 
   const query = useQuery({
-    queryKey: ["autumn-studio:tree", props.workspaceId],
+    queryKey: ['autumn-studio:tree', props.workspaceId],
     queryFn: () => fetchTree({ workspaceId: props.workspaceId }),
     enabled: isWeb && isEnabled,
     refetchOnWindowFocus: true,
@@ -74,18 +67,14 @@ export function ExplorerPanel(
         maxOpenTabs: settings.general.maxOpenTabs,
       });
     },
-    [
-      props.onOpenFileInNewTab,
-      props.workspaceId,
-      settings.general.maxOpenTabs,
-    ],
+    [props.onOpenFileInNewTab, props.workspaceId, settings.general.maxOpenTabs],
   );
 
   const handleRecordRecentFile = useCallback(
     (file: FileOpenRef) => {
       recordRecentFileInStore(props.workspaceId, {
         path: file.path,
-        name: file.name ?? file.path.split("/").pop() ?? file.path,
+        name: file.name ?? file.path.split('/').pop() ?? file.path,
         contentType: file.contentType,
         size: file.size,
         updatedAt: file.updatedAt,
@@ -113,10 +102,7 @@ export function ExplorerPanel(
     void query.refetch();
   }, [query.refetch]);
 
-  const flattenedItems = useMemo(
-    () => flattenTree(query.data?.tree),
-    [query.data?.tree],
-  );
+  const flattenedItems = useMemo(() => flattenTree(query.data?.tree), [query.data?.tree]);
 
   const view: ExplorerViewProps = useMemo(
     () => ({
@@ -128,7 +114,7 @@ export function ExplorerPanel(
         query.error instanceof Error
           ? query.error.message
           : query.error
-            ? "Failed to load files"
+            ? 'Failed to load files'
             : null,
       enabled: isEnabled,
       defaultFileOpenMode: settings.general.fileOpenMode,
@@ -144,9 +130,7 @@ export function ExplorerPanel(
       getPdfWasmUrl,
       getXlsxWasmDataUri,
       onSaveFile: handleSaveFile,
-      onOpenFileInNewTab: props.onOpenFileInNewTab
-        ? handleOpenFileInNewTab
-        : undefined,
+      onOpenFileInNewTab: props.onOpenFileInNewTab ? handleOpenFileInNewTab : undefined,
       onRecordRecentFile: handleRecordRecentFile,
       onRemoveRecentFile: handleRemoveRecentFile,
       onClearRecentFiles: handleClearRecentFiles,
@@ -191,12 +175,12 @@ export function ExplorerPanel(
       <View
         style={{
           flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
           padding: 24,
         }}
       >
-        <Text style={{ fontSize: 15, opacity: 0.7, textAlign: "center" }}>
+        <Text style={{ fontSize: 15, opacity: 0.7, textAlign: 'center' }}>
           Autumn Studio is available on desktop and web only.
         </Text>
         <Text
@@ -204,7 +188,7 @@ export function ExplorerPanel(
             marginTop: 8,
             fontSize: 13,
             opacity: 0.5,
-            textAlign: "center",
+            textAlign: 'center',
           }}
         >
           Use the Files panel for mobile access.
@@ -216,9 +200,7 @@ export function ExplorerPanel(
   return (
     <Suspense
       fallback={
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, opacity: 0.6 }}>Loading explorer…</Text>
         </View>
       }

@@ -3,9 +3,5 @@ export {
   ExtendXlsxSurface,
   type ExtendXlsxSurfaceProps,
   ExtendXlsxViewer,
-} from "./xlsx-surface";
-export {
-  ensureXlsxWasmReady,
-  fetchWorkbookArrayBuffer,
-  setXlsxWasmResolver,
-} from "./wasm-loader";
+} from './xlsx-surface';
+export { ensureXlsxWasmReady, fetchWorkbookArrayBuffer, setXlsxWasmResolver } from './wasm-loader';

@@ -6,18 +6,18 @@ import {
   type AiTextLayoutBlockType,
   type AiTextLayoutDocument,
   type AiTextLayoutSource,
-} from "../../../../shared/ai-text/layout.ts";
+} from '../../../../shared/ai-text/layout.ts';
 
 interface JsonRecord {
   [key: string]: unknown;
 }
 
 function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function asFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function clampUnit(value: number): number {
@@ -40,45 +40,45 @@ function normalizeBbox(value: unknown): [number, number, number, number] | null 
 }
 
 function normalizeAssetPath(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const normalized = value.replace(/\\/g, "/").replace(/^\.?\//, "");
-  if (!normalized || normalized.startsWith("/")) return undefined;
-  const segments = normalized.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.replace(/\\/g, '/').replace(/^\.?\//, '');
+  if (!normalized || normalized.startsWith('/')) return undefined;
+  const segments = normalized.split('/');
+  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) {
     return undefined;
   }
-  if (segments[0] !== "images") return undefined;
+  if (segments[0] !== 'images') return undefined;
   return normalized;
 }
 
 function flattenInlineContent(value: unknown): string {
-  if (typeof value === "string") return value;
+  if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
     return value
       .map((item) => flattenInlineContent(item).trim())
       .filter(Boolean)
-      .join(" ")
-      .replace(/\s+/g, " ")
+      .join(' ')
+      .replace(/\s+/g, ' ')
       .trim();
   }
   if (isRecord(value)) {
-    if (typeof value.content === "string") return value.content;
+    if (typeof value.content === 'string') return value.content;
     if (value.content !== undefined) return flattenInlineContent(value.content);
   }
-  return "";
+  return '';
 }
 
 function stripHtmlForPreview(value: string): string {
   return value
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -90,14 +90,14 @@ function getChildBlocks(block: JsonRecord): JsonRecord[] {
 function findVisualBody(block: JsonRecord): JsonRecord | null {
   const children = getChildBlocks(block);
   const expectedType =
-    block.type === "image"
-      ? "image_body"
-      : block.type === "table"
-        ? "table_body"
-        : block.type === "chart"
-          ? "chart_body"
-          : block.type === "code"
-            ? "code_body"
+    block.type === 'image'
+      ? 'image_body'
+      : block.type === 'table'
+        ? 'table_body'
+        : block.type === 'chart'
+          ? 'chart_body'
+          : block.type === 'code'
+            ? 'code_body'
             : null;
   if (!expectedType) return null;
   return children.find((child) => child.type === expectedType) ?? null;
@@ -106,57 +106,47 @@ function findVisualBody(block: JsonRecord): JsonRecord | null {
 function readBlockText(block: JsonRecord): string {
   const body = findVisualBody(block);
   const children = getChildBlocks(block);
-  const nonBodyChildren = body
-    ? children.filter((child) => child !== body)
-    : children;
+  const nonBodyChildren = body ? children.filter((child) => child !== body) : children;
 
-  if (block.type === "list") {
+  if (block.type === 'list') {
     return nonBodyChildren
       .map((child) => flattenInlineContent(child.content))
       .filter(Boolean)
-      .join("\n");
+      .join('\n');
   }
 
   if (body) {
     const bodyContent =
-      typeof body.content === "string"
-        ? body.content
-        : flattenInlineContent(body.content);
-    if (block.type === "table" || block.type === "chart") {
+      typeof body.content === 'string' ? body.content : flattenInlineContent(body.content);
+    if (block.type === 'table' || block.type === 'chart') {
       const captions = nonBodyChildren
         .map((child) => flattenInlineContent(child.content))
         .filter(Boolean)
-        .join(" ");
+        .join(' ');
       const tableText = stripHtmlForPreview(bodyContent);
-      return [tableText, captions].filter(Boolean).join("\n").trim();
+      return [tableText, captions].filter(Boolean).join('\n').trim();
     }
-    if (block.type === "code") {
+    if (block.type === 'code') {
       return bodyContent.trim();
     }
     return nonBodyChildren
       .map((child) => flattenInlineContent(child.content))
       .filter(Boolean)
-      .join(" ");
+      .join(' ');
   }
 
   return flattenInlineContent(block.content).trim();
 }
 
 function readBlockHtml(block: JsonRecord, body: JsonRecord | null): string | undefined {
-  if (!body || typeof body.content !== "string") return undefined;
-  if (block.type === "table") return body.content;
-  if (block.type === "code") return body.content;
+  if (!body || typeof body.content !== 'string') return undefined;
+  if (block.type === 'table') return body.content;
+  if (block.type === 'code') return body.content;
   return undefined;
 }
 
-function readBlockImagePath(
-  block: JsonRecord,
-  body: JsonRecord | null,
-): string | undefined {
-  return (
-    normalizeAssetPath(body?.image_path) ??
-    normalizeAssetPath(block.image_path)
-  );
+function readBlockImagePath(block: JsonRecord, body: JsonRecord | null): string | undefined {
+  return normalizeAssetPath(body?.image_path) ?? normalizeAssetPath(block.image_path);
 }
 
 function readBlockLevel(block: JsonRecord): number | undefined {
@@ -166,7 +156,7 @@ function readBlockLevel(block: JsonRecord): number | undefined {
 }
 
 function readBlockConfidence(block: JsonRecord): number | undefined {
-  for (const key of ["confidence", "score", "probability"]) {
+  for (const key of ['confidence', 'score', 'probability']) {
     const value = asFiniteNumber(block[key]);
     if (value !== null && value >= 0 && value <= 1) return value;
   }
@@ -175,7 +165,7 @@ function readBlockConfidence(block: JsonRecord): number | undefined {
 
 function readBlockType(value: unknown): AiTextLayoutBlockType {
   const parsed = aiTextLayoutBlockTypeSchema.safeParse(value);
-  return parsed.success ? parsed.data : "unknown";
+  return parsed.success ? parsed.data : 'unknown';
 }
 
 function normalizeTopLevelBlock(input: {
@@ -245,17 +235,11 @@ export function normalizeMineruMiddleJson(input: {
   if (blocks.length === 0) return null;
 
   blocks.sort(
-    (a, b) =>
-      a.pageNumber - b.pageNumber ||
-      a.bbox[1] - b.bbox[1] ||
-      a.bbox[0] - b.bbox[0],
+    (a, b) => a.pageNumber - b.pageNumber || a.bbox[1] - b.bbox[1] || a.bbox[0] - b.bbox[0],
   );
 
   const pageNumbers = new Set(blocks.map((block) => block.pageNumber));
-  const maxPageNumber = blocks.reduce(
-    (max, block) => Math.max(max, block.pageNumber),
-    0,
-  );
+  const maxPageNumber = blocks.reduce((max, block) => Math.max(max, block.pageNumber), 0);
   // `pages` also counts parsed pages with no extractable blocks, which the
   // blocks list cannot see.
   const pageCount = Math.max(pages.length, maxPageNumber, pageNumbers.size);

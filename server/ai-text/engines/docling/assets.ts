@@ -1,20 +1,13 @@
-import { readdir, readFile, stat } from "node:fs/promises";
-import { basename, extname, isAbsolute, relative, resolve } from "node:path";
-import type { ExtractedAssetInput } from "../../version-assets.ts";
-import { MAX_ASSET_BYTES, MAX_ASSETS_TOTAL_BYTES } from "../../version-assets.ts";
-import type { DoclingPictureRef } from "./docling-json.ts";
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { basename, extname, isAbsolute, relative, resolve } from 'node:path';
+import type { ExtractedAssetInput } from '../../version-assets.ts';
+import { MAX_ASSET_BYTES, MAX_ASSETS_TOTAL_BYTES } from '../../version-assets.ts';
+import type { DoclingPictureRef } from './docling-json.ts';
 
-const ALLOWED_IMAGE_EXTENSIONS = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-  ".gif",
-  ".svg",
-]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 
 function stripFileUri(uri: string): string {
-  if (!uri.startsWith("file://")) return uri;
+  if (!uri.startsWith('file://')) return uri;
   try {
     return decodeURIComponent(new URL(uri).pathname);
   } catch {
@@ -24,7 +17,7 @@ function stripFileUri(uri: string): string {
 
 function isInside(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
 }
 
 /**
@@ -45,17 +38,13 @@ export async function collectDoclingAssets(input: {
 
   for (const picture of input.pictures) {
     const rawUri = stripFileUri(picture.sourceUri);
-    if (!rawUri || rawUri.startsWith("data:") || isAbsolute(rawUri)) {
-      input.warnings.push(
-        `Skipped Docling image outside the output folder: ${picture.sourceUri}`,
-      );
+    if (!rawUri || rawUri.startsWith('data:') || isAbsolute(rawUri)) {
+      input.warnings.push(`Skipped Docling image outside the output folder: ${picture.sourceUri}`);
       continue;
     }
     const absPath = resolve(input.outputDir, rawUri);
     if (!isInside(resolve(input.outputDir), absPath)) {
-      input.warnings.push(
-        `Skipped Docling image outside the output folder: ${picture.sourceUri}`,
-      );
+      input.warnings.push(`Skipped Docling image outside the output folder: ${picture.sourceUri}`);
       continue;
     }
     if (!ALLOWED_IMAGE_EXTENSIONS.has(extname(absPath).toLowerCase())) {
@@ -71,9 +60,7 @@ export async function collectDoclingAssets(input: {
         continue;
       }
       if (totalBytes + stats.size > MAX_ASSETS_TOTAL_BYTES) {
-        input.warnings.push(
-          "Skipped remaining Docling images over the 512MB version cap",
-        );
+        input.warnings.push('Skipped remaining Docling images over the 512MB version cap');
         break;
       }
       const data = await readFile(absPath);
@@ -93,26 +80,18 @@ export async function collectDoclingAssets(input: {
   }
 
   let markdown = input.markdown;
-  const ordered = [...replacements.entries()].sort(
-    ([a], [b]) => b.length - a.length,
-  );
+  const ordered = [...replacements.entries()].sort(([a], [b]) => b.length - a.length);
   if (ordered.length > 0) {
     // Single pass: replacing the full URI first would otherwise let the
     // basename rule rewrite the new `images/` prefix it just produced.
-    const pattern = new RegExp(
-      ordered.map(([source]) => escapeRegExp(source)).join("|"),
-      "g",
-    );
-    markdown = markdown.replace(
-      pattern,
-      (match) => replacements.get(match) ?? match,
-    );
+    const pattern = new RegExp(ordered.map(([source]) => escapeRegExp(source)).join('|'), 'g');
+    markdown = markdown.replace(pattern, (match) => replacements.get(match) ?? match);
   }
   return { assets, markdown };
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /** Removes Docling's temporary output once its Markdown and pictures are read. */

@@ -1,33 +1,30 @@
-import * as React from "react"
-import { refreshPages } from "@embedpdf/core"
-import { useRegistry } from "@embedpdf/core/react"
-import { GlobalPointerProvider } from "@embedpdf/plugin-interaction-manager/react"
-import { useScroll, type PageLayout } from "@embedpdf/plugin-scroll/react"
-import { CopyToClipboard } from "@embedpdf/plugin-selection/react"
-import {
-  useThumbnailCapability,
-  useThumbnailPlugin,
-} from "@embedpdf/plugin-thumbnail/react"
-import { useZoom } from "@embedpdf/plugin-zoom/react"
-import { flushSync } from "react-dom"
+import * as React from 'react';
+import { refreshPages } from '@embedpdf/core';
+import { useRegistry } from '@embedpdf/core/react';
+import { GlobalPointerProvider } from '@embedpdf/plugin-interaction-manager/react';
+import { useScroll, type PageLayout } from '@embedpdf/plugin-scroll/react';
+import { CopyToClipboard } from '@embedpdf/plugin-selection/react';
+import { useThumbnailCapability, useThumbnailPlugin } from '@embedpdf/plugin-thumbnail/react';
+import { useZoom } from '@embedpdf/plugin-zoom/react';
+import { flushSync } from 'react-dom';
 
-import { cn } from "../lib/utils"
+import { cn } from '../lib/utils';
 import {
   DocumentViewerThumbnailSidebar,
   useElementWidth,
   useInlineThumbnailSidebar,
-} from "../document-viewer-sidebar"
-import { PDFViewerPageLayer } from "./page-layer"
+} from '../document-viewer-sidebar';
+import { PDFViewerPageLayer } from './page-layer';
 import {
   PDFViewerScroller,
   PDFViewerScrollAreaViewport,
   PDFViewerSelectionCopyShortcut,
   PDFViewerSelectionReleaseGuard,
   PDFViewerViewportBridge,
-} from "./scroller"
-import { PDFViewerSearchControl } from "./search-control"
-import { PDFViewerThumbnails } from "./thumbnails"
-import { PDFViewerLoadingSkeleton, PDFViewerToolbar } from "./toolbar"
+} from './scroller';
+import { PDFViewerSearchControl } from './search-control';
+import { PDFViewerThumbnails } from './thumbnails';
+import { PDFViewerLoadingSkeleton, PDFViewerToolbar } from './toolbar';
 import {
   arePageIndexSetsEqual,
   downloadPdfWithPageRotations,
@@ -41,7 +38,7 @@ import {
   type PageRotationDeltas,
   type PDFViewerInnerProps,
   type ThumbnailSelectionMode,
-} from "./types"
+} from './types';
 
 export function PDFViewerInner({
   viewerRef,
@@ -69,107 +66,102 @@ export function PDFViewerInner({
   onPagePointerCancel,
   onUploadFile,
 }: PDFViewerInnerProps) {
-  const { registry } = useRegistry()
-  const { state: scrollState, provides: scroll } = useScroll(documentId)
-  const { state: zoomState, provides: zoom } = useZoom(documentId)
-  const { provides: thumbnails } = useThumbnailCapability()
-  const { plugin: thumbnailPlugin } = useThumbnailPlugin()
-  const [sidebarOpen, setSidebarOpen] = React.useState(defaultSidebarOpen)
-  const [searchOpenRequest, setSearchOpenRequest] = React.useState(0)
+  const { registry } = useRegistry();
+  const { state: scrollState, provides: scroll } = useScroll(documentId);
+  const { state: zoomState, provides: zoom } = useZoom(documentId);
+  const { provides: thumbnails } = useThumbnailCapability();
+  const { plugin: thumbnailPlugin } = useThumbnailPlugin();
+  const [sidebarOpen, setSidebarOpen] = React.useState(defaultSidebarOpen);
+  const [searchOpenRequest, setSearchOpenRequest] = React.useState(0);
 
   React.useEffect(() => {
-    setSidebarOpen(defaultSidebarOpen)
-  }, [defaultSidebarOpen])
+    setSidebarOpen(defaultSidebarOpen);
+  }, [defaultSidebarOpen]);
 
-  const prevDefaultZoomRef = React.useRef(defaultZoom)
+  const prevDefaultZoomRef = React.useRef(defaultZoom);
   React.useEffect(() => {
-    if (prevDefaultZoomRef.current === defaultZoom) return
-    prevDefaultZoomRef.current = defaultZoom
-    zoom?.requestZoom(toZoomLevel(defaultZoom))
-  }, [defaultZoom, zoom])
-  const [isPreparingDownload, setIsPreparingDownload] = React.useState(false)
-  const [pageRotationDeltas, setPageRotationDeltas] =
-    React.useState<PageRotationDeltas>(() => new Map())
-  const [selectedPageIndexes, setSelectedPageIndexes] = React.useState<
-    Set<number>
-  >(() => new Set())
+    if (prevDefaultZoomRef.current === defaultZoom) return;
+    prevDefaultZoomRef.current = defaultZoom;
+    zoom?.requestZoom(toZoomLevel(defaultZoom));
+  }, [defaultZoom, zoom]);
+  const [isPreparingDownload, setIsPreparingDownload] = React.useState(false);
+  const [pageRotationDeltas, setPageRotationDeltas] = React.useState<PageRotationDeltas>(
+    () => new Map(),
+  );
+  const [selectedPageIndexes, setSelectedPageIndexes] = React.useState<Set<number>>(
+    () => new Set(),
+  );
   const basePageRotations = React.useMemo(
-    () =>
-      pdfDocument?.pages.map((page) => normalizeRotation(page.rotation)) ?? [],
-    [pdfDocument]
-  )
-  const [viewerShellRef, viewerShellWidth] = useElementWidth<HTMLDivElement>()
-  const sidebarInline = useInlineThumbnailSidebar(viewerShellWidth)
-  const viewportElementRef = React.useRef<HTMLDivElement | null>(null)
-  const pageRotationDeltasRef = React.useRef(pageRotationDeltas)
-  const selectedPageIndexesRef = React.useRef(selectedPageIndexes)
-  const selectionAnchorPageIndexRef = React.useRef<number | null>(null)
-  const suppressActivePageSelectionSyncRef = React.useRef<number | null>(null)
-  const initializedSelectionDocumentRef = React.useRef<string | null>(null)
+    () => pdfDocument?.pages.map((page) => normalizeRotation(page.rotation)) ?? [],
+    [pdfDocument],
+  );
+  const [viewerShellRef, viewerShellWidth] = useElementWidth<HTMLDivElement>();
+  const sidebarInline = useInlineThumbnailSidebar(viewerShellWidth);
+  const viewportElementRef = React.useRef<HTMLDivElement | null>(null);
+  const pageRotationDeltasRef = React.useRef(pageRotationDeltas);
+  const selectedPageIndexesRef = React.useRef(selectedPageIndexes);
+  const selectionAnchorPageIndexRef = React.useRef<number | null>(null);
+  const suppressActivePageSelectionSyncRef = React.useRef<number | null>(null);
+  const initializedSelectionDocumentRef = React.useRef<string | null>(null);
 
-  const activePage = scrollState.currentPage
-  const numPages = pdfDocument?.pageCount ?? 0
-  const isLoading = !pdfDocument
-  const controlsDisabled = !numPages
-  const downloadDisabled = controlsDisabled || isPreparingDownload
-  const thumbnailSidebarVisible = sidebarOpen && !isLoading
-  const currentZoomLevel = zoomState.currentZoomLevel
-  const alignedThumbnailSidebarDocumentRef = React.useRef<string | null>(null)
-
-  React.useEffect(() => {
-    pageRotationDeltasRef.current = pageRotationDeltas
-  }, [pageRotationDeltas])
+  const activePage = scrollState.currentPage;
+  const numPages = pdfDocument?.pageCount ?? 0;
+  const isLoading = !pdfDocument;
+  const controlsDisabled = !numPages;
+  const downloadDisabled = controlsDisabled || isPreparingDownload;
+  const thumbnailSidebarVisible = sidebarOpen && !isLoading;
+  const currentZoomLevel = zoomState.currentZoomLevel;
+  const alignedThumbnailSidebarDocumentRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    selectedPageIndexesRef.current = selectedPageIndexes
-  }, [selectedPageIndexes])
+    pageRotationDeltasRef.current = pageRotationDeltas;
+  }, [pageRotationDeltas]);
 
   React.useEffect(() => {
-    if (activePage > 0) onActivePageChange?.(activePage)
-  }, [activePage, onActivePageChange])
+    selectedPageIndexesRef.current = selectedPageIndexes;
+  }, [selectedPageIndexes]);
 
   React.useEffect(() => {
-    if (activePage < 1 || numPages < 1) return
+    if (activePage > 0) onActivePageChange?.(activePage);
+  }, [activePage, onActivePageChange]);
 
-    const activePageIndex = activePage - 1
-    const suppressedPageIndex = suppressActivePageSelectionSyncRef.current
+  React.useEffect(() => {
+    if (activePage < 1 || numPages < 1) return;
 
-    suppressActivePageSelectionSyncRef.current = null
+    const activePageIndex = activePage - 1;
+    const suppressedPageIndex = suppressActivePageSelectionSyncRef.current;
 
-    if (suppressedPageIndex === activePageIndex) return
+    suppressActivePageSelectionSyncRef.current = null;
 
-    const nextSelection = new Set([activePageIndex])
+    if (suppressedPageIndex === activePageIndex) return;
 
-    selectionAnchorPageIndexRef.current = activePageIndex
-    selectedPageIndexesRef.current = nextSelection
+    const nextSelection = new Set([activePageIndex]);
+
+    selectionAnchorPageIndexRef.current = activePageIndex;
+    selectedPageIndexesRef.current = nextSelection;
     setSelectedPageIndexes((previousSelection) =>
-      arePageIndexSetsEqual(previousSelection, nextSelection)
-        ? previousSelection
-        : nextSelection
-    )
-  }, [activePage, numPages])
+      arePageIndexSetsEqual(previousSelection, nextSelection) ? previousSelection : nextSelection,
+    );
+  }, [activePage, numPages]);
 
   React.useEffect(() => {
-    if (
-      numPages < 1 ||
-      initializedSelectionDocumentRef.current === documentId
-    ) {
-      return
+    if (numPages < 1 || initializedSelectionDocumentRef.current === documentId) {
+      return;
     }
 
-    const initialPageIndex = Math.max(0, (activePage > 0 ? activePage : 1) - 1)
-    const initialSelection = new Set([initialPageIndex])
+    const initialPageIndex = Math.max(0, (activePage > 0 ? activePage : 1) - 1);
+    const initialSelection = new Set([initialPageIndex]);
 
-    initializedSelectionDocumentRef.current = documentId
-    selectionAnchorPageIndexRef.current = initialPageIndex
-    selectedPageIndexesRef.current = initialSelection
-    setSelectedPageIndexes(initialSelection)
-  }, [activePage, documentId, numPages])
+    initializedSelectionDocumentRef.current = documentId;
+    selectionAnchorPageIndexRef.current = initialPageIndex;
+    selectedPageIndexesRef.current = initialSelection;
+    setSelectedPageIndexes(initialSelection);
+  }, [activePage, documentId, numPages]);
 
   React.useEffect(() => {
     if (!thumbnailSidebarVisible) {
-      alignedThumbnailSidebarDocumentRef.current = null
-      return
+      alignedThumbnailSidebarDocumentRef.current = null;
+      return;
     }
 
     if (
@@ -177,83 +169,82 @@ export function PDFViewerInner({
       !thumbnails ||
       alignedThumbnailSidebarDocumentRef.current === documentId
     ) {
-      return
+      return;
     }
 
-    alignedThumbnailSidebarDocumentRef.current = documentId
+    alignedThumbnailSidebarDocumentRef.current = documentId;
     const frame = window.requestAnimationFrame(() => {
-      thumbnails.forDocument(documentId).scrollToThumb(activePage - 1)
-    })
+      thumbnails.forDocument(documentId).scrollToThumb(activePage - 1);
+    });
 
-    return () => window.cancelAnimationFrame(frame)
-  }, [activePage, documentId, thumbnailSidebarVisible, thumbnails])
+    return () => window.cancelAnimationFrame(frame);
+  }, [activePage, documentId, thumbnailSidebarVisible, thumbnails]);
 
-  const initialZoomDocumentRef = React.useRef<string | null>(null)
+  const initialZoomDocumentRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!pdfDocument || !zoom) return
-    if (initialZoomDocumentRef.current === documentId) return
+    if (!pdfDocument || !zoom) return;
+    if (initialZoomDocumentRef.current === documentId) return;
 
-    initialZoomDocumentRef.current = documentId
-    zoom.requestZoom(toZoomLevel(defaultZoom))
-  }, [defaultZoom, documentId, pdfDocument, zoom])
+    initialZoomDocumentRef.current = documentId;
+    zoom.requestZoom(toZoomLevel(defaultZoom));
+  }, [defaultZoom, documentId, pdfDocument, zoom]);
 
   const scrollToPage = React.useCallback(
     (pageNumber: number, options?: ScrollIntoViewOptions) => {
       scroll?.scrollToPage({
         pageNumber,
-        behavior: options?.behavior === "smooth" ? "smooth" : "auto",
-      })
+        behavior: options?.behavior === 'smooth' ? 'smooth' : 'auto',
+      });
     },
-    [scroll]
-  )
+    [scroll],
+  );
 
   const selectThumbnailPage = React.useCallback(
     (pageNumber: number, mode: ThumbnailSelectionMode) => {
-      const pageIndex = pageNumber - 1
+      const pageIndex = pageNumber - 1;
 
-      if (pageIndex < 0 || pageIndex >= numPages) return
+      if (pageIndex < 0 || pageIndex >= numPages) return;
 
-      suppressActivePageSelectionSyncRef.current = pageIndex
+      suppressActivePageSelectionSyncRef.current = pageIndex;
 
       setSelectedPageIndexes((previousSelection) => {
-        let nextSelection: Set<number>
+        let nextSelection: Set<number>;
 
-        if (mode === "range") {
+        if (mode === 'range') {
           const anchorPageIndex =
-            selectionAnchorPageIndexRef.current ??
-            (activePage > 0 ? activePage - 1 : pageIndex)
+            selectionAnchorPageIndexRef.current ?? (activePage > 0 ? activePage - 1 : pageIndex);
 
-          nextSelection = getPageIndexRange(anchorPageIndex, pageIndex)
-        } else if (mode === "toggle") {
-          nextSelection = new Set(previousSelection)
+          nextSelection = getPageIndexRange(anchorPageIndex, pageIndex);
+        } else if (mode === 'toggle') {
+          nextSelection = new Set(previousSelection);
 
           if (nextSelection.has(pageIndex)) {
-            nextSelection.delete(pageIndex)
+            nextSelection.delete(pageIndex);
           } else {
-            nextSelection.add(pageIndex)
+            nextSelection.add(pageIndex);
           }
 
-          selectionAnchorPageIndexRef.current = pageIndex
+          selectionAnchorPageIndexRef.current = pageIndex;
         } else {
-          nextSelection = new Set([pageIndex])
-          selectionAnchorPageIndexRef.current = pageIndex
+          nextSelection = new Set([pageIndex]);
+          selectionAnchorPageIndexRef.current = pageIndex;
         }
 
-        selectedPageIndexesRef.current = nextSelection
-        return nextSelection
-      })
+        selectedPageIndexesRef.current = nextSelection;
+        return nextSelection;
+      });
 
-      scrollToPage(pageNumber)
+      scrollToPage(pageNumber);
     },
-    [activePage, numPages, scrollToPage]
-  )
+    [activePage, numPages, scrollToPage],
+  );
 
   React.useImperativeHandle(
     viewerRef,
     () => ({
       scrollToPage,
       scrollToPageArea: (pageNumber, area, options) => {
-        const pageSize = pdfDocument?.pages[pageNumber - 1]?.size
+        const pageSize = pdfDocument?.pages[pageNumber - 1]?.size;
 
         scroll?.scrollToPage({
           pageNumber,
@@ -266,122 +257,115 @@ export function PDFViewerInner({
                 alignY: 25,
               }
             : {}),
-          behavior: options?.behavior === "smooth" ? "smooth" : "auto",
-        })
+          behavior: options?.behavior === 'smooth' ? 'smooth' : 'auto',
+        });
       },
       getViewportElement: () => viewportElementRef.current,
     }),
-    [pdfDocument, scroll, scrollToPage]
-  )
+    [pdfDocument, scroll, scrollToPage],
+  );
 
   const handleDownload = React.useCallback(async () => {
-    if (!pdfFile || isPreparingDownload) return
+    if (!pdfFile || isPreparingDownload) return;
 
-    const resolvedFileName = getPdfDownloadFileName(fileName, pdfFile)
-    setIsPreparingDownload(true)
+    const resolvedFileName = getPdfDownloadFileName(fileName, pdfFile);
+    setIsPreparingDownload(true);
 
     try {
       if (onDownloadPdf) {
-        await onDownloadPdf(resolvedFileName)
+        await onDownloadPdf(resolvedFileName);
       } else {
         await downloadPdfWithPageRotations({
           fileName: resolvedFileName,
           pageRotationDeltas,
           src: pdfFile,
-        })
+        });
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
     } finally {
-      setIsPreparingDownload(false)
+      setIsPreparingDownload(false);
     }
-  }, [fileName, isPreparingDownload, onDownloadPdf, pageRotationDeltas, pdfFile])
+  }, [fileName, isPreparingDownload, onDownloadPdf, pageRotationDeltas, pdfFile]);
 
   const rotateSelectedPages = React.useCallback(
     (direction: -1 | 1) => {
-      if (!pdfDocument || !registry || activePage < 1) return
+      if (!pdfDocument || !registry || activePage < 1) return;
 
-      const documentState = registry.getStore().getState().core.documents[
-        documentId
-      ]
-      const currentDocument = documentState?.document ?? pdfDocument
-      const selectedTargetPageIndexes = Array.from(
-        selectedPageIndexesRef.current
-      ).filter((pageIndex) => currentDocument.pages[pageIndex])
-      const fallbackPageIndex = activePage - 1
+      const documentState = registry.getStore().getState().core.documents[documentId];
+      const currentDocument = documentState?.document ?? pdfDocument;
+      const selectedTargetPageIndexes = Array.from(selectedPageIndexesRef.current).filter(
+        (pageIndex) => currentDocument.pages[pageIndex],
+      );
+      const fallbackPageIndex = activePage - 1;
       const targetPageIndexes = (
-        selectedTargetPageIndexes.length
-          ? selectedTargetPageIndexes
-          : [fallbackPageIndex]
+        selectedTargetPageIndexes.length ? selectedTargetPageIndexes : [fallbackPageIndex]
       )
         .filter((pageIndex) => currentDocument.pages[pageIndex])
-        .sort((a, b) => a - b)
+        .sort((a, b) => a - b);
 
-      if (targetPageIndexes.length === 0) return
+      if (targetPageIndexes.length === 0) return;
 
-      const previousDeltas = pageRotationDeltasRef.current
-      const nextDeltas = new Map(previousDeltas)
+      const previousDeltas = pageRotationDeltasRef.current;
+      const nextDeltas = new Map(previousDeltas);
       const referencePageIndex =
         activePage > 0 && currentDocument.pages[activePage - 1]
           ? activePage - 1
-          : targetPageIndexes[0]
-      let scrollDelta = 0
+          : targetPageIndexes[0];
+      let scrollDelta = 0;
 
       for (const pageIndex of targetPageIndexes) {
-        const currentPage = currentDocument.pages[pageIndex]
-        if (!currentPage) continue
+        const currentPage = currentDocument.pages[pageIndex];
+        if (!currentPage) continue;
 
-        const previousDelta = previousDeltas.get(pageIndex) ?? 0
-        const nextDelta = normalizeRotation(previousDelta + direction)
+        const previousDelta = previousDeltas.get(pageIndex) ?? 0;
+        const nextDelta = normalizeRotation(previousDelta + direction);
         const basePageRotation =
-          basePageRotations[pageIndex] ??
-          normalizeRotation(currentPage.rotation)
-        const previousPageRotation = normalizeRotation(
-          basePageRotation + previousDelta
-        )
-        const nextPageRotation = normalizeRotation(basePageRotation + nextDelta)
+          basePageRotations[pageIndex] ?? normalizeRotation(currentPage.rotation);
+        const previousPageRotation = normalizeRotation(basePageRotation + previousDelta);
+        const nextPageRotation = normalizeRotation(basePageRotation + nextDelta);
         const previousRotatedSize = getRotatedDimensions({
           height: currentPage.size.height * currentZoomLevel,
           rotation: previousPageRotation,
           width: currentPage.size.width * currentZoomLevel,
-        })
+        });
         const nextRotatedSize = getRotatedDimensions({
           height: currentPage.size.height * currentZoomLevel,
           rotation: nextPageRotation,
           width: currentPage.size.width * currentZoomLevel,
-        })
-        const heightDelta = nextRotatedSize.height - previousRotatedSize.height
+        });
+        const heightDelta = nextRotatedSize.height - previousRotatedSize.height;
 
         if (pageIndex < referencePageIndex) {
-          scrollDelta += heightDelta
+          scrollDelta += heightDelta;
         } else if (pageIndex === referencePageIndex) {
-          scrollDelta += heightDelta / 2
+          scrollDelta += heightDelta / 2;
         }
 
         if (nextDelta) {
-          nextDeltas.set(pageIndex, nextDelta)
+          nextDeltas.set(pageIndex, nextDelta);
         } else {
-          nextDeltas.delete(pageIndex)
+          nextDeltas.delete(pageIndex);
         }
       }
 
-      const store = registry.getStore()
-      const viewport = viewportElementRef.current
+      const store = registry.getStore();
+      const viewport = viewportElementRef.current;
 
-      pageRotationDeltasRef.current = nextDeltas
+      pageRotationDeltasRef.current = nextDeltas;
       flushSync(() => {
-        setPageRotationDeltas(nextDeltas)
-        store.dispatchToCore(refreshPages(documentId, targetPageIndexes))
-      })
+        setPageRotationDeltas(nextDeltas);
+        store.dispatchToCore(refreshPages(documentId, targetPageIndexes));
+      });
 
       if (viewport && scrollDelta !== 0) {
-        viewport.scrollTop += scrollDelta
+        viewport.scrollTop += scrollDelta;
       }
-      ;(
+      (
         thumbnailPlugin as {
-          calculateWindowState?: (documentId: string) => void
+          calculateWindowState?: (documentId: string) => void;
         } | null
-      )?.calculateWindowState?.(documentId)
+      )?.calculateWindowState?.(documentId);
     },
     [
       activePage,
@@ -391,16 +375,16 @@ export function PDFViewerInner({
       pdfDocument,
       registry,
       thumbnailPlugin,
-    ]
-  )
+    ],
+  );
 
   const handleUpload = React.useCallback(
     (file: File) => {
-      onUploadFile(file)
-      onPdfUpload?.(file)
+      onUploadFile(file);
+      onPdfUpload?.(file);
     },
-    [onPdfUpload, onUploadFile]
-  )
+    [onPdfUpload, onUploadFile],
+  );
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -410,15 +394,15 @@ export function PDFViewerInner({
         (event.metaKey || event.ctrlKey) &&
         !event.altKey &&
         !event.shiftKey &&
-        event.key.toLowerCase() === "f"
+        event.key.toLowerCase() === 'f'
       ) {
-        event.preventDefault()
-        event.stopPropagation()
-        setSearchOpenRequest((count) => count + 1)
+        event.preventDefault();
+        event.stopPropagation();
+        setSearchOpenRequest((count) => count + 1);
       }
     },
-    [controlsDisabled, showToolbar]
-  )
+    [controlsDisabled, showToolbar],
+  );
 
   const renderPage = React.useCallback(
     (page: PageLayout) => (
@@ -449,17 +433,17 @@ export function PDFViewerInner({
       pageRotationDeltas,
       pdfDocument,
       renderPageOverlay,
-    ]
-  )
+    ],
+  );
 
   return (
     <div
-      data-slot="pdf-viewer"
+      data-slot='pdf-viewer'
       tabIndex={-1}
       onKeyDown={handleKeyDown}
       className={cn(
-        "flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden bg-background outline-none",
-        className
+        'flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden bg-background outline-none',
+        className,
       )}
     >
       {showToolbar ? (
@@ -495,15 +479,12 @@ export function PDFViewerInner({
       ) : null}
       <div
         ref={viewerShellRef}
-        className="relative flex min-h-0 flex-1 overflow-hidden bg-muted/30"
+        className='relative flex min-h-0 flex-1 overflow-hidden bg-muted/30'
       >
         {isLoading ? (
-          <PDFViewerLoadingSkeleton
-            sidebarInline={sidebarInline}
-            sidebarOpen={sidebarOpen}
-          />
+          <PDFViewerLoadingSkeleton sidebarInline={sidebarInline} sidebarOpen={sidebarOpen} />
         ) : null}
-        <div className="flex h-full max-h-full min-h-0 w-full flex-1 overflow-hidden">
+        <div className='flex h-full max-h-full min-h-0 w-full flex-1 overflow-hidden'>
           <DocumentViewerThumbnailSidebar
             closedInlineClassName={THUMBNAIL_SIDEBAR_CLOSED_CLASS}
             inline={sidebarInline}
@@ -525,7 +506,7 @@ export function PDFViewerInner({
           </DocumentViewerThumbnailSidebar>
           <PDFViewerScrollAreaViewport
             documentId={documentId}
-            className="relative h-full max-h-full min-h-0 min-w-0 flex-1"
+            className='relative h-full max-h-full min-h-0 min-w-0 flex-1'
           >
             <PDFViewerViewportBridge viewportElementRef={viewportElementRef} />
             <PDFViewerSelectionCopyShortcut documentId={documentId} />
@@ -543,5 +524,5 @@ export function PDFViewerInner({
         </div>
       </div>
     </div>
-  )
+  );
 }

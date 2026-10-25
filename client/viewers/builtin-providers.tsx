@@ -1,74 +1,74 @@
-import * as React from "react";
-import { useAiTextSurface } from "../ai-text/ai-text-context.js";
-import { LayoutPageOverlay } from "../ai-text/layout-page-overlay.js";
-import { SurfaceModeSwitcher } from "../editing/surface-mode-controls.js";
-import { lazyWithPreload } from "../lazy-with-preload.js";
-import { Spinner } from "../vendor/components/ui/spinner.js";
-import { loadSharedPdfEngine } from "../vendor/lib/pdf-thumbnail-utils.js";
-import { cn } from "../vendor/lib/utils.js";
-import type { PDFViewerPageOverlayProps } from "../vendor/pdf-viewer/types.js";
-import { preloadPdfLib } from "../vendor/pdf-viewer/pdf-save.js";
-import { ensureXlsxWasmReady } from "../vendor/xlsx-viewer/wasm-loader.js";
-import type { FileSurfaceProviderDescriptor } from "./registry.js";
+import * as React from 'react';
+import { useAiTextSurface } from '../ai-text/ai-text-context.js';
+import { LayoutPageOverlay } from '../ai-text/layout-page-overlay.js';
+import { SurfaceModeSwitcher } from '../editing/surface-mode-controls.js';
+import { lazyWithPreload } from '../lazy-with-preload.js';
+import { Spinner } from '../vendor/components/ui/spinner.js';
+import { loadSharedPdfEngine } from '../vendor/lib/pdf-thumbnail-utils.js';
+import { cn } from '../vendor/lib/utils.js';
+import type { PDFViewerPageOverlayProps } from '../vendor/pdf-viewer/types.js';
+import { preloadPdfLib } from '../vendor/pdf-viewer/pdf-save.js';
+import { ensureXlsxWasmReady } from '../vendor/xlsx-viewer/wasm-loader.js';
+import type { FileSurfaceProviderDescriptor } from './registry.js';
 
 const LazyPDFViewer = lazyWithPreload(() =>
-  import("../vendor/pdf-viewer.js").then((mod) => ({
+  import('../vendor/pdf-viewer.js').then((mod) => ({
     default: mod.PDFViewer,
   })),
 );
 
 const LazyPDFEditor = lazyWithPreload(() =>
-  import("../vendor/pdf-viewer/pdf-editor.js").then((mod) => ({
+  import('../vendor/pdf-viewer/pdf-editor.js').then((mod) => ({
     default: mod.PDFEditor,
   })),
 );
 
 const LazyExtendXlsxViewer = lazyWithPreload(() =>
-  import("../vendor/xlsx-viewer/index.js").then((mod) => ({
+  import('../vendor/xlsx-viewer/index.js').then((mod) => ({
     default: mod.ExtendXlsxViewer,
   })),
 );
 
 const LazyExtendXlsxEditor = lazyWithPreload(() =>
-  import("../vendor/xlsx-viewer/index.js").then((mod) => ({
+  import('../vendor/xlsx-viewer/index.js').then((mod) => ({
     default: mod.ExtendXlsxEditor,
   })),
 );
 
 const LazyTextViewer = lazyWithPreload(() =>
-  import("./text-viewer.js").then((mod) => ({
+  import('./text-viewer.js').then((mod) => ({
     default: mod.TextViewer,
   })),
 );
 
 const LazyTextEditor = lazyWithPreload(() =>
-  import("./text-viewer.js").then((mod) => ({
+  import('./text-viewer.js').then((mod) => ({
     default: mod.TextEditor,
   })),
 );
 
 const LazyImageViewer = lazyWithPreload(() =>
-  import("./image-viewer.js").then((mod) => ({
+  import('./image-viewer.js').then((mod) => ({
     default: mod.ImageViewer,
   })),
 );
 
 const LazyDocxViewerPreview = lazyWithPreload(() =>
-  import("../vendor/stub-viewer.js").then((mod) => ({
+  import('../vendor/stub-viewer.js').then((mod) => ({
     default: mod.DocxViewerPreview,
   })),
 );
 
 const LazyPptxViewerPreview = lazyWithPreload(() =>
-  import("../vendor/stub-viewer.js").then((mod) => ({
+  import('../vendor/stub-viewer.js').then((mod) => ({
     default: mod.PptxViewerPreview,
   })),
 );
 
 export function FileViewerLoadingFallback() {
   return (
-    <div className="grid h-full min-h-48 flex-1 place-items-center bg-background">
-      <Spinner className="size-4 text-muted-foreground" />
+    <div className='grid h-full min-h-48 flex-1 place-items-center bg-background'>
+      <Spinner className='size-4 text-muted-foreground' />
     </div>
   );
 }
@@ -106,21 +106,18 @@ export function registerBuiltinSurfaceProviders(
   register: (descriptor: FileSurfaceProviderDescriptor) => void,
 ): void {
   register({
-    id: "embedpdf-viewer",
-    kind: "pdf",
-    role: "viewer",
-    label: "EmbedPDF Viewer (Default)",
+    id: 'embedpdf-viewer',
+    kind: 'pdf',
+    role: 'viewer',
+    label: 'EmbedPDF Viewer (Default)',
     isDefault: true,
     preload: async () => {
-      await Promise.all([
-        LazyPDFViewer.preload(),
-        loadSharedPdfEngine().catch(() => undefined),
-      ]);
+      await Promise.all([LazyPDFViewer.preload(), loadSharedPdfEngine().catch(() => undefined)]);
     },
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       role,
       canSwitchRole,
       onRoleChange,
@@ -129,17 +126,16 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
+      // FileSurfaceRenderer invokes this renderer exactly once per render
+      // (registry.tsx), so hooks occupy a stable position in its hook list.
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const aiTextBridge = useAiTextPdfBridge();
       const combinedActions = hasFullChrome ? (
-        <div className="flex items-center gap-1.5">
+        <div className='flex items-center gap-1.5'>
           {canSwitchRole && onRoleChange ? (
-            <SurfaceModeSwitcher
-              role={role}
-              canEdit={canSwitchRole}
-              onRoleChange={onRoleChange}
-            />
+            <SurfaceModeSwitcher role={role} canEdit={canSwitchRole} onRoleChange={onRoleChange} />
           ) : null}
           {toolbarActions}
         </div>
@@ -152,18 +148,14 @@ export function registerBuiltinSurfaceProviders(
             fileName={fileName}
             renderPageOverlay={aiTextBridge.renderPageOverlay}
             defaultSidebarOpen={pdfSettings?.showThumbnailsByDefault ?? false}
-            defaultZoom={pdfSettings?.defaultZoom ?? "fit-width"}
+            defaultZoom={pdfSettings?.defaultZoom ?? 'fit-width'}
             showDownload={pdfSettings?.showDownloadButton ?? true}
             showRotateControls={pdfSettings?.showRotateControls ?? true}
             showToolbar={hasFullChrome}
             showUpload={false}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={combinedActions}
-            className={cn(
-              "h-full min-h-0 overflow-hidden",
-              isDialog && "rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -171,10 +163,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "embedpdf-editor",
-    kind: "pdf",
-    role: "editor",
-    label: "EmbedPDF Editor (Default)",
+    id: 'embedpdf-editor',
+    kind: 'pdf',
+    role: 'editor',
+    label: 'EmbedPDF Editor (Default)',
     isDefault: true,
     preload: async () => {
       await Promise.all([
@@ -186,7 +178,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       role,
       canSwitchRole,
       onRoleChange,
@@ -196,8 +188,10 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
+      // See the viewer renderer above: invoked exactly once per render.
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const aiTextBridge = useAiTextPdfBridge();
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
@@ -211,18 +205,14 @@ export function registerBuiltinSurfaceProviders(
             onRoleChange={onRoleChange}
             editSession={editSession}
             defaultSidebarOpen={pdfSettings?.showThumbnailsByDefault ?? false}
-            defaultZoom={pdfSettings?.defaultZoom ?? "fit-width"}
+            defaultZoom={pdfSettings?.defaultZoom ?? 'fit-width'}
             showDownload={pdfSettings?.showDownloadButton ?? true}
             showRotateControls={pdfSettings?.showRotateControls ?? true}
             showToolbar={hasFullChrome}
             showUpload={false}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
-            className={cn(
-              "h-full min-h-0 overflow-hidden",
-              isDialog && "rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -230,10 +220,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "extend-xlsx-viewer",
-    kind: "xlsx",
-    role: "viewer",
-    label: "Extend Excel Viewer (Default)",
+    id: 'extend-xlsx-viewer',
+    kind: 'xlsx',
+    role: 'viewer',
+    label: 'Extend Excel Viewer (Default)',
     isDefault: true,
     preload: async () => {
       await Promise.all([
@@ -244,7 +234,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       canSwitchRole,
       onRoleChange,
       xlsxSettings,
@@ -252,8 +242,8 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyExtendXlsxViewer
@@ -265,11 +255,7 @@ export function registerBuiltinSurfaceProviders(
             showToolbar={hasFullChrome}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
-            className={cn(
-              "h-full min-h-0 overflow-hidden",
-              isDialog && "rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -277,10 +263,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "extend-xlsx-editor",
-    kind: "xlsx",
-    role: "editor",
-    label: "Extend Excel Editor (Default)",
+    id: 'extend-xlsx-editor',
+    kind: 'xlsx',
+    role: 'editor',
+    label: 'Extend Excel Editor (Default)',
     isDefault: true,
     preload: async () => {
       await Promise.all([
@@ -291,7 +277,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       canSwitchRole,
       onRoleChange,
       editSession,
@@ -300,8 +286,8 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyExtendXlsxEditor
@@ -314,11 +300,7 @@ export function registerBuiltinSurfaceProviders(
             showToolbar={hasFullChrome}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
-            className={cn(
-              "h-full min-h-0 overflow-hidden",
-              isDialog && "rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -326,10 +308,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "code-text-viewer",
-    kind: "text",
-    role: "viewer",
-    label: "Code & Text Viewer (Default)",
+    id: 'code-text-viewer',
+    kind: 'text',
+    role: 'viewer',
+    label: 'Code & Text Viewer (Default)',
     isDefault: true,
     preload: async () => {
       await LazyTextViewer.preload();
@@ -337,7 +319,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       canSwitchRole,
       onRoleChange,
       textSettings,
@@ -345,14 +327,14 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyTextViewer
             src={src}
             fileName={fileName}
-            role="viewer"
+            role='viewer'
             canSwitchRole={hasFullChrome && canSwitchRole}
             onRoleChange={hasFullChrome ? onRoleChange : undefined}
             showLineNumbers={textSettings?.showLineNumbers ?? true}
@@ -360,11 +342,7 @@ export function registerBuiltinSurfaceProviders(
             showToolbar={hasFullChrome}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
-            className={cn(
-              "h-full min-h-0",
-              isDialog && "overflow-hidden rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0', isDialog && 'overflow-hidden rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -372,10 +350,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "code-text-editor",
-    kind: "text",
-    role: "editor",
-    label: "Code & Text Editor (Default)",
+    id: 'code-text-editor',
+    kind: 'text',
+    role: 'editor',
+    label: 'Code & Text Editor (Default)',
     isDefault: true,
     preload: async () => {
       await LazyTextEditor.preload();
@@ -383,7 +361,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       canSwitchRole,
       onRoleChange,
       editSession,
@@ -392,8 +370,8 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyTextEditor
@@ -407,11 +385,7 @@ export function registerBuiltinSurfaceProviders(
             showToolbar={hasFullChrome}
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
-            className={cn(
-              "h-full min-h-0",
-              isDialog && "overflow-hidden rounded-2xl",
-              className,
-            )}
+            className={cn('h-full min-h-0', isDialog && 'overflow-hidden rounded-2xl', className)}
           />
         </React.Suspense>
       );
@@ -419,10 +393,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "image-viewer",
-    kind: "image",
-    role: "viewer",
-    label: "Image Viewer (Default)",
+    id: 'image-viewer',
+    kind: 'image',
+    role: 'viewer',
+    label: 'Image Viewer (Default)',
     isDefault: true,
     preload: async () => {
       await LazyImageViewer.preload();
@@ -430,13 +404,13 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       extraMenuItems,
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
-      const isDialog = variant === "dialog";
+      const hasFullChrome = variant !== 'stage';
+      const isDialog = variant === 'dialog';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyImageViewer
@@ -446,8 +420,8 @@ export function registerBuiltinSurfaceProviders(
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
             className={cn(
-              hasFullChrome && "h-full min-h-0",
-              isDialog && "overflow-hidden rounded-2xl",
+              hasFullChrome && 'h-full min-h-0',
+              isDialog && 'overflow-hidden rounded-2xl',
               className,
             )}
           />
@@ -457,10 +431,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "docx-stub-viewer",
-    kind: "docx",
-    role: "viewer",
-    label: "Word Document Preview",
+    id: 'docx-stub-viewer',
+    kind: 'docx',
+    role: 'viewer',
+    label: 'Word Document Preview',
     isDefault: true,
     preload: async () => {
       await LazyDocxViewerPreview.preload();
@@ -468,7 +442,7 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       role,
       canSwitchRole,
       onRoleChange,
@@ -476,14 +450,10 @@ export function registerBuiltinSurfaceProviders(
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
+      const hasFullChrome = variant !== 'stage';
       const combinedActions = hasFullChrome ? (
-        <div className="flex items-center gap-1.5">
-          <SurfaceModeSwitcher
-            role={role}
-            canEdit={canSwitchRole}
-            onRoleChange={onRoleChange}
-          />
+        <div className='flex items-center gap-1.5'>
+          <SurfaceModeSwitcher role={role} canEdit={canSwitchRole} onRoleChange={onRoleChange} />
           {toolbarActions}
         </div>
       ) : undefined;
@@ -496,8 +466,8 @@ export function registerBuiltinSurfaceProviders(
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={combinedActions}
             className={cn(
-              "h-full min-h-0",
-              variant === "dialog" && "overflow-hidden rounded-2xl",
+              'h-full min-h-0',
+              variant === 'dialog' && 'overflow-hidden rounded-2xl',
               className,
             )}
           />
@@ -507,10 +477,10 @@ export function registerBuiltinSurfaceProviders(
   });
 
   register({
-    id: "pptx-stub-viewer",
-    kind: "pptx",
-    role: "viewer",
-    label: "PowerPoint Preview",
+    id: 'pptx-stub-viewer',
+    kind: 'pptx',
+    role: 'viewer',
+    label: 'PowerPoint Preview',
     isDefault: true,
     preload: async () => {
       await LazyPptxViewerPreview.preload();
@@ -518,12 +488,12 @@ export function registerBuiltinSurfaceProviders(
     renderer: ({
       src,
       fileName,
-      variant = "in-place",
+      variant = 'in-place',
       extraMenuItems,
       toolbarActions,
       className,
     }) => {
-      const hasFullChrome = variant !== "stage";
+      const hasFullChrome = variant !== 'stage';
       return (
         <React.Suspense fallback={<FileViewerLoadingFallback />}>
           <LazyPptxViewerPreview
@@ -533,8 +503,8 @@ export function registerBuiltinSurfaceProviders(
             extraMenuItems={hasFullChrome ? extraMenuItems : undefined}
             toolbarActions={hasFullChrome ? toolbarActions : undefined}
             className={cn(
-              "h-full min-h-0",
-              variant === "dialog" && "overflow-hidden rounded-2xl",
+              'h-full min-h-0',
+              variant === 'dialog' && 'overflow-hidden rounded-2xl',
               className,
             )}
           />

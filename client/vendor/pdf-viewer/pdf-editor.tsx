@@ -1,20 +1,17 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import {
-  EditorSaveControls,
-  SurfaceModeSwitcher,
-} from "../../editing/surface-mode-controls";
-import type { FileEditSession } from "../../editing/use-file-edit-session";
-import type { FileSurfaceRole } from "../../viewers/provider-catalog";
-import { cn } from "../lib/utils";
-import { PDFViewer, type PDFViewerProps } from "../pdf-viewer";
-import type { PDFViewerHandle } from "./types";
+import * as React from 'react';
+import { EditorSaveControls, SurfaceModeSwitcher } from '../../editing/surface-mode-controls';
+import type { FileEditSession } from '../../editing/use-file-edit-session';
+import type { FileSurfaceRole } from '../../viewers/provider-catalog';
+import { cn } from '../lib/utils';
+import { PDFViewer, type PDFViewerProps } from '../pdf-viewer';
+import type { PDFViewerHandle } from './types';
 import {
   type DraftPointerAction,
   PdfEditorPageOverlayView,
   PdfEditorToolStrip,
-} from "./pdf-editor-overlay";
+} from './pdf-editor-overlay';
 import {
   EMPTY_PDF_EDIT_STATE,
   hasPdfEdits,
@@ -23,12 +20,12 @@ import {
   type PdfEditorTool,
   preloadPdfLib,
   serializeEditedPdfBytes,
-} from "./pdf-save";
+} from './pdf-save';
 import {
   downloadBlob,
   downloadPdfWithPageRotations,
   type PDFViewerPageOverlayProps,
-} from "./types";
+} from './types';
 
 export interface PDFEditorProps extends PDFViewerProps {
   role?: FileSurfaceRole;
@@ -43,7 +40,7 @@ export interface PDFEditorProps extends PDFViewerProps {
 export function PDFEditor({
   src,
   fileName,
-  role = "editor",
+  role = 'editor',
   canSwitchRole = true,
   onRoleChange,
   editSession,
@@ -53,20 +50,16 @@ export function PDFEditor({
   extraPageOverlay,
   ...viewerProps
 }: PDFEditorProps) {
-  const [tool, setTool] = React.useState<PdfEditorTool>("select");
-  const [activeColor, setActiveColor] = React.useState<string>("#F59E0B");
+  const [tool, setTool] = React.useState<PdfEditorTool>('select');
+  const [activeColor, setActiveColor] = React.useState<string>('#F59E0B');
   const [activeFontSize, setActiveFontSize] = React.useState<number>(14);
   const [activePage, setActivePage] = React.useState<number>(1);
   const [numPages, setNumPages] = React.useState<number>(1);
-  const [editState, setEditState] =
-    React.useState<PdfEditState>(EMPTY_PDF_EDIT_STATE);
+  const [editState, setEditState] = React.useState<PdfEditState>(EMPTY_PDF_EDIT_STATE);
   const [history, setHistory] = React.useState<PdfEditState[]>([]);
   const [redoStack, setRedoStack] = React.useState<PdfEditState[]>([]);
-  const [draftAction, setDraftAction] =
-    React.useState<DraftPointerAction | null>(null);
-  const [selectedAnnotationId, setSelectedAnnotationId] = React.useState<
-    string | null
-  >(null);
+  const [draftAction, setDraftAction] = React.useState<DraftPointerAction | null>(null);
+  const [selectedAnnotationId, setSelectedAnnotationId] = React.useState<string | null>(null);
 
   const editorRootRef = React.useRef<HTMLDivElement | null>(null);
   const editStateRef = React.useRef<PdfEditState>(editState);
@@ -97,9 +90,9 @@ export function PDFEditor({
     (state: PdfEditState) => {
       if (src && editSession) {
         editSession.reportChange(async () => ({
-          encoding: "bytes",
+          encoding: 'bytes',
           bytes: await serializeEditedPdfBytes(src, state),
-          mimeType: "application/pdf",
+          mimeType: 'application/pdf',
         }));
       }
     },
@@ -127,7 +120,7 @@ export function PDFEditor({
     const prevHistory = historyRef.current;
     if (prevHistory.length === 0) return;
     const nextHistory = prevHistory.slice(0, -1);
-    const restored = prevHistory[prevHistory.length - 1]!;
+    const restored = prevHistory[prevHistory.length - 1];
     const current = editStateRef.current;
     const nextRedo = [...redoRef.current.slice(-24), current];
     editStateRef.current = restored;
@@ -143,7 +136,7 @@ export function PDFEditor({
     const prevRedo = redoRef.current;
     if (prevRedo.length === 0) return;
     const nextRedo = prevRedo.slice(0, -1);
-    const restored = prevRedo[prevRedo.length - 1]!;
+    const restored = prevRedo[prevRedo.length - 1];
     const current = editStateRef.current;
     const nextHistory = [...historyRef.current.slice(-24), current];
     editStateRef.current = restored;
@@ -177,9 +170,7 @@ export function PDFEditor({
         commitEditState((prev) => ({
           ...prev,
           annotations: prev.annotations.map((ann) =>
-            ann.id === selectedAnnotationId && ann.kind === "text"
-              ? { ...ann, fontSize }
-              : ann,
+            ann.id === selectedAnnotationId && ann.kind === 'text' ? { ...ann, fontSize } : ann,
           ),
         }));
       }
@@ -231,12 +222,12 @@ export function PDFEditor({
       const id = `pdf-ann-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const nextAnnotation: PdfAnnotationItem = {
         id,
-        kind: "text",
+        kind: 'text',
         pageNumber,
         xRatio: Math.min(0.85, Math.max(0.04, xRatio)),
         yRatio: Math.min(0.92, Math.max(0.04, yRatio)),
-        text: "Note",
-        color: activeColor === "#F59E0B" ? "#2563EB" : activeColor,
+        text: 'Note',
+        color: activeColor === '#F59E0B' ? '#2563EB' : activeColor,
         fontSize: activeFontSize,
       };
       commitEditState((prev) => ({
@@ -244,7 +235,7 @@ export function PDFEditor({
         annotations: [...prev.annotations, nextAnnotation],
       }));
       setSelectedAnnotationId(id);
-      setTool("select");
+      setTool('select');
     },
     [activeColor, activeFontSize, commitEditState],
   );
@@ -254,7 +245,7 @@ export function PDFEditor({
       commitEditState((prev) => ({
         ...prev,
         annotations: prev.annotations.map((ann) =>
-          ann.id === id && ann.kind === "text" ? { ...ann, text } : ann,
+          ann.id === id && ann.kind === 'text' ? { ...ann, text } : ann,
         ),
       }));
     },
@@ -266,9 +257,7 @@ export function PDFEditor({
       commitEditState((prev) => ({
         ...prev,
         annotations: prev.annotations.map((ann) =>
-          ann.id === id && ann.kind !== "ink"
-            ? { ...ann, xRatio, yRatio }
-            : ann,
+          ann.id === id && ann.kind !== 'ink' ? { ...ann, xRatio, yRatio } : ann,
         ),
       }));
     },
@@ -297,14 +286,14 @@ export function PDFEditor({
   );
 
   const flushActivePdfEditorInputs = React.useCallback(() => {
-    if (typeof document !== "undefined") {
+    if (typeof document !== 'undefined') {
       const root = editorRootRef.current;
       const active = document.activeElement;
       if (
         root &&
         active instanceof HTMLElement &&
         root.contains(active) &&
-        (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
       ) {
         active.blur();
       }
@@ -314,22 +303,16 @@ export function PDFEditor({
     draftActionRef.current = null;
     setDraftAction(null);
     const id = `pdf-ann-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    if (pendingDraft.kind === "highlight" || pendingDraft.kind === "rect") {
+    if (pendingDraft.kind === 'highlight' || pendingDraft.kind === 'rect') {
       const xRatio = Math.min(pendingDraft.startX, pendingDraft.currentX);
       const yRatio = Math.min(pendingDraft.startY, pendingDraft.currentY);
-      const widthRatio = Math.max(
-        0.06,
-        Math.abs(pendingDraft.currentX - pendingDraft.startX),
-      );
-      const heightRatio = Math.max(
-        0.025,
-        Math.abs(pendingDraft.currentY - pendingDraft.startY),
-      );
+      const widthRatio = Math.max(0.06, Math.abs(pendingDraft.currentX - pendingDraft.startX));
+      const heightRatio = Math.max(0.025, Math.abs(pendingDraft.currentY - pendingDraft.startY));
       commitAnnotation(
-        pendingDraft.kind === "highlight"
+        pendingDraft.kind === 'highlight'
           ? {
               id,
-              kind: "highlight",
+              kind: 'highlight',
               pageNumber: pendingDraft.pageNumber,
               xRatio,
               yRatio,
@@ -339,7 +322,7 @@ export function PDFEditor({
             }
           : {
               id,
-              kind: "rect",
+              kind: 'rect',
               pageNumber: pendingDraft.pageNumber,
               xRatio,
               yRatio,
@@ -349,10 +332,10 @@ export function PDFEditor({
               strokeWidth: 2,
             },
       );
-    } else if (pendingDraft.kind === "ink" && pendingDraft.points.length >= 2) {
+    } else if (pendingDraft.kind === 'ink' && pendingDraft.points.length >= 2) {
       commitAnnotation({
         id,
-        kind: "ink",
+        kind: 'ink',
         pageNumber: pendingDraft.pageNumber,
         points: pendingDraft.points,
         color: activeColor,
@@ -387,10 +370,7 @@ export function PDFEditor({
       const editedBytes = await serializeEditedPdfBytes(src, currentState);
       const copy = new Uint8Array(editedBytes.byteLength);
       copy.set(editedBytes);
-      downloadBlob(
-        new Blob([copy], { type: "application/pdf" }),
-        defaultFileName,
-      );
+      downloadBlob(new Blob([copy], { type: 'application/pdf' }), defaultFileName);
     },
     [flushActivePdfEditorInputs, src, viewerProps],
   );
@@ -403,7 +383,7 @@ export function PDFEditor({
         target instanceof HTMLTextAreaElement ||
         Boolean(target?.isContentEditable);
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         if (editSession) {
           event.preventDefault();
           void editSession.saveNow();
@@ -413,17 +393,17 @@ export function PDFEditor({
 
       if (!isTextInput && (event.metaKey || event.ctrlKey)) {
         const key = event.key.toLowerCase();
-        if (key === "z" && event.shiftKey) {
+        if (key === 'z' && event.shiftKey) {
           event.preventDefault();
           handleRedo();
           return;
         }
-        if (key === "y") {
+        if (key === 'y') {
           event.preventDefault();
           handleRedo();
           return;
         }
-        if (key === "z") {
+        if (key === 'z') {
           event.preventDefault();
           handleUndo();
           return;
@@ -432,7 +412,7 @@ export function PDFEditor({
 
       if (
         !isTextInput &&
-        (event.key === "Backspace" || event.key === "Delete") &&
+        (event.key === 'Backspace' || event.key === 'Delete') &&
         selectedAnnotationId
       ) {
         event.preventDefault();
@@ -440,18 +420,12 @@ export function PDFEditor({
         return;
       }
 
-      if (event.key === "Escape") {
-        setTool("select");
+      if (event.key === 'Escape') {
+        setTool('select');
         setSelectedAnnotationId(null);
       }
     },
-    [
-      editSession,
-      handleRedo,
-      handleUndo,
-      removeAnnotation,
-      selectedAnnotationId,
-    ],
+    [editSession, handleRedo, handleUndo, removeAnnotation, selectedAnnotationId],
   );
 
   const renderPageOverlay = React.useCallback(
@@ -493,18 +467,13 @@ export function PDFEditor({
   );
 
   const isActivePageDeleted = editState.deletedPages.includes(activePage);
-  const canDeletePage =
-    isActivePageDeleted || numPages - editState.deletedPages.length > 1;
+  const canDeletePage = isActivePageDeleted || numPages - editState.deletedPages.length > 1;
 
   const combinedToolbarActions = (
-    <div className="flex items-center gap-1.5">
+    <div className='flex items-center gap-1.5'>
       {editSession ? <EditorSaveControls editSession={editSession} /> : null}
       {onRoleChange ? (
-        <SurfaceModeSwitcher
-          role={role}
-          canEdit={canSwitchRole}
-          onRoleChange={onRoleChange}
-        />
+        <SurfaceModeSwitcher role={role} canEdit={canSwitchRole} onRoleChange={onRoleChange} />
       ) : null}
       {toolbarActions}
     </div>
@@ -513,13 +482,10 @@ export function PDFEditor({
   return (
     <div
       ref={editorRootRef}
-      data-testid="embedpdf-editor"
+      data-testid='embedpdf-editor'
       data-surface-role={role}
       onKeyDown={handleKeyDown}
-      className={cn(
-        "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background",
-        className,
-      )}
+      className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden bg-background', className)}
     >
       <PdfEditorToolStrip
         tool={tool}
@@ -539,7 +505,7 @@ export function PDFEditor({
         onRedo={handleRedo}
       />
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className='min-h-0 flex-1 overflow-hidden'>
         <PDFViewer
           {...viewerProps}
           ref={viewerRef}
@@ -557,7 +523,7 @@ export function PDFEditor({
             setNumPages(pages);
             viewerProps.onDocumentLoadSuccess?.(pages);
           }}
-          className="h-full min-h-0"
+          className='h-full min-h-0'
         />
       </div>
     </div>

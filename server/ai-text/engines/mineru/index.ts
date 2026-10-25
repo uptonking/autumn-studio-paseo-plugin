@@ -1,16 +1,13 @@
-import { mineruConfigSchema } from "../../../../shared/ai-text/engine-configs.ts";
-import { getAiTextEngineDescriptor } from "../../../../shared/ai-text/engine-catalog.ts";
-import {
-  registerAiTextEngine,
-  type AiTextEngine,
-} from "../../engine-registry.ts";
-import { parseWithMineru } from "./adapter.ts";
-import { getMineruEnvironment } from "./environment.ts";
-import { runMineruOperation } from "./operations.ts";
+import { mineruConfigSchema } from '../../../../shared/ai-text/engine-configs.ts';
+import { getAiTextEngineDescriptor } from '../../../../shared/ai-text/engine-catalog.ts';
+import { registerAiTextEngine, type AiTextEngine } from '../../engine-registry.ts';
+import { parseWithMineru } from './adapter.ts';
+import { getMineruEnvironment } from './environment.ts';
+import { runMineruOperation } from './operations.ts';
 
 export function createMineruEngine(): AiTextEngine {
-  const descriptor = getAiTextEngineDescriptor("mineru");
-  if (!descriptor) throw new Error("MinerU engine descriptor is missing");
+  const descriptor = getAiTextEngineDescriptor('mineru');
+  if (!descriptor) throw new Error('MinerU engine descriptor is missing');
 
   return {
     descriptor,

@@ -5,10 +5,7 @@ const docLocks = new Map<string, Promise<void>>();
  * written as a unit, so two concurrent parses or a parse + delete would
  * otherwise drop a version.
  */
-export async function withDocLock<T>(
-  key: string,
-  task: () => Promise<T>,
-): Promise<T> {
+export async function withDocLock<T>(key: string, task: () => Promise<T>): Promise<T> {
   const previous = docLocks.get(key) ?? Promise.resolve();
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {

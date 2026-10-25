@@ -4,7 +4,7 @@ import {
   normalizeCjkOcrText,
   type NormalizedBox,
   type RowGroup,
-} from "./pdf-vision-single-column.ts";
+} from './pdf-vision-single-column.ts';
 
 export { normalizeCjkOcrText };
 
@@ -21,12 +21,58 @@ export interface VisionOcrLine {
 }
 
 const COMPOUND_HYPHEN_PREFIXES = new Set([
-  "north", "south", "east", "west", "carrier", "battle", "pattern", "high",
-  "low", "near", "second", "third", "first", "well", "self", "time", "hard",
-  "non", "anti", "counter", "cross", "mid", "multi", "over", "post", "pre",
-  "semi", "sub", "super", "trans", "ultra", "under", "one", "two", "three",
-  "four", "five", "six", "seven", "eight", "nine", "ten", "half", "full",
-  "all", "co", "ex", "re", "general", "operation", "conflict", "trade",
+  'north',
+  'south',
+  'east',
+  'west',
+  'carrier',
+  'battle',
+  'pattern',
+  'high',
+  'low',
+  'near',
+  'second',
+  'third',
+  'first',
+  'well',
+  'self',
+  'time',
+  'hard',
+  'non',
+  'anti',
+  'counter',
+  'cross',
+  'mid',
+  'multi',
+  'over',
+  'post',
+  'pre',
+  'semi',
+  'sub',
+  'super',
+  'trans',
+  'ultra',
+  'under',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'half',
+  'full',
+  'all',
+  'co',
+  'ex',
+  're',
+  'general',
+  'operation',
+  'conflict',
+  'trade',
 ]);
 
 function normalizeEnglishOcrLine(text: string): string {
@@ -35,29 +81,29 @@ function normalizeEnglishOcrLine(text: string): string {
     .replace(/^[ẠỊA-Z]{1,2}(?=['"‘’]?The\b)/, "'")
     .replace(/^'T'm\b/, "'I'm")
     .replace(/^"([A-Z][^"]*')/, "'$1")
-    .replace(/\b(\d[\d,]*)o\b/g, "$10")
-    .replace(/\bI(\d{3})\b/g, "1$1")
-    .replace(/\b1I(\d{1,3})\b/g, "11$1")
+    .replace(/\b(\d[\d,]*)o\b/g, '$10')
+    .replace(/\bI(\d{3})\b/g, '1$1')
+    .replace(/\b1I(\d{1,3})\b/g, '11$1')
     .replace(/\(\s*=\s*[1'‘’](\w)/g, "(= '$1")
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, ' ');
 }
 
 function joinProseLines(lines: readonly string[]): string {
   if (lines.some((l) => /[\u4e00-\u9fff]/.test(l))) {
-    let out = "";
+    let out = '';
     for (const raw of lines) {
       const line = normalizeCjkOcrText(raw);
       if (!line) continue;
       if (!out) out = line;
       else {
         const needsSpace = /[A-Za-z0-9]$/.test(out) && /^[A-Za-z0-9]/.test(line);
-        out = normalizeCjkOcrText(`${out}${needsSpace ? " " : ""}${line}`);
+        out = normalizeCjkOcrText(`${out}${needsSpace ? ' ' : ''}${line}`);
       }
     }
     return out;
   }
 
-  let out = "";
+  let out = '';
   for (const raw of lines) {
     const line = normalizeEnglishOcrLine(raw);
     if (!line) continue;
@@ -65,13 +111,11 @@ function joinProseLines(lines: readonly string[]): string {
       out = line;
       continue;
     }
-    const hyphenMatch = out.match(/([A-Za-z]{2,})-$/) ;
+    const hyphenMatch = out.match(/([A-Za-z]{2,})-$/);
     const nextWordMatch = line.match(/^([a-z]{2,})\b/);
     if (hyphenMatch?.[1] && nextWordMatch?.[1]) {
       const prefix = hyphenMatch[1].toLowerCase();
-      out = COMPOUND_HYPHEN_PREFIXES.has(prefix)
-        ? `${out}${line}`
-        : `${out.slice(0, -1)}${line}`;
+      out = COMPOUND_HYPHEN_PREFIXES.has(prefix) ? `${out}${line}` : `${out.slice(0, -1)}${line}`;
     } else {
       out = `${out} ${line}`;
     }
@@ -81,7 +125,8 @@ function joinProseLines(lines: readonly string[]): string {
 
 function detectImplicitTwoColumns(boxes: NormalizedBox[]): NormalizedBox[] {
   if (boxes.length < 12 || boxes.some((b) => b.colCount === 2)) return boxes;
-  let bestG = 0.5, bestCount = 0;
+  let bestG = 0.5,
+    bestCount = 0;
   for (const g of [0.48, 0.5, 0.508, 0.52]) {
     const left = boxes.filter((b) => b.x2 <= g + 0.008).length;
     const right = boxes.filter((b) => b.x1 >= g - 0.008).length;
@@ -93,11 +138,23 @@ function detectImplicitTwoColumns(boxes: NormalizedBox[]): NormalizedBox[] {
   if (bestCount < boxes.length * 0.75) return boxes;
   return boxes.map((b) => {
     if (b.x2 <= bestG + 0.01) {
-      return { ...b, col: 0, colCount: 2, x1: b.x1 / bestG, x2: Math.min(1, b.x2 / bestG) };
+      return {
+        ...b,
+        col: 0,
+        colCount: 2,
+        x1: b.x1 / bestG,
+        x2: Math.min(1, b.x2 / bestG),
+      };
     }
     if (b.x1 >= bestG - 0.01) {
       const w = 1 - bestG;
-      return { ...b, col: 1, colCount: 2, x1: Math.max(0, (b.x1 - bestG) / w), x2: Math.min(1, (b.x2 - bestG) / w) };
+      return {
+        ...b,
+        col: 1,
+        colCount: 2,
+        x1: Math.max(0, (b.x1 - bestG) / w),
+        x2: Math.min(1, (b.x2 - bestG) / w),
+      };
     }
     return b;
   });
@@ -119,39 +176,61 @@ function formatInfographicClusterBand(topBoxes: readonly NormalizedBox[]): strin
   const items: string[] = [];
   for (const cluster of clusters) {
     cluster.sort((a, b) => a.topY - b.topY);
-    const badgeParts: string[] = [], descParts: string[] = [];
+    const badgeParts: string[] = [],
+      descParts: string[] = [];
     let inDesc = false;
     for (const b of cluster) {
       const t = b.text.trim();
       if (!inDesc && (b.h >= 0.025 || t.length <= 4)) badgeParts.push(t);
-      else { inDesc = true; descParts.push(t); }
+      else {
+        inDesc = true;
+        descParts.push(t);
+      }
     }
-    let badge = "";
+    let badge = '';
     for (const part of badgeParts) {
       if (!badge) badge = part;
       else if (/\d/.test(part) && /\d/.test(badge)) badge += ` / ${part}`;
       else badge += part;
     }
-    const cleanBadge = normalizeCjkOcrText(badge), cleanDesc = joinProseLines(descParts);
+    const cleanBadge = normalizeCjkOcrText(badge),
+      cleanDesc = joinProseLines(descParts);
     if (cleanBadge && cleanDesc) items.push(`- **${cleanBadge}**：${cleanDesc}`);
     else if (cleanBadge || cleanDesc) items.push(`- ${cleanBadge || cleanDesc}`);
   }
-  return items.length > 0 ? [items.join("\n")] : [];
+  return items.length > 0 ? [items.join('\n')] : [];
 }
 
 function tryFormatZonedTwoColumnPage(rawPageBoxes: readonly NormalizedBox[]): string[] | null {
   if (rawPageBoxes.some((b) => b.colCount === 2)) return null;
   const spanningHeadings = rawPageBoxes
     .filter((b) => {
-      const w = b.x2 - b.x1, cx = (b.x1 + b.x2) / 2;
-      if (!(b.topY >= 0.15 && b.topY <= 0.75 && b.x1 < 0.45 && b.x2 > 0.55 && w >= 0.12 && w <= 0.55 && Math.abs(cx - 0.5) <= 0.08)) return false;
-      return !rawPageBoxes.some((other) => other !== b && Math.abs(other.topY - b.topY) <= 0.06 && (other.x2 < 0.38 || other.x1 > 0.62));
+      const w = b.x2 - b.x1,
+        cx = (b.x1 + b.x2) / 2;
+      if (
+        !(
+          b.topY >= 0.15 &&
+          b.topY <= 0.75 &&
+          b.x1 < 0.45 &&
+          b.x2 > 0.55 &&
+          w >= 0.12 &&
+          w <= 0.55 &&
+          Math.abs(cx - 0.5) <= 0.08
+        )
+      )
+        return false;
+      return !rawPageBoxes.some(
+        (other) =>
+          other !== b &&
+          Math.abs(other.topY - b.topY) <= 0.06 &&
+          (other.x2 < 0.38 || other.x1 > 0.62),
+      );
     })
     .sort((a, b) => a.topY - b.topY);
   if (spanningHeadings.length === 0) return null;
 
-  const firstHeadingY = spanningHeadings[0]!.topY;
-  const lastHeading = spanningHeadings[spanningHeadings.length - 1]!;
+  const firstHeadingY = spanningHeadings[0].topY;
+  const lastHeading = spanningHeadings[spanningHeadings.length - 1];
   const bottomBoxes = rawPageBoxes.filter((b) => b.topY > lastHeading.topY + lastHeading.h + 0.01);
   const mappedBottom = detectImplicitTwoColumns(bottomBoxes);
   if (!mappedBottom.some((b) => b.colCount === 2)) return null;
@@ -161,13 +240,15 @@ function tryFormatZonedTwoColumnPage(rawPageBoxes: readonly NormalizedBox[]): st
   if (topBoxes.length > 0 && topBoxes.every((b) => b.x2 - b.x1 <= 0.25)) {
     out.push(...formatInfographicClusterBand(topBoxes));
   }
-  spanningHeadings.forEach((hBox, idx) => out.push(`${idx === 0 ? "##" : "###"} ${normalizeCjkOcrText(hBox.text)}`));
+  spanningHeadings.forEach((hBox, idx) =>
+    out.push(`${idx === 0 ? '##' : '###'} ${normalizeCjkOcrText(hBox.text)}`),
+  );
   out.push(...formatTwoColumnPage(mappedBottom));
   return out;
 }
 
 interface ColumnParagraphBlock {
-  kind: "heading" | "paragraph";
+  kind: 'heading' | 'paragraph';
   text: string;
   startsIndented: boolean;
   endsFullWidth: boolean;
@@ -175,7 +256,10 @@ interface ColumnParagraphBlock {
 
 function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlock[] {
   const filtered = rows.filter((r) => {
-    const t = r.cells.map((c) => c.text.trim()).join(" ").trim();
+    const t = r.cells
+      .map((c) => c.text.trim())
+      .join(' ')
+      .trim();
     return Boolean(t) && !((r.topY < 0.06 || r.topY > 0.92) && /^\d{1,4}$/.test(t));
   });
   if (filtered.length === 0) return [];
@@ -187,7 +271,7 @@ function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlo
 
   const steps: number[] = [];
   for (let i = 1; i < filtered.length; i++) {
-    const dy = filtered[i]!.topY - filtered[i - 1]!.topY;
+    const dy = filtered[i].topY - filtered[i - 1].topY;
     if (dy > 0.005 && dy < 0.04) steps.push(dy);
   }
   steps.sort((a, b) => a - b);
@@ -203,7 +287,7 @@ function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlo
       const joined = joinProseLines(paraLines);
       if (joined) {
         out.push({
-          kind: "paragraph",
+          kind: 'paragraph',
           text: joined,
           startsIndented: paraStartsIndented,
           endsFullWidth: prevRow ? prevRow.x2 >= rightMargin - 0.08 : false,
@@ -214,7 +298,7 @@ function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlo
   };
 
   for (const row of filtered) {
-    const rawRowText = row.cells.map((c) => c.text.trim()).join(" ");
+    const rawRowText = row.cells.map((c) => c.text.trim()).join(' ');
     const lineText = /[\u4e00-\u9fff]/.test(rawRowText)
       ? normalizeCjkOcrText(rawRowText)
       : normalizeEnglishOcrLine(rawRowText);
@@ -228,7 +312,12 @@ function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlo
 
     if (isAllCapsHeading) {
       flushPara();
-      out.push({ kind: "heading", text: `## ${lineText}`, startsIndented: false, endsFullWidth: false });
+      out.push({
+        kind: 'heading',
+        text: `## ${lineText}`,
+        startsIndented: false,
+        endsFullWidth: false,
+      });
       prevRow = null;
       continue;
     }
@@ -252,7 +341,10 @@ function segmentSingleColumnProse(rows: readonly RowGroup[]): ColumnParagraphBlo
 
 function formatSidebarGlossaryRows(rows: readonly RowGroup[]): string[] {
   const filtered = rows.filter((r) => {
-    const t = r.cells.map((c) => c.text.trim()).join(" ").trim();
+    const t = r.cells
+      .map((c) => c.text.trim())
+      .join(' ')
+      .trim();
     return Boolean(t) && !((r.topY < 0.06 || r.topY > 0.92) && /^\d{1,4}$/.test(t));
   });
   if (filtered.length === 0) return [];
@@ -267,13 +359,13 @@ function formatSidebarGlossaryRows(rows: readonly RowGroup[]): string[] {
     buf = [];
   };
   for (const row of filtered) {
-    const text = row.cells.map((c) => c.text.trim()).join(" ");
+    const text = row.cells.map((c) => c.text.trim()).join(' ');
     if (buf.length > 0 && row.topY - prevTopY >= 0.0205) flushEntry();
     buf.push(text);
     prevTopY = row.topY;
   }
   flushEntry();
-  return entries.length > 0 ? [`> **Vocabulary**\n${entries.map((e) => `> ${e}`).join("\n")}`] : [];
+  return entries.length > 0 ? [`> **Vocabulary**\n${entries.map((e) => `> ${e}`).join('\n')}`] : [];
 }
 
 function formatTwoColumnPage(pageBoxes: readonly NormalizedBox[]): string[] {
@@ -289,7 +381,7 @@ function formatTwoColumnPage(pageBoxes: readonly NormalizedBox[]): string[] {
   if ((col0Rows[0]?.topY ?? 0) > 0.25 && (col1Rows[0]?.topY ?? 0) > 0.25) {
     const findGap = (rows: RowGroup[]) => {
       for (let i = 0; i < Math.min(5, rows.length - 1); i++) {
-        if (rows[i + 1]!.topY - rows[i]!.topY >= 0.032) return i + 1;
+        if (rows[i + 1].topY - rows[i].topY >= 0.032) return i + 1;
       }
       return -1;
     };
@@ -297,7 +389,7 @@ function formatTwoColumnPage(pageBoxes: readonly NormalizedBox[]): string[] {
     const split1 = findGap(col1Rows);
     if (split0 > 0 && split1 > 0) {
       const capLines = [...col0Rows.slice(0, split0), ...col1Rows.slice(0, split1)].map((r) =>
-        r.cells.map((c) => c.text.trim()).join(" "),
+        r.cells.map((c) => c.text.trim()).join(' '),
       );
       const caption = joinProseLines(capLines);
       if (caption) blocks.push(`> ${caption}`);
@@ -310,11 +402,11 @@ function formatTwoColumnPage(pageBoxes: readonly NormalizedBox[]): string[] {
   const b1 = segmentSingleColumnProse(col1Rows);
 
   if (b0.length > 0 && b1.length > 0) {
-    const last0 = b0[b0.length - 1]!;
-    const first1 = b1[0]!;
+    const last0 = b0[b0.length - 1];
+    const first1 = b1[0];
     if (
-      last0.kind === "paragraph" &&
-      first1.kind === "paragraph" &&
+      last0.kind === 'paragraph' &&
+      first1.kind === 'paragraph' &&
       last0.endsFullWidth &&
       !first1.startsIndented &&
       !/[.?!:。！？；;"'”’)]$/.test(last0.text) &&
@@ -370,10 +462,8 @@ export function formatVisionOcrLinesToMarkdown(
       continue;
     }
 
-    blocks.push(
-      ...formatSingleColumnVisionPage(pageBoxes, cleanCodeBlocks, codeBlockIdxRef),
-    );
+    blocks.push(...formatSingleColumnVisionPage(pageBoxes, cleanCodeBlocks, codeBlockIdxRef));
   }
 
-  return `${blocks.join("\n\n").trim()}\n`;
+  return `${blocks.join('\n\n').trim()}\n`;
 }

@@ -1,30 +1,21 @@
-import { useCallback, useMemo, useState } from "react";
-import {
-  SettingsCard,
-  SettingsSection,
-} from "@getpaseo/plugin/client/ui";
+import { useCallback, useMemo, useState } from 'react';
+import { SettingsCard, SettingsSection } from '@getpaseo/plugin/client/ui';
 import {
   getAiTextSettings,
   withAiTextSettings,
   type AiTextSettings,
-} from "../../../shared/contracts.js";
-import type {
-  SettingsSectionComponentProps,
-  SettingsSectionDescriptor,
-} from "../registry.js";
-import { AdvancedTab } from "./ai-text/advanced-tab.js";
-import { EnginesTab } from "./ai-text/engines-tab.js";
-import { GeneralTab } from "./ai-text/general-tab.js";
-import { ProfilesTab } from "./ai-text/profiles-tab.js";
-import {
-  AiTextSettingsTabs,
-  type AiTextSettingsTab,
-} from "./ai-text/ui.js";
+} from '../../../shared/contracts.js';
+import type { SettingsSectionComponentProps, SettingsSectionDescriptor } from '../registry.js';
+import { AdvancedTab } from './ai-text/advanced-tab.js';
+import { EnginesTab } from './ai-text/engines-tab.js';
+import { GeneralTab } from './ai-text/general-tab.js';
+import { ProfilesTab } from './ai-text/profiles-tab.js';
+import { AiTextSettingsTabs, type AiTextSettingsTab } from './ai-text/ui.js';
 
 export interface AiTextTabProps {
   aiText: AiTextSettings;
   disabled: boolean;
-  theme: SettingsSectionComponentProps["theme"];
+  theme: SettingsSectionComponentProps['theme'];
   update(patch: Partial<AiTextSettings>): void;
   /** Engines tab → Profiles tab navigation: open this profile in the editor. */
   onOpenProfile?(profileId: string): void;
@@ -37,7 +28,7 @@ export function AiTextSettingsSection({
   updateValues,
 }: SettingsSectionComponentProps) {
   const aiText = useMemo(() => getAiTextSettings(values), [values]);
-  const [activeTab, setActiveTab] = useState<AiTextSettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<AiTextSettingsTab>('general');
   const [pendingProfileId, setPendingProfileId] = useState<string | null>(null);
 
   const update = useCallback(
@@ -49,7 +40,7 @@ export function AiTextSettingsSection({
 
   const openProfile = useCallback((profileId: string) => {
     setPendingProfileId(profileId);
-    setActiveTab("profiles");
+    setActiveTab('profiles');
   }, []);
 
   const consumePendingProfile = useCallback(() => {
@@ -62,28 +53,19 @@ export function AiTextSettingsSection({
   return (
     <>
       <SettingsSection
-        title="AI Text Mode"
-        info="Extract document text into .autumn/ with a named parsing profile, then compare it with the original file in a right-hand split view."
-        testID="autumn-studio-settings-ai-text"
+        title='AI Text Mode'
+        info='Extract document text into .autumn/ with a named parsing profile, then compare it with the original file in a right-hand split view.'
+        testID='autumn-studio-settings-ai-text'
       >
         <SettingsCard>
-          <AiTextSettingsTabs
-            activeTab={activeTab}
-            onChange={setActiveTab}
-            theme={theme}
-          />
+          <AiTextSettingsTabs activeTab={activeTab} onChange={setActiveTab} theme={theme} />
         </SettingsCard>
       </SettingsSection>
 
-      {activeTab === "general" ? (
-        <GeneralTab
-          aiText={aiText}
-          disabled={globallyDisabled}
-          theme={theme}
-          update={update}
-        />
+      {activeTab === 'general' ? (
+        <GeneralTab aiText={aiText} disabled={globallyDisabled} theme={theme} update={update} />
       ) : null}
-      {activeTab === "profiles" ? (
+      {activeTab === 'profiles' ? (
         <ProfilesTab
           aiText={aiText}
           disabled={subControlsDisabled}
@@ -93,7 +75,7 @@ export function AiTextSettingsSection({
           onAutoEditConsumed={consumePendingProfile}
         />
       ) : null}
-      {activeTab === "engines" ? (
+      {activeTab === 'engines' ? (
         <EnginesTab
           aiText={aiText}
           disabled={subControlsDisabled}
@@ -102,26 +84,21 @@ export function AiTextSettingsSection({
           onOpenProfile={openProfile}
         />
       ) : null}
-      {activeTab === "advanced" ? (
-        <AdvancedTab
-          aiText={aiText}
-          disabled={subControlsDisabled}
-          theme={theme}
-          update={update}
-        />
+      {activeTab === 'advanced' ? (
+        <AdvancedTab aiText={aiText} disabled={subControlsDisabled} theme={theme} update={update} />
       ) : null}
     </>
   );
 }
 
 export const aiTextSectionDescriptor: SettingsSectionDescriptor = {
-  id: "ai-text",
-  title: "AI Text Mode",
+  id: 'ai-text',
+  title: 'AI Text Mode',
   order: 25,
-  sidebarGroup: "primary",
-  extensions: [".pdf"],
+  sidebarGroup: 'primary',
+  extensions: ['.pdf'],
   description:
-    "Extract PDF text with MinerU, Docling, or built-in OCR using named parsing profiles, and compare versions side-by-side in a split view.",
+    'Extract PDF text with MinerU, Docling, or built-in OCR using named parsing profiles, and compare versions side-by-side in a split view.',
   // Reset lives inside the General tab, not under every tab.
   Component: AiTextSettingsSection,
 };

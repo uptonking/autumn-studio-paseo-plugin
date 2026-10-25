@@ -1,13 +1,7 @@
-import type { PluginFile } from "@getpaseo/plugin/client";
-import {
-  invalidateWorkspaceFileBlobUrl,
-  trackWorkspaceFileSave,
-} from "../blob-url-cache.ts";
-import { updateFileTabMetadataInStore } from "../opened-tabs-store.ts";
-import {
-  serializedPayloadToBytes,
-  type SerializedFilePayload,
-} from "./use-file-edit-session.ts";
+import type { PluginFile } from '@getpaseo/plugin/client';
+import { invalidateWorkspaceFileBlobUrl, trackWorkspaceFileSave } from '../blob-url-cache.ts';
+import { updateFileTabMetadataInStore } from '../opened-tabs-store.ts';
+import { serializedPayloadToBytes, type SerializedFilePayload } from './use-file-edit-session.ts';
 
 export interface PluginFileSaveOptions {
   workspaceId: string;
@@ -22,12 +16,7 @@ export interface PluginFileSaveOptions {
   payload: SerializedFilePayload;
   /** Overwrite a file that changed on disk since the handle last read it. */
   force?: boolean;
-  onSaved?: (info: {
-    path: string;
-    size: number;
-    mtime: number;
-    blobUrl: string;
-  }) => void;
+  onSaved?: (info: { path: string; size: number; mtime: number; blobUrl: string }) => void;
 }
 
 /**

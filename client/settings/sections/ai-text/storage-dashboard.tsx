@@ -1,24 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
-import { usePaseo, useRpc } from "@getpaseo/plugin/client";
-import { SettingsCard } from "@getpaseo/plugin/client/ui";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { usePaseo, useRpc } from '@getpaseo/plugin/client';
+import { SettingsCard } from '@getpaseo/plugin/client/ui';
 import {
   listAiTextStorageStats,
   revealAiTextPath,
   type AiTextStorageStatsRow,
-} from "../../../../shared/contracts.js";
-import {
-  AiTextAction,
-  AiTextHint,
-  formatAiTextBytes,
-  type AiTextTheme,
-} from "./ui.js";
-import {
-  WorkspacePicker,
-  type WorkspaceOption,
-} from "./workspace-picker.js";
+} from '../../../../shared/contracts.js';
+import { AiTextAction, AiTextHint, formatAiTextBytes, type AiTextTheme } from './ui.js';
+import { WorkspacePicker, type WorkspaceOption } from './workspace-picker.js';
 
-type SortKey = "file" | "versions" | "size" | "date";
+type SortKey = 'file' | 'versions' | 'size' | 'date';
 
 const COLUMN = {
   file: { flex: 1, minWidth: 0 },
@@ -30,12 +22,12 @@ const COLUMN = {
 const HEADERS: readonly {
   key: SortKey;
   label: string;
-  align?: "right";
+  align?: 'right';
 }[] = [
-  { key: "file", label: "File" },
-  { key: "versions", label: "Versions", align: "right" },
-  { key: "size", label: "Size", align: "right" },
-  { key: "date", label: "Last parsed", align: "right" },
+  { key: 'file', label: 'File' },
+  { key: 'versions', label: 'Versions', align: 'right' },
+  { key: 'size', label: 'Size', align: 'right' },
+  { key: 'date', label: 'Last parsed', align: 'right' },
 ];
 
 /**
@@ -45,8 +37,8 @@ const HEADERS: readonly {
 let rememberedStatsWorkspaceId: string | null = null;
 
 function formatTimestamp(iso: string | null): string {
-  if (!iso) return "—";
-  return iso.slice(0, 16).replace("T", " ");
+  if (!iso) return '—';
+  return iso.slice(0, 16).replace('T', ' ');
 }
 
 function StatsHeaderRow({
@@ -63,36 +55,34 @@ function StatsHeaderRow({
   return (
     <View
       style={{
-        flexDirection: "row",
+        flexDirection: 'row',
         gap: 8,
         paddingBottom: 6,
         borderBottomWidth: 1,
         borderColor: theme.colors.border,
       }}
-      testID="autumn-studio-ai-text-stats-header"
+      testID='autumn-studio-ai-text-stats-header'
     >
       {HEADERS.map((header) => {
         const active = header.key === sortKey;
         return (
           <Pressable
             key={header.key}
-            accessibilityRole="button"
+            accessibilityRole='button'
             onPress={() => onSort(header.key)}
             testID={`autumn-studio-ai-text-stats-header-${header.key}`}
             style={[COLUMN[header.key]]}
           >
             <Text
               style={{
-                color: active
-                  ? theme.colors.foreground
-                  : theme.colors.foregroundMuted,
+                color: active ? theme.colors.foreground : theme.colors.foregroundMuted,
                 fontSize: 10,
-                fontWeight: active ? "800" : "600",
-                textTransform: "uppercase",
-                textAlign: header.align === "right" ? "right" : "left",
+                fontWeight: active ? '800' : '600',
+                textTransform: 'uppercase',
+                textAlign: header.align === 'right' ? 'right' : 'left',
               }}
             >
-              {`${header.label}${active ? (sortDesc ? " ↓" : " ↑") : ""}`}
+              {`${header.label}${active ? (sortDesc ? ' ↓' : ' ↑') : ''}`}
             </Text>
           </Pressable>
         );
@@ -121,27 +111,23 @@ function StatsRow({
   const value = {
     color: theme.colors.foreground,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   } as const;
   return (
     <View
       style={{
         gap: 4,
         paddingVertical: 8,
-        ...(divider
-          ? { borderBottomWidth: 1, borderColor: theme.colors.border }
-          : {}),
+        ...(divider ? { borderBottomWidth: 1, borderColor: theme.colors.border } : {}),
       }}
       testID={testID}
     >
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
         <Text style={[value, COLUMN.file]} numberOfLines={1}>
           {row.sourceRelPath}
         </Text>
-        <Text style={[value, { ...COLUMN.versions, textAlign: "right" }]}>
-          {row.versionCount}
-        </Text>
-        <Text style={[value, { ...COLUMN.size, textAlign: "right" }]}>
+        <Text style={[value, { ...COLUMN.versions, textAlign: 'right' }]}>{row.versionCount}</Text>
+        <Text style={[value, { ...COLUMN.size, textAlign: 'right' }]}>
           {formatAiTextBytes(row.totalBytes)}
         </Text>
         <Text
@@ -149,7 +135,7 @@ function StatsRow({
             value,
             {
               ...COLUMN.date,
-              textAlign: "right",
+              textAlign: 'right',
               color: theme.colors.foregroundMuted,
             },
           ]}
@@ -159,18 +145,18 @@ function StatsRow({
       </View>
       <View
         style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "center",
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
           gap: 8,
           paddingLeft: 2,
         }}
       >
         <AiTextHint theme={theme}>
-          {`${row.engines.join(", ") || "unknown engine"} · markdown ${formatAiTextBytes(row.markdownBytes)}, images ${formatAiTextBytes(row.assetBytes)}`}
+          {`${row.engines.join(', ') || 'unknown engine'} · markdown ${formatAiTextBytes(row.markdownBytes)}, images ${formatAiTextBytes(row.assetBytes)}`}
         </AiTextHint>
         <AiTextAction
-          label="↗"
+          label='↗'
           accessibilityLabel={`Show ${row.sourceRelPath} in file manager`}
           onPress={onReveal}
           disabled={disabled}
@@ -197,13 +183,7 @@ interface StatsResult {
  * every Recalculate press — there is no cache, so the button is a genuine
  * forced refresh.
  */
-export function StorageDashboard({
-  disabled,
-  theme,
-}: {
-  disabled: boolean;
-  theme: AiTextTheme;
-}) {
+export function StorageDashboard({ disabled, theme }: { disabled: boolean; theme: AiTextTheme }) {
   const paseo = usePaseo();
   const fetchStats = useRpc(listAiTextStorageStats);
   const reveal = useRpc(revealAiTextPath);
@@ -215,24 +195,18 @@ export function StorageDashboard({
   const fetchStatsRef = useRef(fetchStats);
   fetchStatsRef.current = fetchStats;
 
-  const [workspaces, setWorkspaces] = useState<
-    { id: string; label: string }[]
-  >([]);
+  const [workspaces, setWorkspaces] = useState<{ id: string; label: string }[]>([]);
   /** Latest workspace activity per id, best effort. */
-  const [activityById, setActivityById] = useState<Map<string, string>>(
-    new Map(),
-  );
+  const [activityById, setActivityById] = useState<Map<string, string>>(new Map());
   /** Latest chat update time per workspace id, best effort. */
-  const [chatRecency, setChatRecency] = useState<Map<string, string>>(
-    new Map(),
-  );
-  const [workspaceId, setWorkspaceId] = useState("");
+  const [chatRecency, setChatRecency] = useState<Map<string, string>>(new Map());
+  const [workspaceId, setWorkspaceId] = useState('');
   const [result, setResult] = useState<StatsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [filter, setFilter] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDesc, setSortDesc] = useState(true);
   const generationRef = useRef(0);
 
@@ -246,9 +220,9 @@ export function StorageDashboard({
     // Chats move between workspaces; the "last used" workspace is the one the
     // latest chat lives in, so ask the agent directory for the newest chats
     // and remember which workspace each appeared in first (sorted desc).
-    paseoRef.current
-      .agents.list({
-        sort: [{ key: "updated_at", direction: "desc" }],
+    paseoRef.current.agents
+      .list({
+        sort: [{ key: 'updated_at', direction: 'desc' }],
         filter: { includeArchived: true },
         page: { limit: 50 },
       })
@@ -274,8 +248,8 @@ export function StorageDashboard({
 
   useEffect(() => {
     let cancelled = false;
-    paseoRef.current
-      .workspaces.list()
+    paseoRef.current.workspaces
+      .list()
       .then((list) => {
         if (cancelled) return;
         setWorkspaces(
@@ -285,12 +259,7 @@ export function StorageDashboard({
           })),
         );
         setActivityById(
-          new Map(
-            list.entries.map((workspace) => [
-              workspace.id,
-              workspace.activityAt ?? "",
-            ]),
-          ),
+          new Map(list.entries.map((workspace) => [workspace.id, workspace.activityAt ?? ''])),
         );
       })
       .catch(() => {
@@ -305,19 +274,14 @@ export function StorageDashboard({
   // the latest chat lives in, then the most recently active one.
   useEffect(() => {
     if (workspaceId || workspaces.length === 0) return;
-    const remembered = workspaces.find(
-      (workspace) => workspace.id === rememberedStatsWorkspaceId,
-    );
+    const remembered = workspaces.find((workspace) => workspace.id === rememberedStatsWorkspaceId);
     if (remembered) {
       setWorkspaceId(remembered.id);
       return;
     }
-    const byRecency = (id: string): string =>
-      chatRecency.get(id) ?? activityById.get(id) ?? "";
-    const best = [...workspaces].sort(
-      (a, b) => byRecency(b.id).localeCompare(byRecency(a.id)),
-    )[0];
-    setWorkspaceId(best?.id ?? "");
+    const byRecency = (id: string): string => chatRecency.get(id) ?? activityById.get(id) ?? '';
+    const best = [...workspaces].sort((a, b) => byRecency(b.id).localeCompare(byRecency(a.id)))[0];
+    setWorkspaceId(best?.id ?? '');
   }, [workspaces, chatRecency, activityById, workspaceId]);
 
   const workspaceOptions: readonly WorkspaceOption[] = useMemo(
@@ -326,10 +290,7 @@ export function StorageDashboard({
         .map((workspace) => ({
           id: workspace.id,
           label: workspace.label,
-          recencyKey:
-            chatRecency.get(workspace.id) ??
-            activityById.get(workspace.id) ??
-            "",
+          recencyKey: chatRecency.get(workspace.id) ?? activityById.get(workspace.id) ?? '',
         }))
         .sort((a, b) => b.recencyKey.localeCompare(a.recencyKey)),
     [workspaces, chatRecency, activityById],
@@ -355,11 +316,7 @@ export function StorageDashboard({
         });
       } catch (cause) {
         if (generationRef.current !== generation) return;
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Could not read AI Text storage.",
-        );
+        setError(cause instanceof Error ? cause.message : 'Could not read AI Text storage.');
       } finally {
         if (generationRef.current === generation) setLoading(false);
       }
@@ -379,23 +336,19 @@ export function StorageDashboard({
       }
       setSortKey(key);
       // Text sorts A→Z first; everything else newest/largest first.
-      setSortDesc(key !== "file");
+      setSortDesc(key !== 'file');
     },
     [sortKey],
   );
 
   const handleReveal = useCallback(
-    (kind: "output-root" | "doc-folder", docPath?: string) => {
+    (kind: 'output-root' | 'doc-folder', docPath?: string) => {
       if (!workspaceId) return;
       setMessage(null);
       reveal({ kind, workspaceId, ...(docPath ? { docPath } : {}) }).then(
         (response) => setMessage(response.message),
         (cause: unknown) =>
-          setMessage(
-            cause instanceof Error
-              ? cause.message
-              : "Could not open the folder.",
-          ),
+          setMessage(cause instanceof Error ? cause.message : 'Could not open the folder.'),
       );
     },
     [reveal, workspaceId],
@@ -404,24 +357,22 @@ export function StorageDashboard({
   const displayRows = useMemo(() => {
     const needle = filter.trim().toLowerCase();
     const filtered = needle
-      ? result?.rows.filter(
+      ? (result?.rows.filter(
           (row) =>
             row.sourceRelPath.toLowerCase().includes(needle) ||
-            row.engines.some((engine) =>
-              engine.toLowerCase().includes(needle),
-            ),
-        ) ?? []
+            row.engines.some((engine) => engine.toLowerCase().includes(needle)),
+        ) ?? [])
       : (result?.rows ?? []);
     const sorted = filtered.sort((a, b) => {
       switch (sortKey) {
-        case "file":
+        case 'file':
           return a.sourceRelPath.localeCompare(b.sourceRelPath);
-        case "versions":
+        case 'versions':
           return a.versionCount - b.versionCount;
-        case "size":
+        case 'size':
           return a.totalBytes - b.totalBytes;
         default:
-          return (a.lastParsedAt ?? "").localeCompare(b.lastParsedAt ?? "");
+          return (a.lastParsedAt ?? '').localeCompare(b.lastParsedAt ?? '');
       }
     });
     return sortDesc ? sorted.reverse() : sorted;
@@ -457,10 +408,10 @@ export function StorageDashboard({
           marginBottom: 10,
         }}
       >
-        <AiTextHint theme={theme} tone="default">
+        <AiTextHint theme={theme} tone='default'>
           {result
-            ? `${formatAiTextBytes(totals.totalBytes)} · ${result.rows.length} ${result.rows.length === 1 ? "document" : "documents"} · ${totals.totalVersions} versions`
-            : "Extracted text storage"}
+            ? `${formatAiTextBytes(totals.totalBytes)} · ${result.rows.length} ${result.rows.length === 1 ? 'document' : 'documents'} · ${totals.totalVersions} versions`
+            : 'Extracted text storage'}
         </AiTextHint>
         {result ? (
           <AiTextHint theme={theme}>
@@ -469,26 +420,26 @@ export function StorageDashboard({
         ) : null}
         <View
           style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            alignItems: "center",
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
             gap: 6,
             marginTop: 6,
           }}
         >
           <AiTextAction
-            label={loading ? "Recalculating…" : "Recalculate"}
+            label={loading ? 'Recalculating…' : 'Recalculate'}
             onPress={() => void load(true)}
             disabled={disabled || loading || !workspaceId}
             theme={theme}
-            testID="autumn-studio-ai-text-stats-refresh"
+            testID='autumn-studio-ai-text-stats-refresh'
           />
           <AiTextAction
-            label="Open folder"
-            onPress={() => handleReveal("output-root")}
+            label='Open folder'
+            onPress={() => handleReveal('output-root')}
             disabled={disabled || !workspaceId}
             theme={theme}
-            testID="autumn-studio-ai-text-stats-reveal-root"
+            testID='autumn-studio-ai-text-stats-reveal-root'
           />
         </View>
       </View>
@@ -497,7 +448,7 @@ export function StorageDashboard({
         <TextInput
           value={filter}
           onChangeText={setFilter}
-          placeholder="Filter files or engines…"
+          placeholder='Filter files or engines…'
           placeholderTextColor={theme.colors.foregroundMuted}
           editable={!disabled}
           style={{
@@ -508,18 +459,18 @@ export function StorageDashboard({
             color: theme.colors.foreground,
             fontSize: 12,
           }}
-          testID="autumn-studio-ai-text-stats-filter"
+          testID='autumn-studio-ai-text-stats-filter'
         />
       </View>
 
       <View style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4 }}>
         {result?.truncated ? (
-          <AiTextHint theme={theme} tone="warning">
+          <AiTextHint theme={theme} tone='warning'>
             Showing the first 500 documents.
           </AiTextHint>
         ) : null}
         {error ? (
-          <AiTextHint theme={theme} tone="danger">
+          <AiTextHint theme={theme} tone='danger'>
             {error}
           </AiTextHint>
         ) : null}
@@ -548,7 +499,7 @@ export function StorageDashboard({
               row={row}
               disabled={disabled}
               theme={theme}
-              onReveal={() => handleReveal("doc-folder", row.docFolderRelPath)}
+              onReveal={() => handleReveal('doc-folder', row.docFolderRelPath)}
               testID={`autumn-studio-ai-text-stats-row-${index}`}
               revealTestID={`autumn-studio-ai-text-stats-reveal-${index}`}
               divider={index < displayRows.length - 1}

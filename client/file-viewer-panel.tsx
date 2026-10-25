@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
-import { Platform, Text, View } from "react-native";
-import type { PluginWorkspacePanelProps } from "@getpaseo/plugin/client";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from 'react';
+import { Platform, Text, View } from 'react-native';
+import type { PluginWorkspacePanelProps } from '@getpaseo/plugin/client';
 import {
   clearRecentFilesInStore,
   closeAllFileTabsInStore,
@@ -15,12 +15,12 @@ import {
   togglePinFileTabInStore,
   useWorkspaceOpenedTabs,
   type OpenedFileTab,
-} from "./opened-tabs-store.js";
-import { useWorkspaceFileBridge } from "./use-workspace-file-bridge.js";
-import type { FileViewerViewProps } from "./view-props.js";
+} from './opened-tabs-store.js';
+import { useWorkspaceFileBridge } from './use-workspace-file-bridge.js';
+import type { FileViewerViewProps } from './view-props.js';
 
 const FileViewerIsland = lazy(() =>
-  import("./file-viewer-island.web.js").then((m) => ({
+  import('./file-viewer-island.web.js').then((m) => ({
     default: m.FileViewerIsland,
   })),
 );
@@ -31,7 +31,7 @@ export function FileViewerPanel(
     onOpenSettings?: (workspaceId: string) => void;
   },
 ) {
-  const isWeb = Platform.OS === "web";
+  const isWeb = Platform.OS === 'web';
   const {
     settings,
     pdfSettings,
@@ -44,9 +44,7 @@ export function FileViewerPanel(
     handleSaveFile,
   } = useWorkspaceFileBridge(props.workspaceId);
 
-  const { tabs, activePath, recentFiles } = useWorkspaceOpenedTabs(
-    props.workspaceId,
-  );
+  const { tabs, activePath, recentFiles } = useWorkspaceOpenedTabs(props.workspaceId);
   const maxOpenTabs = settings.general.maxOpenTabs;
 
   useEffect(() => {
@@ -193,12 +191,12 @@ export function FileViewerPanel(
       <View
         style={{
           flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
           padding: 24,
         }}
       >
-        <Text style={{ fontSize: 15, opacity: 0.7, textAlign: "center" }}>
+        <Text style={{ fontSize: 15, opacity: 0.7, textAlign: 'center' }}>
           File Viewer is available on desktop and web only.
         </Text>
       </View>
@@ -208,9 +206,7 @@ export function FileViewerPanel(
   return (
     <Suspense
       fallback={
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, opacity: 0.6 }}>Loading viewer…</Text>
         </View>
       }

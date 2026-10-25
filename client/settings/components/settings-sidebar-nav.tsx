@@ -1,14 +1,14 @@
-import { useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
-import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
+import { useMemo } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import type { PluginSurfaceProps } from '@getpaseo/plugin/client';
 import {
   getAiTextSettings,
   getFormatBehaviorConfig,
   type AutumnStudioSettingsValues,
-} from "../../../shared/settings.js";
-import type { SettingsSectionDescriptor } from "../registry.js";
+} from '../../../shared/settings.js';
+import type { SettingsSectionDescriptor } from '../registry.js';
 
-export const MORE_FORMATS_NAV_ID = "more";
+export const MORE_FORMATS_NAV_ID = 'more';
 
 export interface ResolvedNavState {
   activeNavId: string;
@@ -20,20 +20,20 @@ export function resolveNavStateFromSectionParam(
   primarySections: readonly SettingsSectionDescriptor[],
   moreSections: readonly SettingsSectionDescriptor[],
 ): ResolvedNavState {
-  const defaultPrimaryId = primarySections[0]?.id ?? "general";
+  const defaultPrimaryId = primarySections[0]?.id ?? 'general';
   if (!sectionParam) {
-    return { activeNavId: defaultPrimaryId, moreFilterId: "all" };
+    return { activeNavId: defaultPrimaryId, moreFilterId: 'all' };
   }
   if (sectionParam === MORE_FORMATS_NAV_ID && moreSections.length > 0) {
-    return { activeNavId: MORE_FORMATS_NAV_ID, moreFilterId: "all" };
+    return { activeNavId: MORE_FORMATS_NAV_ID, moreFilterId: 'all' };
   }
   if (primarySections.some((section) => section.id === sectionParam)) {
-    return { activeNavId: sectionParam, moreFilterId: "all" };
+    return { activeNavId: sectionParam, moreFilterId: 'all' };
   }
   if (moreSections.some((section) => section.id === sectionParam)) {
     return { activeNavId: MORE_FORMATS_NAV_ID, moreFilterId: sectionParam };
   }
-  return { activeNavId: defaultPrimaryId, moreFilterId: "all" };
+  return { activeNavId: defaultPrimaryId, moreFilterId: 'all' };
 }
 
 export function SectionMetaBanner({
@@ -41,12 +41,9 @@ export function SectionMetaBanner({
   theme,
 }: {
   section: SettingsSectionDescriptor;
-  theme: PluginSurfaceProps["theme"];
+  theme: PluginSurfaceProps['theme'];
 }) {
-  if (
-    !section.description &&
-    (!section.extensions || section.extensions.length === 0)
-  ) {
+  if (!section.description && (!section.extensions || section.extensions.length === 0)) {
     return null;
   }
   return (
@@ -71,8 +68,8 @@ export function SectionMetaBanner({
       {section.extensions && section.extensions.length > 0 ? (
         <View
           style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
+            flexDirection: 'row',
+            flexWrap: 'wrap',
             gap: 6,
             marginTop: section.description ? 8 : 0,
           }}
@@ -93,7 +90,7 @@ export function SectionMetaBanner({
                 style={{
                   color: theme.colors.foregroundMuted,
                   fontSize: 11,
-                  fontWeight: "600",
+                  fontWeight: '600',
                 }}
               >
                 {ext}
@@ -121,20 +118,20 @@ export function SettingsSidebarNav({
   activePrimarySectionId: string | null;
   isMoreActive: boolean;
   values: AutumnStudioSettingsValues;
-  theme: PluginSurfaceProps["theme"];
+  theme: PluginSurfaceProps['theme'];
   compact?: boolean;
   onSelectNav: (navId: string) => void;
 }) {
   const moreSubtitle = useMemo(
-    () => moreSections.map((section) => section.title).join(", "),
+    () => moreSections.map((section) => section.title).join(', '),
     [moreSections],
   );
 
   return (
     <View
-      testID="autumn-studio-settings-sidebar"
+      testID='autumn-studio-settings-sidebar'
       style={{
-        width: compact ? "100%" : 220,
+        width: compact ? '100%' : 220,
         flexShrink: 0,
         backgroundColor: theme.colors.surface1,
         borderColor: theme.colors.border,
@@ -148,9 +145,9 @@ export function SettingsSidebarNav({
         style={{
           color: theme.colors.foregroundMuted,
           fontSize: 11,
-          fontWeight: "600",
+          fontWeight: '600',
           letterSpacing: 0.4,
-          textTransform: "uppercase",
+          textTransform: 'uppercase',
           paddingHorizontal: 10,
           paddingTop: 4,
           paddingBottom: 4,
@@ -159,51 +156,45 @@ export function SettingsSidebarNav({
         Settings
       </Text>
       {primarySections.map((section) => {
-        const isSelected =
-          !isMoreActive && activePrimarySectionId === section.id;
+        const isSelected = !isMoreActive && activePrimarySectionId === section.id;
         const behaviorBadge =
-          section.id === "ai-text"
+          section.id === 'ai-text'
             ? getAiTextSettings(values).enabled
-              ? "On"
-              : "Off"
+              ? 'On'
+              : 'Off'
             : section.formatKind
-              ? getFormatBehaviorConfig(values, section.formatKind)
-                  .defaultOpenBehavior === "editor"
-                ? "Editor"
-                : "Viewer"
+              ? getFormatBehaviorConfig(values, section.formatKind).defaultOpenBehavior === 'editor'
+                ? 'Editor'
+                : 'Viewer'
               : null;
 
         return (
           <Pressable
             key={section.id}
             testID={`autumn-studio-settings-nav-${section.id}`}
-            accessibilityRole="tab"
+            accessibilityRole='tab'
             accessibilityState={{ selected: isSelected }}
             onPress={() => onSelectNav(section.id)}
             style={
               {
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 paddingHorizontal: 12,
                 paddingVertical: 9,
                 borderRadius: 8,
-                backgroundColor: isSelected
-                  ? theme.colors.surface2
-                  : "transparent",
+                backgroundColor: isSelected ? theme.colors.surface2 : 'transparent',
                 borderWidth: 0,
                 outlineWidth: 0,
-                outlineStyle: "none",
+                outlineStyle: 'none',
               } as never
             }
           >
             <Text
               style={{
-                color: isSelected
-                  ? theme.colors.foreground
-                  : theme.colors.foregroundMuted,
+                color: isSelected ? theme.colors.foreground : theme.colors.foregroundMuted,
                 fontSize: 14,
-                fontWeight: isSelected ? "600" : "500",
+                fontWeight: isSelected ? '600' : '500',
               }}
             >
               {section.title}
@@ -223,7 +214,7 @@ export function SettingsSidebarNav({
                   style={{
                     color: theme.colors.foregroundMuted,
                     fontSize: 11,
-                    fontWeight: "500",
+                    fontWeight: '500',
                   }}
                 >
                   {behaviorBadge}
@@ -245,40 +236,36 @@ export function SettingsSidebarNav({
             }}
           />
           <Pressable
-            testID="autumn-studio-settings-nav-more"
-            accessibilityRole="tab"
+            testID='autumn-studio-settings-nav-more'
+            accessibilityRole='tab'
             accessibilityState={{ selected: isMoreActive }}
             onPress={() => onSelectNav(MORE_FORMATS_NAV_ID)}
             style={
               {
-                flexDirection: "column",
+                flexDirection: 'column',
                 gap: 2,
                 paddingHorizontal: 12,
                 paddingVertical: 9,
                 borderRadius: 8,
-                backgroundColor: isMoreActive
-                  ? theme.colors.surface2
-                  : "transparent",
+                backgroundColor: isMoreActive ? theme.colors.surface2 : 'transparent',
                 borderWidth: 0,
                 outlineWidth: 0,
-                outlineStyle: "none",
+                outlineStyle: 'none',
               } as never
             }
           >
             <View
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
               <Text
                 style={{
-                  color: isMoreActive
-                    ? theme.colors.foreground
-                    : theme.colors.foregroundMuted,
+                  color: isMoreActive ? theme.colors.foreground : theme.colors.foregroundMuted,
                   fontSize: 14,
-                  fontWeight: isMoreActive ? "600" : "500",
+                  fontWeight: isMoreActive ? '600' : '500',
                 }}
               >
                 More Formats
@@ -297,7 +284,7 @@ export function SettingsSidebarNav({
                   style={{
                     color: theme.colors.foregroundMuted,
                     fontSize: 11,
-                    fontWeight: "600",
+                    fontWeight: '600',
                   }}
                 >
                   {moreSections.length}
@@ -328,25 +315,25 @@ export function MoreFormatsFilterBar({
 }: {
   moreSections: readonly SettingsSectionDescriptor[];
   moreFilterId: string;
-  theme: PluginSurfaceProps["theme"];
+  theme: PluginSurfaceProps['theme'];
   onSelectFilter: (filterId: string) => void;
 }) {
   return (
     <View
-      testID="autumn-studio-settings-more-filters"
+      testID='autumn-studio-settings-more-filters'
       style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignItems: "center",
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
         gap: 8,
         marginBottom: 16,
       }}
     >
       <Pressable
-        testID="autumn-studio-settings-more-filter-all"
-        accessibilityRole="tab"
-        accessibilityState={{ selected: moreFilterId === "all" }}
-        onPress={() => onSelectFilter("all")}
+        testID='autumn-studio-settings-more-filter-all'
+        accessibilityRole='tab'
+        accessibilityState={{ selected: moreFilterId === 'all' }}
+        onPress={() => onSelectFilter('all')}
         style={
           {
             paddingHorizontal: 12,
@@ -354,23 +341,17 @@ export function MoreFormatsFilterBar({
             borderRadius: 999,
             borderWidth: 1,
             borderColor: theme.colors.border,
-            backgroundColor:
-              moreFilterId === "all"
-                ? theme.colors.surface2
-                : theme.colors.surface1,
+            backgroundColor: moreFilterId === 'all' ? theme.colors.surface2 : theme.colors.surface1,
             outlineWidth: 0,
-            outlineStyle: "none",
+            outlineStyle: 'none',
           } as never
         }
       >
         <Text
           style={{
-            color:
-              moreFilterId === "all"
-                ? theme.colors.foreground
-                : theme.colors.foregroundMuted,
+            color: moreFilterId === 'all' ? theme.colors.foreground : theme.colors.foregroundMuted,
             fontSize: 12,
-            fontWeight: moreFilterId === "all" ? "600" : "500",
+            fontWeight: moreFilterId === 'all' ? '600' : '500',
           }}
         >
           All ({moreSections.length})
@@ -382,7 +363,7 @@ export function MoreFormatsFilterBar({
           <Pressable
             key={section.id}
             testID={`autumn-studio-settings-more-filter-${section.id}`}
-            accessibilityRole="tab"
+            accessibilityRole='tab'
             accessibilityState={{ selected: isPillSelected }}
             onPress={() => onSelectFilter(section.id)}
             style={
@@ -392,21 +373,17 @@ export function MoreFormatsFilterBar({
                 borderRadius: 999,
                 borderWidth: 1,
                 borderColor: theme.colors.border,
-                backgroundColor: isPillSelected
-                  ? theme.colors.surface2
-                  : theme.colors.surface1,
+                backgroundColor: isPillSelected ? theme.colors.surface2 : theme.colors.surface1,
                 outlineWidth: 0,
-                outlineStyle: "none",
+                outlineStyle: 'none',
               } as never
             }
           >
             <Text
               style={{
-                color: isPillSelected
-                  ? theme.colors.foreground
-                  : theme.colors.foregroundMuted,
+                color: isPillSelected ? theme.colors.foreground : theme.colors.foregroundMuted,
                 fontSize: 12,
-                fontWeight: isPillSelected ? "600" : "500",
+                fontWeight: isPillSelected ? '600' : '500',
               }}
             >
               {section.title}

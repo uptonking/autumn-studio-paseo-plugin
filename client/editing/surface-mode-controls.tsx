@@ -1,10 +1,10 @@
-import * as React from "react";
-import { Check, Eye, Loader2, Pencil, Save, Sparkles } from "lucide-react";
-import { FileAiTextContext } from "../ai-text/ai-text-context.js";
-import { Button } from "../vendor/components/ui/button.js";
-import { cn } from "../vendor/lib/utils.js";
-import type { FileSurfaceRole } from "../viewers/provider-catalog.js";
-import type { FileEditSession } from "./use-file-edit-session.js";
+import * as React from 'react';
+import { Check, Eye, Loader2, Pencil, Save, Sparkles } from 'lucide-react';
+import { FileAiTextContext } from '../ai-text/ai-text-context.js';
+import { Button } from '../vendor/components/ui/button.js';
+import { cn } from '../vendor/lib/utils.js';
+import type { FileSurfaceRole } from '../viewers/provider-catalog.js';
+import type { FileEditSession } from './use-file-edit-session.js';
 
 export const FileSurfacePreloadContext = React.createContext<
   ((role: FileSurfaceRole) => void) | null
@@ -16,35 +16,35 @@ export function AiTextToolbarButton({ className }: { className?: string }) {
 
   const { isSplitOpen, isExtracting, metadata, onTriggerAiText } = aiText;
   const versionCount = metadata?.versions.length ?? 0;
-  const buttonLabel = isSplitOpen ? "AI text again" : "AI Text Mode";
+  const buttonLabel = isSplitOpen ? 'AI text again' : 'AI Text Mode';
 
   return (
     <Button
-      type="button"
-      data-testid="ai-text-mode-button"
-      data-split-open={isSplitOpen ? "true" : "false"}
-      variant={isSplitOpen ? "secondary" : "outline"}
-      size="xs"
+      type='button'
+      data-testid='ai-text-mode-button'
+      data-split-open={isSplitOpen ? 'true' : 'false'}
+      variant={isSplitOpen ? 'secondary' : 'outline'}
+      size='xs'
       disabled={isExtracting}
       onClick={() => onTriggerAiText()}
       aria-label={buttonLabel}
       title={
         isSplitOpen
-          ? "Re-parse document with AI Text Mode and create a new text version in .autumn/"
-          : "Extract document text into .autumn/ and open side-by-side split view"
+          ? 'Re-parse document with AI Text Mode and create a new text version in .autumn/'
+          : 'Extract document text into .autumn/ and open side-by-side split view'
       }
-      className={cn("h-7 gap-1 px-2 text-xs font-medium", className)}
+      className={cn('h-7 gap-1 px-2 text-xs font-medium', className)}
     >
       {isExtracting ? (
-        <Loader2 className="size-3.5 animate-spin text-amber-500" />
+        <Loader2 className='size-3.5 animate-spin text-amber-500' />
       ) : (
-        <Sparkles className="size-3.5 text-amber-500" />
+        <Sparkles className='size-3.5 text-amber-500' />
       )}
       <span>{buttonLabel}</span>
       {!isSplitOpen && versionCount > 0 ? (
         <span
-          data-testid="ai-text-button-version-badge"
-          className="ml-0.5 rounded bg-muted px-1 py-0 text-[10px] font-semibold text-muted-foreground"
+          data-testid='ai-text-button-version-badge'
+          className='ml-0.5 rounded bg-muted px-1 py-0 text-[10px] font-semibold text-muted-foreground'
         >
           {versionCount}
         </span>
@@ -80,60 +80,60 @@ export function SurfaceModeSwitcher({
   if (!showRoleButtons && !showAiTextButton) return null;
 
   return (
-    <div className="inline-flex items-center gap-1.5">
+    <div className='inline-flex items-center gap-1.5'>
       {showRoleButtons && handleSelectRole ? (
         <div
-          role="group"
-          aria-label="Document mode"
-          data-slot="surface-mode-switcher"
-          data-testid="surface-mode-switcher"
+          role='group'
+          aria-label='Document mode'
+          data-slot='surface-mode-switcher'
+          data-testid='surface-mode-switcher'
           className={cn(
-            "inline-flex items-center rounded-md border border-border/80 bg-muted/50 p-0.5 text-xs",
+            'inline-flex items-center rounded-md border border-border/80 bg-muted/50 p-0.5 text-xs',
             className,
           )}
         >
           <button
-            type="button"
-            data-testid="surface-mode-viewer"
-            aria-label="Switch to Viewer"
-            aria-pressed={role === "viewer"}
+            type='button'
+            data-testid='surface-mode-viewer'
+            aria-label='Switch to Viewer'
+            aria-pressed={role === 'viewer'}
             onPointerEnter={() => {
-              if (role !== "viewer") handlePreloadRole?.("viewer");
+              if (role !== 'viewer') handlePreloadRole?.('viewer');
             }}
             onFocus={() => {
-              if (role !== "viewer") handlePreloadRole?.("viewer");
+              if (role !== 'viewer') handlePreloadRole?.('viewer');
             }}
-            onClick={() => handleSelectRole("viewer")}
+            onClick={() => handleSelectRole('viewer')}
             className={cn(
-              "inline-flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors",
-              role === "viewer"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
+              'inline-flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors',
+              role === 'viewer'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Eye className="size-3.5" />
+            <Eye className='size-3.5' />
             <span>Viewer</span>
           </button>
           <button
-            type="button"
-            data-testid="surface-mode-editor"
-            aria-label="Switch to Editor"
-            aria-pressed={role === "editor"}
+            type='button'
+            data-testid='surface-mode-editor'
+            aria-label='Switch to Editor'
+            aria-pressed={role === 'editor'}
             onPointerEnter={() => {
-              if (role !== "editor") handlePreloadRole?.("editor");
+              if (role !== 'editor') handlePreloadRole?.('editor');
             }}
             onFocus={() => {
-              if (role !== "editor") handlePreloadRole?.("editor");
+              if (role !== 'editor') handlePreloadRole?.('editor');
             }}
-            onClick={() => handleSelectRole("editor")}
+            onClick={() => handleSelectRole('editor')}
             className={cn(
-              "inline-flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors",
-              role === "editor"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
+              'inline-flex items-center gap-1 rounded px-2 py-1 font-medium transition-colors',
+              role === 'editor'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Pencil className="size-3.5" />
+            <Pencil className='size-3.5' />
             <span>Editor</span>
           </button>
         </div>
@@ -167,67 +167,63 @@ export function EditorSaveControls({
 
   return (
     <div
-      data-slot="editor-save-controls"
-      data-testid="editor-save-controls"
-      className={cn("inline-flex items-center gap-1.5", className)}
+      data-slot='editor-save-controls'
+      data-testid='editor-save-controls'
+      className={cn('inline-flex items-center gap-1.5', className)}
     >
       <Button
-        type="button"
-        data-testid="editor-save-button"
-        variant={isDirty ? "default" : "outline"}
-        size="xs"
-        disabled={saveState === "saving"}
+        type='button'
+        data-testid='editor-save-button'
+        variant={isDirty ? 'default' : 'outline'}
+        size='xs'
+        disabled={saveState === 'saving'}
         onClick={handleSaveClick}
-        aria-label="Save changes to file system"
-        title={
-          saveError
-            ? `Save failed: ${saveError}`
-            : "Save to file system (Cmd/Ctrl+S)"
-        }
-        className="h-7 gap-1 px-2 text-xs"
+        aria-label='Save changes to file system'
+        title={saveError ? `Save failed: ${saveError}` : 'Save to file system (Cmd/Ctrl+S)'}
+        className='h-7 gap-1 px-2 text-xs'
       >
-        {saveState === "saving" ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : saveState === "saved" && !isDirty ? (
-          <Check className="size-3.5 text-emerald-500" />
+        {saveState === 'saving' ? (
+          <Loader2 className='size-3.5 animate-spin' />
+        ) : saveState === 'saved' && !isDirty ? (
+          <Check className='size-3.5 text-emerald-500' />
         ) : (
-          <Save className="size-3.5" />
+          <Save className='size-3.5' />
         )}
         <span>
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved" && !isDirty
-              ? "Saved"
-              : "Save"}
+          {saveState === 'saving'
+            ? 'Saving…'
+            : saveState === 'saved' && !isDirty
+              ? 'Saved'
+              : 'Save'}
         </span>
       </Button>
-      {saveError && saveErrorKind === "conflict" ? (
+      {saveError && saveErrorKind === 'conflict' ? (
         <>
           <Button
-            type="button"
-            data-testid="editor-save-reload"
-            variant="outline"
-            size="xs"
-            disabled={saveState === "saving"}
+            type='button'
+            data-testid='editor-save-reload'
+            variant='outline'
+            size='xs'
+            disabled={saveState === 'saving'}
             onClick={() => {
               editSession.discardPendingChanges();
             }}
-            title="Discard your changes and reload the file from disk."
-            className="h-7 px-2 text-xs"
+            title='Discard your changes and reload the file from disk.'
+            className='h-7 px-2 text-xs'
           >
             Reload
           </Button>
           <Button
-            type="button"
-            data-testid="editor-save-overwrite"
-            variant="outline"
-            size="xs"
-            disabled={saveState === "saving"}
+            type='button'
+            data-testid='editor-save-overwrite'
+            variant='outline'
+            size='xs'
+            disabled={saveState === 'saving'}
             onClick={() => {
               void saveNow(undefined, { force: true });
             }}
-            title="The file changed on disk. Overwrite it with your changes."
-            className="h-7 px-2 text-xs"
+            title='The file changed on disk. Overwrite it with your changes.'
+            className='h-7 px-2 text-xs'
           >
             Overwrite
           </Button>
@@ -235,13 +231,11 @@ export function EditorSaveControls({
       ) : null}
       {saveError ? (
         <span
-          role="alert"
-          className="max-w-36 truncate text-[11px] text-destructive"
+          role='alert'
+          className='max-w-36 truncate text-[11px] text-destructive'
           title={saveError}
         >
-          {saveErrorKind === "deleted"
-            ? "File was deleted — restore it to save"
-            : saveError}
+          {saveErrorKind === 'deleted' ? 'File was deleted — restore it to save' : saveError}
         </span>
       ) : null}
     </div>

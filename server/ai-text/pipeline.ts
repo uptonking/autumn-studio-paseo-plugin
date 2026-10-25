@@ -1,28 +1,28 @@
-import { readFile, stat } from "node:fs/promises";
-import { basename } from "node:path";
+import { readFile, stat } from 'node:fs/promises';
+import { basename } from 'node:path';
 import type {
   AiTextDocumentMetadata,
   AiTextVersionProvenance,
   AiTextVersionRecord,
-} from "../../shared/ai-text/settings.ts";
+} from '../../shared/ai-text/settings.ts';
 import {
   computeAiTextProfileFingerprint,
   resolveAiTextProfile,
   validateAiTextProfile,
   type AiTextExtractionSettings,
   type AiTextProfile,
-} from "../../shared/ai-text/profiles.ts";
-import { getEngineCapabilities } from "../../shared/ai-text/engines.ts";
-import type { AiTextSettings } from "../../shared/ai-text/settings.ts";
-import type { AiTextEngineEnvironment } from "../../shared/ai-text/task.ts";
+} from '../../shared/ai-text/profiles.ts';
+import { getEngineCapabilities } from '../../shared/ai-text/engines.ts';
+import type { AiTextSettings } from '../../shared/ai-text/settings.ts';
+import type { AiTextEngineEnvironment } from '../../shared/ai-text/task.ts';
 import {
   assertEngineSupportsFormat,
   getAiTextEngine,
   type AiTextEngine,
   type AiTextParseProgress,
-} from "./engine-registry.ts";
-import { appendExtractedVersion } from "./metadata-store.ts";
-import { refineAiTextMarkdown } from "./refinement.ts";
+} from './engine-registry.ts';
+import { appendExtractedVersion } from './metadata-store.ts';
+import { refineAiTextMarkdown } from './refinement.ts';
 
 export interface AiTextPipelineInput {
   paseo: any;
@@ -45,19 +45,19 @@ export interface AiTextPipelineResult {
   content: string;
 }
 
-const LOCAL_FALLBACK_ENGINE_ID = "local-ocr";
+const LOCAL_FALLBACK_ENGINE_ID = 'local-ocr';
 
 function detectFormatKind(relPath: string): string {
   const clean = relPath.toLowerCase();
-  const dot = clean.lastIndexOf(".");
-  return dot >= 0 ? clean.slice(dot + 1) : "text";
+  const dot = clean.lastIndexOf('.');
+  return dot >= 0 ? clean.slice(dot + 1) : 'text';
 }
 
 function assertNotAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
     throw signal.reason instanceof Error
       ? signal.reason
-      : new Error("AI text extraction was cancelled");
+      : new Error('AI text extraction was cancelled');
   }
 }
 
@@ -88,9 +88,7 @@ async function parseWithEngine(input: {
   });
 }
 
-export async function runAiTextPipeline(
-  input: AiTextPipelineInput,
-): Promise<AiTextPipelineResult> {
+export async function runAiTextPipeline(input: AiTextPipelineInput): Promise<AiTextPipelineResult> {
   const startedAt = Date.now();
   assertNotAborted(input.signal);
 
@@ -102,13 +100,13 @@ export async function runAiTextPipeline(
     throw new Error(
       input.profileId
         ? `The AI Text profile "${input.profileId}" no longer exists. Pick another profile.`
-        : "No AI Text profiles are configured. Add one in AI Text settings.",
+        : 'No AI Text profiles are configured. Add one in AI Text settings.',
     );
   }
   const validation = validateAiTextProfile(profile);
   if (!validation.ok) {
     throw new Error(
-      `The AI Text profile "${profile.name}" is invalid: ${validation.errors.join(" ")}`,
+      `The AI Text profile "${profile.name}" is invalid: ${validation.errors.join(' ')}`,
     );
   }
   const resolvedProfile = validation.profile;
@@ -133,7 +131,10 @@ export async function runAiTextPipeline(
   let effectiveExtraction: AiTextExtractionSettings = resolvedProfile.extraction;
   let fallbackReason: string | undefined;
 
-  input.onProgress?.({ phase: "Preparing", message: `Running ${engine.descriptor.label}` });
+  input.onProgress?.({
+    phase: 'Preparing',
+    message: `Running ${engine.descriptor.label}`,
+  });
   try {
     parseResult = await parseWithEngine({
       engine,
@@ -155,9 +156,7 @@ export async function runAiTextPipeline(
     }
     const fallbackEngine = getAiTextEngine(LOCAL_FALLBACK_ENGINE_ID);
     if (!fallbackEngine) throw error;
-    input.onLog?.(
-      `${engine.descriptor.label} failed (${failedReason}); using local extraction`,
-    );
+    input.onLog?.(`${engine.descriptor.label} failed (${failedReason}); using local extraction`);
     fallbackReason = `${engine.descriptor.label} failed: ${failedReason}. This version came from local text extraction.`;
     const fallbackProfile: AiTextProfile = {
       ...resolvedProfile,
@@ -187,11 +186,10 @@ export async function runAiTextPipeline(
     } catch (fallbackError) {
       if (input.signal?.aborted) assertNotAborted(input.signal);
       const fallbackMessage =
-        fallbackError instanceof Error
-          ? fallbackError.message
-          : String(fallbackError);
+        fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
       throw new Error(
         `${engine.descriptor.label} failed: ${failedReason} Local fallback (${fallbackEngine.descriptor.label}) also failed: ${fallbackMessage}`,
+        { cause: fallbackError },
       );
     }
     effectiveEngine = fallbackEngine;
@@ -200,7 +198,7 @@ export async function runAiTextPipeline(
 
   assertNotAborted(input.signal);
   if (!parseResult) {
-    throw new Error("The extraction engine returned no result.");
+    throw new Error('The extraction engine returned no result.');
   }
 
   const parseWarnings = [...parseResult.warnings];
@@ -226,8 +224,7 @@ export async function runAiTextPipeline(
     markdown: parseResult.markdown,
     timeoutMs: Math.min(resolvedProfile.extraction.timeoutMs, 5 * 60 * 1000),
     signal: input.signal,
-    onProgress: (message) =>
-      input.onProgress?.({ phase: "Refining", message }),
+    onProgress: (message) => input.onProgress?.({ phase: 'Refining', message }),
     onLog: input.onLog,
   });
   assertNotAborted(input.signal);
@@ -271,13 +268,9 @@ export async function getProfileEngineEnvironment(
   if (!engine) throw new Error(`Unknown extraction engine "${engineId}".`);
   // Prefer the profile the user actually parses with so detection reflects
   // the command path, tokens, and device that profile will use.
-  const profilesForEngine = settings.profiles.filter(
-    (item) => item.engineId === engineId,
-  );
+  const profilesForEngine = settings.profiles.filter((item) => item.engineId === engineId);
   const profile =
-    profilesForEngine.find(
-      (item) => item.id === settings.defaultProfileId,
-    ) ?? profilesForEngine[0];
+    profilesForEngine.find((item) => item.id === settings.defaultProfileId) ?? profilesForEngine[0];
   return await engine.detect({
     config: profile?.config ?? engine.descriptor.configDefaults,
     indexUrl: settings.pypiIndexUrl,

@@ -1,31 +1,31 @@
-import { Suspense } from "react";
+import { Suspense } from 'react';
 import type {
   PluginClientContext,
   PluginScreenProps,
   PluginSurfaceProps,
   PluginWorkspacePanelProps,
-} from "@getpaseo/plugin/client";
-import { ExplorerPanel } from "./client/explorer-panel.js";
-import { FileViewerPanel } from "./client/file-viewer-panel.js";
-import { FilePanelSurface } from "./client/file-panel/file-panel-surface.js";
-import { FORMAT_FAMILIES } from "./client/viewers/format-families.js";
-import { lazyWithPreload } from "./client/lazy-with-preload.js";
-import { openFileTabInStore } from "./client/opened-tabs-store.js";
+} from '@getpaseo/plugin/client';
+import { ExplorerPanel } from './client/explorer-panel.js';
+import { FileViewerPanel } from './client/file-viewer-panel.js';
+import { FilePanelSurface } from './client/file-panel/file-panel-surface.js';
+import { FORMAT_FAMILIES } from './client/viewers/format-families.js';
+import { lazyWithPreload } from './client/lazy-with-preload.js';
+import { openFileTabInStore } from './client/opened-tabs-store.js';
 import {
   AutumnStudioSidebarItem,
   openAutumnStudioSettingsScreen,
   setSettingsScreenPreloader,
-} from "./client/sidebar-item.js";
-import type { FileOpenRef } from "./client/view-props.js";
+} from './client/sidebar-item.js';
+import type { FileOpenRef } from './client/view-props.js';
 
 const LazyAutumnStudioSettingsPage = lazyWithPreload(() =>
-  import("./client/settings/settings-screen.js").then((m) => ({
+  import('./client/settings/settings-screen.js').then((m) => ({
     default: m.AutumnStudioSettingsPage,
   })),
 );
 
 const LazyAutumnStudioSettingsContent = lazyWithPreload(() =>
-  import("./client/settings/settings-screen.js").then((m) => ({
+  import('./client/settings/settings-screen.js').then((m) => ({
     default: m.AutumnStudioSettingsContent,
   })),
 );
@@ -52,8 +52,8 @@ function AutumnStudioSettingsContentWrapper(props: PluginSurfaceProps) {
 }
 
 function pathBasename(filePath: string): string {
-  const trimmed = filePath.endsWith("/") ? filePath.slice(0, -1) : filePath;
-  const slashIndex = trimmed.lastIndexOf("/");
+  const trimmed = filePath.endsWith('/') ? filePath.slice(0, -1) : filePath;
+  const slashIndex = trimmed.lastIndexOf('/');
   return slashIndex === -1 ? trimmed : trimmed.slice(slashIndex + 1);
 }
 
@@ -74,7 +74,7 @@ export default function contribute(client: PluginClientContext) {
       },
       options,
     );
-    client.openPanel("file-viewer", { workspaceId, location: "workspace" });
+    client.openPanel('file-viewer', { workspaceId, location: 'workspace' });
   };
 
   const BoundExplorerPanel = (props: PluginWorkspacePanelProps) => (
@@ -89,66 +89,66 @@ export default function contribute(client: PluginClientContext) {
     <FileViewerPanel
       {...props}
       onOpenExplorer={(workspaceId) =>
-        client.openPanel("explorer", { workspaceId, location: "explorer" })
+        client.openPanel('explorer', { workspaceId, location: 'explorer' })
       }
       onOpenSettings={() => openAutumnStudioSettingsScreen()}
     />
   );
 
   const removeSidebarHeaderItem = client.addSidebarHeaderItem({
-    id: "autumn-studio",
-    title: "Autumn Studio",
+    id: 'autumn-studio',
+    title: 'Autumn Studio',
     Component: AutumnStudioSidebarItem,
   });
 
   const removeScreen = client.addScreen({
-    id: "settings",
-    title: "Autumn Studio",
+    id: 'settings',
+    title: 'Autumn Studio',
     Component: AutumnStudioSettingsPageWrapper,
   });
 
   const removeSettingsScreen = client.addSettingsScreen({
-    id: "settings",
-    title: "Autumn Studio",
-    icon: "FolderTree",
+    id: 'settings',
+    title: 'Autumn Studio',
+    icon: 'FolderTree',
     Component: AutumnStudioSettingsContentWrapper,
   });
 
   const removeExplorerPanel = client.addWorkspacePanel({
-    id: "explorer",
-    title: "Explorer",
-    icon: "FolderTree",
-    locations: ["workspace", "explorer"],
+    id: 'explorer',
+    title: 'Explorer',
+    icon: 'FolderTree',
+    locations: ['workspace', 'explorer'],
     Component: BoundExplorerPanel,
   });
 
   const removeViewerPanel = client.addWorkspacePanel({
-    id: "file-viewer",
-    title: "File Viewer",
-    icon: "FileText",
-    locations: ["workspace"],
+    id: 'file-viewer',
+    title: 'File Viewer',
+    icon: 'FileText',
+    locations: ['workspace'],
     Component: BoundFileViewerPanel,
   });
 
   const removeExplorerCommand = client.addCommandCenterItem({
-    id: "open-explorer",
-    title: "Open Autumn Studio explorer (deprecated)",
-    icon: "FolderTree",
-    context: "workspace",
-    keywords: ["files", "tree", "browse", "navigate", "pdf"],
+    id: 'open-explorer',
+    title: 'Open Autumn Studio explorer (deprecated)',
+    icon: 'FolderTree',
+    context: 'workspace',
+    keywords: ['files', 'tree', 'browse', 'navigate', 'pdf'],
     onSelect({ openPanel }) {
-      openPanel("explorer");
+      openPanel('explorer');
     },
   });
 
   const removeViewerCommand = client.addCommandCenterItem({
-    id: "open-file-viewer",
-    title: "Open file viewer tab",
-    icon: "FileText",
-    context: "workspace",
-    keywords: ["files", "viewer", "pdf", "tab"],
+    id: 'open-file-viewer',
+    title: 'Open file viewer tab',
+    icon: 'FileText',
+    context: 'workspace',
+    keywords: ['files', 'viewer', 'pdf', 'tab'],
     onSelect({ openPanel }) {
-      openPanel("file-viewer", { location: "workspace" });
+      openPanel('file-viewer', { location: 'workspace' });
     },
   });
 
@@ -170,15 +170,15 @@ export default function contribute(client: PluginClientContext) {
   );
 
   return () => {
-    removeSidebarHeaderItem();
-    removeScreen();
-    removeSettingsScreen();
-    removeExplorerPanel();
-    removeViewerPanel();
-    removeExplorerCommand();
-    removeViewerCommand();
+    void removeSidebarHeaderItem();
+    void removeScreen();
+    void removeSettingsScreen();
+    void removeExplorerPanel();
+    void removeViewerPanel();
+    void removeExplorerCommand();
+    void removeViewerCommand();
     for (const removeFilePanel of removeFilePanels) {
-      removeFilePanel();
+      void removeFilePanel();
     }
   };
 }

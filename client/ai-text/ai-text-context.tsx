@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   DEFAULT_AI_TEXT_SETTINGS,
   isAiTextSupportedFormat,
@@ -6,29 +6,25 @@ import {
   type AiTextDocumentMetadata,
   type AiTextLayoutBlock,
   type AiTextLayoutDocument,
-} from "../../shared/contracts.js";
-import { lazyWithPreload } from "../lazy-with-preload.js";
+} from '../../shared/contracts.js';
+import { lazyWithPreload } from '../lazy-with-preload.js';
 import {
   clampSplitRatioPct,
   DEFAULT_SPLIT_RATIO_PCT,
   type AiTextSplitPersistence,
   type SurfacePersistenceHandle,
-} from "../surface-persistence.js";
-import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
-import { Spinner } from "../vendor/components/ui/spinner.js";
-import { cn } from "../vendor/lib/utils.js";
-import type {
-  FileSaveCallbackInput,
-  FileSaveCallbackResult,
-} from "../viewers/registry.js";
+} from '../surface-persistence.js';
+import type { PDFViewerHandle } from '../vendor/pdf-viewer/types.js';
+import { Spinner } from '../vendor/components/ui/spinner.js';
+import { cn } from '../vendor/lib/utils.js';
+import type { FileSaveCallbackInput, FileSaveCallbackResult } from '../viewers/registry.js';
 import type {
   AiTextBridge,
   AiTextExtractOptions,
-  AiTextLayoutStatus,
   FileAiTextContextValue,
-} from "./ai-text-types.js";
-import { useAiTextLayout } from "./use-ai-text-layout.js";
-import { useAiTextTask } from "./use-ai-text-task.js";
+} from './ai-text-types.js';
+import { useAiTextLayout } from './use-ai-text-layout.js';
+import { useAiTextTask } from './use-ai-text-task.js';
 
 export type {
   AiTextBridge,
@@ -36,10 +32,10 @@ export type {
   AiTextLayoutStatus,
   AiTextTaskStartOptions,
   FileAiTextContextValue,
-} from "./ai-text-types.js";
+} from './ai-text-types.js';
 
 const LazyAiTextSplitPane = lazyWithPreload(() =>
-  import("./ai-text-split-pane.js").then((mod) => ({
+  import('./ai-text-split-pane.js').then((mod) => ({
     default: mod.AiTextSplitPane,
   })),
 );
@@ -58,11 +54,9 @@ export interface AiTextSurfaceContextValue {
   onClearActiveLayoutBlock(): void;
 }
 
-export const FileAiTextContext =
-  React.createContext<FileAiTextContextValue | null>(null);
+export const FileAiTextContext = React.createContext<FileAiTextContextValue | null>(null);
 
-export const AiTextSurfaceContext =
-  React.createContext<AiTextSurfaceContextValue | null>(null);
+export const AiTextSurfaceContext = React.createContext<AiTextSurfaceContextValue | null>(null);
 
 export function useAiTextSurface(): AiTextSurfaceContextValue | null {
   return React.useContext(AiTextSurfaceContext);
@@ -72,7 +66,7 @@ export function AiTextSurfaceSplitWrapper({
   kind,
   filePath,
   fileName,
-  variant = "in-place",
+  variant = 'in-place',
   aiText,
   persistence,
   sourceUpdatedAt,
@@ -95,11 +89,9 @@ export function AiTextSurfaceSplitWrapper({
   children: React.ReactNode;
 }) {
   const settings = aiText?.settings ?? DEFAULT_AI_TEXT_SETTINGS;
-  const enabled = Boolean(aiText ? aiText.enabled : settings.enabled);
+  const enabled = aiText ? aiText.enabled : settings.enabled;
   const supported =
-    variant !== "stage" &&
-    Boolean(filePath) &&
-    isAiTextSupportedFormat(kind, filePath ?? fileName);
+    variant !== 'stage' && Boolean(filePath) && isAiTextSupportedFormat(kind, filePath ?? fileName);
 
   const persistenceRef = React.useRef(persistence);
   persistenceRef.current = persistence;
@@ -109,22 +101,16 @@ export function AiTextSurfaceSplitWrapper({
     Boolean(persistence?.state.aiText?.originalHidden),
   );
   const [splitRatioPct, setSplitRatioPct] = React.useState(() =>
-    clampSplitRatioPct(
-      persistence?.state.aiText?.splitRatioPct ?? DEFAULT_SPLIT_RATIO_PCT,
-    ),
+    clampSplitRatioPct(persistence?.state.aiText?.splitRatioPct ?? DEFAULT_SPLIT_RATIO_PCT),
   );
   const [isLoadingMetadata, setIsLoadingMetadata] = React.useState(false);
-  const [metadata, setMetadata] = React.useState<AiTextDocumentMetadata | null>(
-    null,
-  );
+  const [metadata, setMetadata] = React.useState<AiTextDocumentMetadata | null>(null);
   const [activeContent, setActiveContent] = React.useState<string | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const stopResizeRef = React.useRef<(() => void) | null>(null);
   const autoOpenedFilePathRef = React.useRef<string | null>(null);
   const pdfHandleRef = React.useRef<PDFViewerHandle | null>(null);
-  const lastExtractOptionsRef = React.useRef<AiTextExtractOptions | undefined>(
-    undefined,
-  );
+  const lastExtractOptionsRef = React.useRef<AiTextExtractOptions | undefined>(undefined);
 
   const currentFilePathRef = React.useRef<string | undefined>(filePath);
   currentFilePathRef.current = filePath;
@@ -132,10 +118,8 @@ export function AiTextSurfaceSplitWrapper({
   // The bridge object is recreated whenever settings change. Depend on its
   // stable callbacks instead so editing a setting does not reset an open split.
   const getMetadata = aiText?.getMetadata;
-  const openSplitViewByDefaultRef = React.useRef(
-    Boolean(settings.openSplitViewByDefault),
-  );
-  openSplitViewByDefaultRef.current = Boolean(settings.openSplitViewByDefault);
+  const openSplitViewByDefaultRef = React.useRef(settings.openSplitViewByDefault);
+  openSplitViewByDefaultRef.current = settings.openSplitViewByDefault;
 
   const {
     task,
@@ -185,9 +169,7 @@ export function AiTextSurfaceSplitWrapper({
   React.useEffect(() => {
     resetTaskState();
     setIsSplitOpen(false);
-    setIsOriginalHidden(
-      Boolean(persistenceRef.current?.state.aiText?.originalHidden),
-    );
+    setIsOriginalHidden(Boolean(persistenceRef.current?.state.aiText?.originalHidden));
     setMetadata(null);
     setActiveContent(null);
 
@@ -249,7 +231,7 @@ export function AiTextSurfaceSplitWrapper({
       setIsSplitOpen(true);
       clearActiveBlock();
       await runTask(
-        { kind: "parse", targetPath, options: options ?? {} },
+        { kind: 'parse', targetPath, options: options ?? {} },
         {
           onParseResult: (result) => {
             if (currentFilePathRef.current !== targetPath) return;
@@ -320,9 +302,7 @@ export function AiTextSurfaceSplitWrapper({
         setActiveContent(res.content);
       } catch (err) {
         if (currentFilePathRef.current !== targetPath) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to switch text version",
-        );
+        setError(err instanceof Error ? err.message : 'Failed to switch text version');
       }
     },
     [aiText, filePath, setError],
@@ -340,9 +320,7 @@ export function AiTextSurfaceSplitWrapper({
         setActiveContent(res.content);
       } catch (err) {
         if (currentFilePathRef.current !== targetPath) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to delete text version",
-        );
+        setError(err instanceof Error ? err.message : 'Failed to delete text version');
       }
     },
     [aiText, filePath, setError],
@@ -389,18 +367,18 @@ export function AiTextSurfaceSplitWrapper({
         setSplitRatioPct(latestPct);
       };
       const stop = () => {
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", stop);
-        window.removeEventListener("blur", stop);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', stop);
+        window.removeEventListener('blur', stop);
         if (stopResizeRef.current === stop) stopResizeRef.current = null;
         if (latestPct !== null) {
           persistAiText({ splitRatioPct: latestPct });
         }
       };
       stopResizeRef.current = stop;
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", stop);
-      window.addEventListener("blur", stop);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', stop);
+      window.addEventListener('blur', stop);
     },
     [persistAiText],
   );
@@ -506,53 +484,49 @@ export function AiTextSurfaceSplitWrapper({
         {isSplitOpen && enabled && supported ? (
           <div
             ref={splitContainerRef}
-            data-testid="ai-text-split-layout"
-            className="flex size-full min-h-0 flex-1 flex-row overflow-hidden"
+            data-testid='ai-text-split-layout'
+            className='flex size-full min-h-0 flex-1 flex-row overflow-hidden'
           >
             {!isOriginalHidden ? (
               <>
                 <div
-                  data-testid="ai-text-original-pane"
-                  className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                  data-testid='ai-text-original-pane'
+                  className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
                 >
                   {children}
                 </div>
                 <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label="Resize AI Text split view"
-                  data-testid="ai-text-split-resizer"
-                  title="Drag to resize split view (double-click to reset)"
+                  role='separator'
+                  aria-orientation='vertical'
+                  aria-label='Resize AI Text split view'
+                  data-testid='ai-text-split-resizer'
+                  title='Drag to resize split view (double-click to reset)'
                   onMouseDown={handleStartResize}
                   onDoubleClick={() => {
                     setSplitRatioPct(DEFAULT_SPLIT_RATIO_PCT);
                     persistAiText({ splitRatioPct: DEFAULT_SPLIT_RATIO_PCT });
                   }}
-                  className="w-1 shrink-0 cursor-col-resize bg-border/70 transition-colors hover:bg-primary/50"
+                  className='w-1 shrink-0 cursor-col-resize bg-border/70 transition-colors hover:bg-primary/50'
                 />
               </>
             ) : null}
             <div
-              data-testid="ai-text-split-pane"
-              style={
-                isOriginalHidden ? undefined : { width: `${splitRatioPct}%` }
-              }
+              data-testid='ai-text-split-pane'
+              style={isOriginalHidden ? undefined : { width: `${splitRatioPct}%` }}
               className={cn(
-                "flex h-full min-h-0 flex-col overflow-hidden bg-background",
-                isOriginalHidden
-                  ? "min-w-0 flex-1"
-                  : "min-w-[220px] max-w-[72%] shrink-0",
+                'flex h-full min-h-0 flex-col overflow-hidden bg-background',
+                isOriginalHidden ? 'min-w-0 flex-1' : 'min-w-[220px] max-w-[72%] shrink-0',
               )}
             >
               <React.Suspense
                 fallback={
-                  <div className="grid size-full place-items-center">
-                    <Spinner className="size-4 text-muted-foreground" />
+                  <div className='grid size-full place-items-center'>
+                    <Spinner className='size-4 text-muted-foreground' />
                   </div>
                 }
               >
                 <LazyAiTextSplitPane
-                  fileName={fileName ?? filePath ?? "document"}
+                  fileName={fileName ?? filePath ?? 'document'}
                   aiTextState={contextValue}
                   onSaveFile={onSaveFile}
                   onOpenSettings={onOpenSettings}

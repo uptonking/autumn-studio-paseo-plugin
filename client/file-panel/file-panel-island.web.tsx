@@ -1,14 +1,10 @@
-import { useMemo } from "react";
-import type { PluginFilePanelProps } from "@getpaseo/plugin/client";
-import {
-  FileViewerFrame,
-  FileViewerStage,
-  type FileSourceAdapter,
-} from "../file-viewer-stage.js";
-import { ShadowIsland } from "../shadow-island.web.js";
-import { FileSystemIconSpriteSheet } from "../vendor/file-system/icons.js";
-import type { OpenedFileTab } from "../opened-tabs-store.js";
-import type { FileViewerViewProps } from "../view-props.js";
+import { useMemo } from 'react';
+import type { PluginFilePanelProps } from '@getpaseo/plugin/client';
+import { FileViewerFrame, FileViewerStage, type FileSourceAdapter } from '../file-viewer-stage.js';
+import { ShadowIsland } from '../shadow-island.web.js';
+import { FileSystemIconSpriteSheet } from '../vendor/file-system/icons.js';
+import type { OpenedFileTab } from '../opened-tabs-store.js';
+import type { FileViewerViewProps } from '../view-props.js';
 
 /**
  * react-dom island for the native file panel: the shared single-file stage
@@ -38,7 +34,7 @@ export function FilePanelIsland(
           view={props.view}
           activeTab={props.activeTab}
           source={source}
-          mode="native"
+          mode='native'
         />
       </FileViewerFrame>
     </ShadowIsland>

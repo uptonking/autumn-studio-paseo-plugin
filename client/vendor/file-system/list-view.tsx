@@ -1,16 +1,16 @@
-import * as React from "react"
-import { prepareFileTreeInput } from "@pierre/trees"
-import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react"
+import * as React from 'react';
+import { prepareFileTreeInput } from '@pierre/trees';
+import { FileTree as PierreFileTree, useFileTree } from '@pierre/trees/react';
 
-import { FileSystemEmptyState } from "./file-visual"
-import { FileSystemListColumnHeader } from "./header"
+import { FileSystemEmptyState } from './file-visual';
+import { FileSystemListColumnHeader } from './header';
 import {
   buildFileTreeIconConfig,
   buildFileTreeUnsafeCss,
   createFileTreeSortComparator,
   FILE_TREE_STYLE_VARS,
   renderFileTreeRowDecoration,
-} from "./tree-helpers"
+} from './tree-helpers';
 import {
   directoryPathsOf,
   normalizeFolderPath,
@@ -18,13 +18,13 @@ import {
   type FileSystemIndex,
   type FileSystemSortState,
   type FileSystemViewProps,
-} from "./types"
-import { isTypeAheadKey, useEntryTypeAhead } from "./virtual-window"
+} from './types';
+import { isTypeAheadKey, useEntryTypeAhead } from './virtual-window';
 
 export function FileSystemListView({
   currentPath,
   fileFilter,
-  headerLayout = "full",
+  headerLayout = 'full',
   index,
   onOpen,
   onSelect,
@@ -35,57 +35,53 @@ export function FileSystemListView({
   treeExpansionRef,
 }: FileSystemViewProps) {
   const relativePaths = React.useMemo(() => {
-    const paths: string[] = []
+    const paths: string[] = [];
 
     for (const [path, file] of index.files) {
-      if (currentPath === "" || path.startsWith(currentPath)) {
-        const relativePath = path.slice(currentPath.length)
+      if (currentPath === '' || path.startsWith(currentPath)) {
+        const relativePath = path.slice(currentPath.length);
 
-        if (!relativePath) continue
-        if (fileFilter && !fileFilter(file)) continue
-        paths.push(relativePath)
+        if (!relativePath) continue;
+        if (fileFilter && !fileFilter(file)) continue;
+        paths.push(relativePath);
       }
     }
-    return paths.sort()
-  }, [currentPath, fileFilter, index])
+    return paths.sort();
+  }, [currentPath, fileFilter, index]);
 
   if (relativePaths.length === 0) {
     return (
       <FileSystemEmptyState
-        label={
-          fileFilter
-            ? "No items match the active filters"
-            : "This folder is empty"
-        }
+        label={fileFilter ? 'No items match the active filters' : 'This folder is empty'}
       />
-    )
+    );
   }
 
   return (
-    <div className="flex size-full flex-col">
-      <div className="flex shrink-0 items-center border-b py-1 pr-6 pl-[46px] text-xs font-medium text-muted-foreground">
+    <div className='flex size-full flex-col'>
+      <div className='flex shrink-0 items-center border-b py-1 pr-6 pl-[46px] text-xs font-medium text-muted-foreground'>
         <FileSystemListColumnHeader
-          className="flex-1 justify-start"
-          label="Name"
+          className='flex-1 justify-start'
+          label='Name'
           onClick={onSortColumnClick}
           sort={sort}
-          sortKey="name"
+          sortKey='name'
         />
-        {headerLayout === "full" ? (
+        {headerLayout === 'full' ? (
           <>
             <FileSystemListColumnHeader
-              className="w-44 justify-start"
-              label="Date Modified"
+              className='w-44 justify-start'
+              label='Date Modified'
               onClick={onSortColumnClick}
               sort={sort}
-              sortKey="updatedAt"
+              sortKey='updatedAt'
             />
             <FileSystemListColumnHeader
-              className="w-20 justify-start"
-              label="Size"
+              className='w-20 justify-start'
+              label='Size'
               onClick={onSortColumnClick}
               sort={sort}
-              sortKey="size"
+              sortKey='size'
             />
           </>
         ) : null}
@@ -98,7 +94,7 @@ export function FileSystemListView({
         index={index}
         initialSelectedPath={
           selectedPath?.startsWith(currentPath)
-            ? selectedPath.slice(currentPath.length).replace(/\/$/, "")
+            ? selectedPath.slice(currentPath.length).replace(/\/$/, '')
             : null
         }
         onOpen={onOpen}
@@ -109,13 +105,13 @@ export function FileSystemListView({
         treeExpansionRef={treeExpansionRef}
       />
     </div>
-  )
+  );
 }
 
 function FileSystemPierreTree({
   currentPath,
   hasActiveFilters,
-  headerLayout = "full",
+  headerLayout = 'full',
   index,
   initialSelectedPath,
   onOpen,
@@ -125,150 +121,146 @@ function FileSystemPierreTree({
   sort,
   treeExpansionRef,
 }: {
-  currentPath: string
-  hasActiveFilters: boolean
-  headerLayout?: "full" | "compact" | "minimal"
-  index: FileSystemIndex
-  initialSelectedPath: string | null
-  onOpen: (entry: FileSystemEntry) => void
-  onSelect: (entry: FileSystemEntry | null) => void
-  relativePaths: string[]
-  searchQuery: string
-  sort: FileSystemSortState
-  treeExpansionRef: React.RefObject<Map<string, readonly string[]>>
+  currentPath: string;
+  hasActiveFilters: boolean;
+  headerLayout?: 'full' | 'compact' | 'minimal';
+  index: FileSystemIndex;
+  initialSelectedPath: string | null;
+  onOpen: (entry: FileSystemEntry) => void;
+  onSelect: (entry: FileSystemEntry | null) => void;
+  relativePaths: string[];
+  searchQuery: string;
+  sort: FileSystemSortState;
+  treeExpansionRef: React.RefObject<Map<string, readonly string[]>>;
 }) {
   const sortComparator = React.useMemo(
     () => createFileTreeSortComparator(currentPath, index, sort),
-    [currentPath, index, sort]
-  )
+    [currentPath, index, sort],
+  );
   const preparedInput = React.useMemo(
     () => prepareFileTreeInput(relativePaths, { sort: sortComparator }),
-    [relativePaths, sortComparator]
-  )
+    [relativePaths, sortComparator],
+  );
   const icons = React.useMemo(
     () => buildFileTreeIconConfig(currentPath, index, relativePaths),
-    [currentPath, index, relativePaths]
-  )
+    [currentPath, index, relativePaths],
+  );
   const { model } = useFileTree({
     flattenEmptyDirectories: false,
     icons,
-    initialExpansion: "closed",
+    initialExpansion: 'closed',
     initialSearchQuery: searchQuery || null,
     initialSelectedPaths: initialSelectedPath ? [initialSelectedPath] : [],
     itemHeight: 28,
     overscan: 12,
     preparedInput,
     renderRowDecoration:
-      headerLayout === "full"
+      headerLayout === 'full'
         ? ({ row }) => renderFileTreeRowDecoration(currentPath, index, row)
         : undefined,
     unsafeCSS: buildFileTreeUnsafeCss(headerLayout),
     onSelectionChange: (selectedPaths) => {
-      const relativePath = selectedPaths[0]
+      const relativePath = selectedPaths[0];
 
       if (!relativePath) {
-        onSelect(null)
-        return
+        onSelect(null);
+        return;
       }
 
-      const absolutePath = `${currentPath}${relativePath}`
+      const absolutePath = `${currentPath}${relativePath}`;
       const entry =
         index.files.get(absolutePath) ??
         index.folders.get(normalizeFolderPath(absolutePath)) ??
-        null
+        null;
 
-      onSelect(entry)
+      onSelect(entry);
     },
-  })
+  });
 
   React.useEffect(() => {
-    model.setIcons(icons)
-  }, [icons, model])
+    model.setIcons(icons);
+  }, [icons, model]);
 
   const collectExpandedDirectories = React.useCallback(
     (paths: readonly string[]) => {
-      const expandedPaths: string[] = []
+      const expandedPaths: string[] = [];
 
       for (const directoryPath of directoryPathsOf(paths)) {
-        const item =
-          model.getItem(directoryPath) ?? model.getItem(`${directoryPath}/`)
+        const item = model.getItem(directoryPath) ?? model.getItem(`${directoryPath}/`);
 
-        if (item && "isExpanded" in item && item.isExpanded()) {
-          expandedPaths.push(directoryPath)
+        if (item && 'isExpanded' in item && item.isExpanded()) {
+          expandedPaths.push(directoryPath);
         }
       }
-      return expandedPaths
+      return expandedPaths;
     },
-    [model]
-  )
+    [model],
+  );
 
   const expandDirectories = React.useCallback(
     (directoryPaths: Iterable<string>) => {
       for (const directoryPath of directoryPaths) {
-        const item =
-          model.getItem(directoryPath) ?? model.getItem(`${directoryPath}/`)
+        const item = model.getItem(directoryPath) ?? model.getItem(`${directoryPath}/`);
 
-        if (item && "isExpanded" in item && !item.isExpanded()) {
-          item.toggle()
+        if (item && 'isExpanded' in item && !item.isExpanded()) {
+          item.toggle();
         }
       }
     },
-    [model]
-  )
+    [model],
+  );
 
-  const appliedPreparedInputRef = React.useRef(preparedInput)
-  const hasActiveFiltersRef = React.useRef(hasActiveFilters)
-  const filteredAtLastResetRef = React.useRef(hasActiveFilters)
-  const preFilterExpansionRef = React.useRef<readonly string[] | null>(null)
-
-  React.useEffect(() => {
-    hasActiveFiltersRef.current = hasActiveFilters
-  })
+  const appliedPreparedInputRef = React.useRef(preparedInput);
+  const hasActiveFiltersRef = React.useRef(hasActiveFilters);
+  const filteredAtLastResetRef = React.useRef(hasActiveFilters);
+  const preFilterExpansionRef = React.useRef<readonly string[] | null>(null);
 
   React.useEffect(() => {
-    const previousPreparedInput = appliedPreparedInputRef.current
+    hasActiveFiltersRef.current = hasActiveFilters;
+  });
 
-    if (previousPreparedInput === preparedInput) return
-    appliedPreparedInputRef.current = preparedInput
+  React.useEffect(() => {
+    const previousPreparedInput = appliedPreparedInputRef.current;
 
-    const wasFiltered = filteredAtLastResetRef.current
+    if (previousPreparedInput === preparedInput) return;
+    appliedPreparedInputRef.current = preparedInput;
 
-    filteredAtLastResetRef.current = hasActiveFilters
+    const wasFiltered = filteredAtLastResetRef.current;
 
-    let expandedPaths: readonly string[]
+    filteredAtLastResetRef.current = hasActiveFilters;
+
+    let expandedPaths: readonly string[];
 
     if (hasActiveFilters) {
       if (!wasFiltered) {
-        preFilterExpansionRef.current = collectExpandedDirectories(
-          previousPreparedInput.paths
-        )
+        preFilterExpansionRef.current = collectExpandedDirectories(previousPreparedInput.paths);
       }
-      expandedPaths = [...directoryPathsOf(preparedInput.paths)]
+      expandedPaths = [...directoryPathsOf(preparedInput.paths)];
     } else if (wasFiltered) {
-      expandedPaths = preFilterExpansionRef.current ?? []
-      preFilterExpansionRef.current = null
+      expandedPaths = preFilterExpansionRef.current ?? [];
+      preFilterExpansionRef.current = null;
     } else {
-      expandedPaths = collectExpandedDirectories(previousPreparedInput.paths)
+      expandedPaths = collectExpandedDirectories(previousPreparedInput.paths);
     }
 
-    const searchValue = model.getSearchValue()
+    const searchValue = model.getSearchValue();
 
-    model.resetPaths(undefined as unknown as readonly string[], {
+    model.resetPaths(preparedInput.paths, {
       initialExpandedPaths: expandedPaths,
       preparedInput,
-    })
-    if (searchValue) model.setSearch(searchValue)
-  }, [collectExpandedDirectories, hasActiveFilters, model, preparedInput])
+    });
+    if (searchValue) model.setSearch(searchValue);
+  }, [collectExpandedDirectories, hasActiveFilters, model, preparedInput]);
 
   React.useLayoutEffect(() => {
-    const expansionStore = treeExpansionRef.current
-    const savedExpansion = expansionStore.get(currentPath) ?? []
+    const expansionStore = treeExpansionRef.current;
+    const savedExpansion = expansionStore.get(currentPath) ?? [];
 
     if (hasActiveFiltersRef.current) {
-      preFilterExpansionRef.current = savedExpansion
-      expandDirectories(directoryPathsOf(appliedPreparedInputRef.current.paths))
+      preFilterExpansionRef.current = savedExpansion;
+      expandDirectories(directoryPathsOf(appliedPreparedInputRef.current.paths));
     } else {
-      expandDirectories(savedExpansion)
+      expandDirectories(savedExpansion);
     }
 
     return () => {
@@ -276,141 +268,130 @@ function FileSystemPierreTree({
         currentPath,
         hasActiveFiltersRef.current
           ? (preFilterExpansionRef.current ?? [])
-          : collectExpandedDirectories(appliedPreparedInputRef.current.paths)
-      )
-    }
-  }, [
-    collectExpandedDirectories,
-    currentPath,
-    expandDirectories,
-    treeExpansionRef,
-  ])
+          : collectExpandedDirectories(appliedPreparedInputRef.current.paths),
+      );
+    };
+  }, [collectExpandedDirectories, currentPath, expandDirectories, treeExpansionRef]);
 
   React.useEffect(() => {
-    model.setSearch(searchQuery || null)
-  }, [model, searchQuery])
+    model.setSearch(searchQuery || null);
+  }, [model, searchQuery]);
 
   React.useEffect(() => {
-    let lastFocusedPath = model.getFocusedPath()
+    let lastFocusedPath = model.getFocusedPath();
 
     return model.subscribe(() => {
-      const focusedPath = model.getFocusedPath()
+      const focusedPath = model.getFocusedPath();
 
-      if (focusedPath === lastFocusedPath) return
+      if (focusedPath === lastFocusedPath) return;
 
-      lastFocusedPath = focusedPath
+      lastFocusedPath = focusedPath;
 
-      if (!focusedPath) return
+      if (!focusedPath) return;
 
-      const item = model.getItem(focusedPath)
+      const item = model.getItem(focusedPath);
 
-      if (!item || item.isSelected()) return
+      if (!item || item.isSelected()) return;
 
       for (const path of model.getSelectedPaths()) {
-        model.getItem(path)?.deselect()
+        model.getItem(path)?.deselect();
       }
-      item.select()
-    })
-  }, [model])
+      item.select();
+    });
+  }, [model]);
 
   const entryFromEvent = (event: React.SyntheticEvent) => {
     for (const target of event.nativeEvent.composedPath()) {
-      if (!(target instanceof HTMLElement)) continue
+      if (!(target instanceof HTMLElement)) continue;
 
-      const relativePath = target.dataset?.itemPath
+      const relativePath = target.dataset?.itemPath;
 
-      if (!relativePath) continue
+      if (!relativePath) continue;
 
-      const absolutePath = `${currentPath}${relativePath}`
+      const absolutePath = `${currentPath}${relativePath}`;
 
       return (
         index.files.get(absolutePath) ??
         index.folders.get(normalizeFolderPath(absolutePath)) ??
         null
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   const resolveTreeItem = (relativePath: string) =>
     model.getItem(relativePath) ??
-    model.getItem(
-      relativePath.endsWith("/")
-        ? relativePath.slice(0, -1)
-        : `${relativePath}/`
-    )
+    model.getItem(relativePath.endsWith('/') ? relativePath.slice(0, -1) : `${relativePath}/`);
 
   const collectVisibleEntries = () => {
-    const visibleEntries: FileSystemEntry[] = []
+    const visibleEntries: FileSystemEntry[] = [];
     const walk = (folderPath: string) => {
-      const children = index.children.get(folderPath) ?? []
+      const children = index.children.get(folderPath) ?? [];
 
       for (const child of children) {
-        if (child.kind !== "folder") continue
+        if (child.kind !== 'folder') continue;
 
-        const item = resolveTreeItem(child.path.slice(currentPath.length))
+        const item = resolveTreeItem(child.path.slice(currentPath.length));
 
-        if (!item) continue
-        visibleEntries.push(child)
-        if ("isExpanded" in item && item.isExpanded()) walk(child.path)
+        if (!item) continue;
+        visibleEntries.push(child);
+        if ('isExpanded' in item && item.isExpanded()) walk(child.path);
       }
       for (const child of children) {
-        if (child.kind === "file") visibleEntries.push(child)
+        if (child.kind === 'file') visibleEntries.push(child);
       }
-    }
+    };
 
-    walk(currentPath)
-    return visibleEntries
-  }
+    walk(currentPath);
+    return visibleEntries;
+  };
 
-  const typeAhead = useEntryTypeAhead()
+  const typeAhead = useEntryTypeAhead();
 
   return (
     <PierreFileTree
       model={model}
-      className="block min-h-0 flex-1"
+      className='block min-h-0 flex-1'
       onClick={(event) => {
-        const entry = entryFromEvent(event)
+        const entry = entryFromEvent(event);
 
-        if (entry?.kind === "file") onOpen(entry)
+        if (entry?.kind === 'file') onOpen(entry);
       }}
       onDoubleClick={(event) => {
-        const entry = entryFromEvent(event)
+        const entry = entryFromEvent(event);
 
-        if (entry) onOpen(entry)
+        if (entry) onOpen(entry);
       }}
       onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          const entry = entryFromEvent(event)
+        if (event.key === 'Enter') {
+          const entry = entryFromEvent(event);
 
           if (entry) {
-            event.preventDefault()
-            onOpen(entry)
+            event.preventDefault();
+            onOpen(entry);
           }
-          return
+          return;
         }
 
-        if (!isTypeAheadKey(event)) return
+        if (!isTypeAheadKey(event)) return;
 
-        const visibleEntries = collectVisibleEntries()
-        const focusedPath = model.getFocusedPath()?.replace(/\/$/, "") ?? null
+        const visibleEntries = collectVisibleEntries();
+        const focusedPath = model.getFocusedPath()?.replace(/\/$/, '') ?? null;
         const focusedIndex = visibleEntries.findIndex(
-          (entry) =>
-            entry.path.slice(currentPath.length).replace(/\/$/, "") ===
-            focusedPath
-        )
-        const match = typeAhead(event, visibleEntries, focusedIndex)
+          (entry) => entry.path.slice(currentPath.length).replace(/\/$/, '') === focusedPath,
+        );
+        const match = typeAhead(event, visibleEntries, focusedIndex);
 
-        if (!match) return
+        if (!match) return;
 
-        const item = resolveTreeItem(match.path.slice(currentPath.length))
+        const item = resolveTreeItem(match.path.slice(currentPath.length));
 
         if (item) {
-          model.scrollToPath(item.getPath())
-          item.focus()
+          model.scrollToPath(item.getPath());
+          item.focus();
         }
       }}
       style={FILE_TREE_STYLE_VARS}
     />
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import { registerDoclingEngine } from "./docling/index.ts";
-import { registerLocalOcrEngine } from "./local-ocr/index.ts";
-import { registerMineruEngine } from "./mineru/index.ts";
+import { registerDoclingEngine } from './docling/index.ts';
+import { registerLocalOcrEngine } from './local-ocr/index.ts';
+import { registerMineruEngine } from './mineru/index.ts';
 
 let registered = false;
 

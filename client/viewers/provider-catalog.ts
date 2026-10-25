@@ -1,5 +1,5 @@
-import type { FileFormatOpenBehavior } from "../../shared/settings.js";
-import type { FileSystemViewerKind } from "../vendor/file-system/types.js";
+import type { FileFormatOpenBehavior } from '../../shared/settings.js';
+import type { FileSystemViewerKind } from '../vendor/file-system/types.js';
 
 export type FileSurfaceRole = FileFormatOpenBehavior;
 
@@ -18,82 +18,78 @@ export interface FileSurfaceProviderMeta {
 
 const DEFAULT_SURFACE_PROVIDERS: FileSurfaceProviderMeta[] = [
   {
-    id: "embedpdf-viewer",
-    kind: "pdf",
-    role: "viewer",
-    label: "EmbedPDF Viewer (Default)",
+    id: 'embedpdf-viewer',
+    kind: 'pdf',
+    role: 'viewer',
+    label: 'EmbedPDF Viewer (Default)',
     isDefault: true,
   },
   {
-    id: "embedpdf-editor",
-    kind: "pdf",
-    role: "editor",
-    label: "EmbedPDF Editor (Default)",
+    id: 'embedpdf-editor',
+    kind: 'pdf',
+    role: 'editor',
+    label: 'EmbedPDF Editor (Default)',
     isDefault: true,
   },
   {
-    id: "extend-xlsx-viewer",
-    kind: "xlsx",
-    role: "viewer",
-    label: "Extend Excel Viewer (Default)",
+    id: 'extend-xlsx-viewer',
+    kind: 'xlsx',
+    role: 'viewer',
+    label: 'Extend Excel Viewer (Default)',
     isDefault: true,
   },
   {
-    id: "extend-xlsx-editor",
-    kind: "xlsx",
-    role: "editor",
-    label: "Extend Excel Editor (Default)",
+    id: 'extend-xlsx-editor',
+    kind: 'xlsx',
+    role: 'editor',
+    label: 'Extend Excel Editor (Default)',
     isDefault: true,
   },
   {
-    id: "code-text-viewer",
-    kind: "text",
-    role: "viewer",
-    label: "Code & Text Viewer (Default)",
+    id: 'code-text-viewer',
+    kind: 'text',
+    role: 'viewer',
+    label: 'Code & Text Viewer (Default)',
     isDefault: true,
   },
   {
-    id: "code-text-editor",
-    kind: "text",
-    role: "editor",
-    label: "Code & Text Editor (Default)",
+    id: 'code-text-editor',
+    kind: 'text',
+    role: 'editor',
+    label: 'Code & Text Editor (Default)',
     isDefault: true,
   },
   {
-    id: "image-viewer",
-    kind: "image",
-    role: "viewer",
-    label: "Image Viewer (Default)",
+    id: 'image-viewer',
+    kind: 'image',
+    role: 'viewer',
+    label: 'Image Viewer (Default)',
     isDefault: true,
   },
   {
-    id: "docx-stub-viewer",
-    kind: "docx",
-    role: "viewer",
-    label: "Word Document Preview (Default)",
+    id: 'docx-stub-viewer',
+    kind: 'docx',
+    role: 'viewer',
+    label: 'Word Document Preview (Default)',
     isDefault: true,
   },
   {
-    id: "pptx-stub-viewer",
-    kind: "pptx",
-    role: "viewer",
-    label: "PowerPoint Preview (Default)",
+    id: 'pptx-stub-viewer',
+    kind: 'pptx',
+    role: 'viewer',
+    label: 'PowerPoint Preview (Default)',
     isDefault: true,
   },
 ];
 
 const catalogById = new Map<string, FileSurfaceProviderMeta>(
-  DEFAULT_SURFACE_PROVIDERS.map((entry) => [entry.id, entry])
+  DEFAULT_SURFACE_PROVIDERS.map((entry) => [entry.id, entry]),
 );
 
-export function registerSurfaceProviderMeta(
-  meta: FileSurfaceProviderMeta
-): () => void {
+export function registerSurfaceProviderMeta(meta: FileSurfaceProviderMeta): () => void {
   catalogById.set(meta.id, meta);
   return () => {
-    const defaultMatch = DEFAULT_SURFACE_PROVIDERS.find(
-      (entry) => entry.id === meta.id
-    );
+    const defaultMatch = DEFAULT_SURFACE_PROVIDERS.find((entry) => entry.id === meta.id);
     if (defaultMatch) {
       catalogById.set(meta.id, defaultMatch);
     } else {
@@ -104,7 +100,7 @@ export function registerSurfaceProviderMeta(
 
 export function getFormatSurfaceProviders(
   kind: FileSystemViewerKind,
-  role?: FileSurfaceRole
+  role?: FileSurfaceRole,
 ): FileSurfaceProviderMeta[] {
   const results: FileSurfaceProviderMeta[] = [];
   for (const meta of catalogById.values()) {
@@ -118,7 +114,7 @@ export function getFormatSurfaceProviders(
 export function resolveSurfaceProviderMeta(
   kind: FileSystemViewerKind,
   role: FileSurfaceRole,
-  preferredProviderId?: string
+  preferredProviderId?: string,
 ): FileSurfaceProviderMeta | null {
   const candidates = getFormatSurfaceProviders(kind, role);
   if (preferredProviderId) {

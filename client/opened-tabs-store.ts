@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore } from 'react';
 
 export const DEFAULT_MAX_OPEN_TABS = 8;
 export const MAX_RECENT_FILES = 8;
@@ -41,7 +41,7 @@ function nextAccessStamp(): number {
 }
 
 function normalizeMaxOpenTabs(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     return DEFAULT_MAX_OPEN_TABS;
   }
   return Math.min(50, Math.max(1, Math.floor(value)));
@@ -60,7 +60,7 @@ function upsertRecentFile(
   const existing = recentFiles.find((entry) => entry.path === file.path);
   const merged: OpenedFileTab = {
     path: file.path,
-    name: file.name || existing?.name || file.path.split("/").pop() || file.path,
+    name: file.name || existing?.name || file.path.split('/').pop() || file.path,
     contentType: file.contentType ?? existing?.contentType,
     size: file.size ?? existing?.size,
     updatedAt: file.updatedAt ?? existing?.updatedAt,
@@ -104,9 +104,7 @@ function evictExcessTabs(
   fallbackDirtyUnpinned.sort(sortByOldestAccess);
 
   const orderedPool = [...candidates, ...fallbackDirtyUnpinned];
-  const pathsToEvict = new Set(
-    orderedPool.slice(0, countToEvict).map((entry) => entry.tab.path),
-  );
+  const pathsToEvict = new Set(orderedPool.slice(0, countToEvict).map((entry) => entry.tab.path));
 
   if (pathsToEvict.size === 0) {
     return [...tabs];
@@ -128,9 +126,9 @@ export function getDisambiguatedTabLabels(
       result.set(item.path, { name: item.name, folderHint: null });
       continue;
     }
-    const normalized = item.path.replace(/^\/+/, "");
-    const slashIdx = normalized.lastIndexOf("/");
-    const parentDir = slashIdx > 0 ? normalized.slice(0, slashIdx) : "/";
+    const normalized = item.path.replace(/^\/+/, '');
+    const slashIdx = normalized.lastIndexOf('/');
+    const parentDir = slashIdx > 0 ? normalized.slice(0, slashIdx) : '/';
     result.set(item.path, { name: item.name, folderHint: parentDir });
   }
   return result;
@@ -140,10 +138,7 @@ export function getWorkspaceOpenedTabs(workspaceId: string): WorkspaceOpenedTabs
   return stateByWorkspace.get(workspaceId) ?? EMPTY_STATE;
 }
 
-export function recordRecentFileInStore(
-  workspaceId: string,
-  file: OpenedFileTab,
-): void {
+export function recordRecentFileInStore(workspaceId: string, file: OpenedFileTab): void {
   const current = getWorkspaceOpenedTabs(workspaceId);
   const stamp = nextAccessStamp();
   const nextRecentFiles = upsertRecentFile(current.recentFiles, {
@@ -163,10 +158,7 @@ export function openFileTabInStore(
   options?: OpenFileTabOptions,
 ): void {
   if (options?.maxOpenTabs !== undefined) {
-    maxOpenTabsByWorkspace.set(
-      workspaceId,
-      normalizeMaxOpenTabs(options.maxOpenTabs),
-    );
+    maxOpenTabsByWorkspace.set(workspaceId, normalizeMaxOpenTabs(options.maxOpenTabs));
   }
   const maxOpenTabs =
     options?.maxOpenTabs !== undefined
@@ -191,9 +183,7 @@ export function openFileTabInStore(
   const rawTabs =
     existingIndex === -1
       ? [...current.tabs, openedTab]
-      : current.tabs.map((tab, index) =>
-          index === existingIndex ? openedTab : tab,
-        );
+      : current.tabs.map((tab, index) => (index === existingIndex ? openedTab : tab));
 
   const nextTabs = evictExcessTabs(rawTabs, file.path, maxOpenTabs);
   const nextRecentFiles = upsertRecentFile(current.recentFiles, openedTab);
@@ -217,9 +207,7 @@ export function setActiveFileTabInStore(workspaceId: string, path: string): void
     ...current.tabs[targetIndex],
     lastAccessedAt: stamp,
   };
-  const nextTabs = current.tabs.map((tab, idx) =>
-    idx === targetIndex ? updatedTab : tab,
-  );
+  const nextTabs = current.tabs.map((tab, idx) => (idx === targetIndex ? updatedTab : tab));
   const nextRecentFiles = upsertRecentFile(current.recentFiles, updatedTab);
 
   stateByWorkspace.set(workspaceId, {
@@ -230,10 +218,7 @@ export function setActiveFileTabInStore(workspaceId: string, path: string): void
   emitChange();
 }
 
-export function enforceMaxOpenTabsInStore(
-  workspaceId: string,
-  maxOpenTabs: number,
-): void {
+export function enforceMaxOpenTabsInStore(workspaceId: string, maxOpenTabs: number): void {
   const limit = normalizeMaxOpenTabs(maxOpenTabs);
   maxOpenTabsByWorkspace.set(workspaceId, limit);
   const current = getWorkspaceOpenedTabs(workspaceId);
@@ -264,9 +249,7 @@ export function togglePinFileTabInStore(workspaceId: string, path: string): void
 
   const target = current.tabs[targetIndex];
   const toggled: OpenedFileTab = { ...target, pinned: !target.pinned };
-  const updated = current.tabs.map((tab, idx) =>
-    idx === targetIndex ? toggled : tab,
-  );
+  const updated = current.tabs.map((tab, idx) => (idx === targetIndex ? toggled : tab));
   const pinnedTabs = updated.filter((tab) => tab.pinned);
   const unpinnedTabs = updated.filter((tab) => !tab.pinned);
 
@@ -277,11 +260,7 @@ export function togglePinFileTabInStore(workspaceId: string, path: string): void
   emitChange();
 }
 
-export function setFileTabDirtyInStore(
-  workspaceId: string,
-  path: string,
-  isDirty: boolean,
-): void {
+export function setFileTabDirtyInStore(workspaceId: string, path: string, isDirty: boolean): void {
   const current = getWorkspaceOpenedTabs(workspaceId);
   const targetIndex = current.tabs.findIndex((tab) => tab.path === path);
   if (targetIndex === -1) return;
@@ -311,9 +290,7 @@ export function updateFileTabMetadataInStore(
     ? current.tabs.map((tab) => (tab.path === path ? { ...tab, ...patch } : tab))
     : current.tabs;
   const nextRecentFiles = hasRecent
-    ? current.recentFiles.map((file) =>
-        file.path === path ? { ...file, ...patch } : file,
-      )
+    ? current.recentFiles.map((file) => (file.path === path ? { ...file, ...patch } : file))
     : current.recentFiles;
 
   stateByWorkspace.set(workspaceId, {
@@ -332,8 +309,7 @@ export function closeFileTabInStore(workspaceId: string, path: string): void {
   let nextTabs = current.tabs.filter((tab) => tab.path !== path);
   let nextActivePath = current.activePath;
   if (current.activePath === path) {
-    const fallbackTab =
-      nextTabs[targetIndex] ?? nextTabs[targetIndex - 1] ?? null;
+    const fallbackTab = nextTabs[targetIndex] ?? nextTabs[targetIndex - 1] ?? null;
     nextActivePath = fallbackTab?.path ?? null;
     if (nextActivePath) {
       const stamp = nextAccessStamp();
@@ -351,18 +327,13 @@ export function closeFileTabInStore(workspaceId: string, path: string): void {
   emitChange();
 }
 
-export function closeOtherFileTabsInStore(
-  workspaceId: string,
-  keepPath: string,
-): void {
+export function closeOtherFileTabsInStore(workspaceId: string, keepPath: string): void {
   const current = getWorkspaceOpenedTabs(workspaceId);
   if (!current.tabs.some((tab) => tab.path === keepPath)) return;
   const stamp = nextAccessStamp();
   const nextTabs = current.tabs
     .filter((tab) => tab.path === keepPath || tab.pinned)
-    .map((tab) =>
-      tab.path === keepPath ? { ...tab, lastAccessedAt: stamp } : tab,
-    );
+    .map((tab) => (tab.path === keepPath ? { ...tab, lastAccessedAt: stamp } : tab));
   const keptEntry = nextTabs.find((tab) => tab.path === keepPath);
   const nextRecentFiles = keptEntry
     ? upsertRecentFile(current.recentFiles, keptEntry)
@@ -376,17 +347,12 @@ export function closeOtherFileTabsInStore(
   emitChange();
 }
 
-export function closeFileTabsToRightInStore(
-  workspaceId: string,
-  fromPath: string,
-): void {
+export function closeFileTabsToRightInStore(workspaceId: string, fromPath: string): void {
   const current = getWorkspaceOpenedTabs(workspaceId);
   const fromIndex = current.tabs.findIndex((tab) => tab.path === fromPath);
   if (fromIndex === -1) return;
 
-  const nextTabs = current.tabs.filter(
-    (tab, index) => index <= fromIndex || tab.pinned,
-  );
+  const nextTabs = current.tabs.filter((tab, index) => index <= fromIndex || tab.pinned);
   if (nextTabs.length === current.tabs.length) return;
 
   const nextActivePath =
@@ -431,20 +397,11 @@ export function clearRecentFilesInStore(workspaceId: string): void {
   emitChange();
 }
 
-export function removeRecentFileInStore(
-  workspaceId: string,
-  path: string,
-): void {
+export function removeRecentFileInStore(workspaceId: string, path: string): void {
   const current = getWorkspaceOpenedTabs(workspaceId);
   if (!current.recentFiles.some((file) => file.path === path)) return;
-  const nextRecentFiles = current.recentFiles.filter(
-    (file) => file.path !== path,
-  );
-  if (
-    current.tabs.length === 0 &&
-    current.activePath === null &&
-    nextRecentFiles.length === 0
-  ) {
+  const nextRecentFiles = current.recentFiles.filter((file) => file.path !== path);
+  if (current.tabs.length === 0 && current.activePath === null && nextRecentFiles.length === 0) {
     stateByWorkspace.delete(workspaceId);
   } else {
     stateByWorkspace.set(workspaceId, {
@@ -457,11 +414,16 @@ export function removeRecentFileInStore(
 
 export function isFileNotFoundError(error: unknown): boolean {
   const text =
-    typeof error === "string"
+    typeof error === 'string'
       ? error
       : error instanceof Error
         ? error.message
-        : String(error ?? "");
+        : typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            typeof error.code === 'string'
+          ? error.code
+          : '';
   return (
     /\bENOENT\b/i.test(text) ||
     /no such file or directory/i.test(text) ||
@@ -469,24 +431,21 @@ export function isFileNotFoundError(error: unknown): boolean {
   );
 }
 
-export function formatFileLoadError(
-  error: unknown,
-  fileNameOrPath?: string,
-): string {
+export function formatFileLoadError(error: unknown, fileNameOrPath?: string): string {
   if (isFileNotFoundError(error)) {
-    const label = fileNameOrPath ? `“${fileNameOrPath}”` : "This file";
+    const label = fileNameOrPath ? `“${fileNameOrPath}”` : 'This file';
     return `${label} was moved or deleted from the filesystem.`;
   }
   const raw =
-    typeof error === "string"
+    typeof error === 'string'
       ? error
       : error instanceof Error
         ? error.message
-        : "Failed to load file";
+        : 'Failed to load file';
   return raw
-    .replace(/^Request failed:\s*/i, "")
-    .replace(/\s*requestType=\S+/gi, "")
-    .replace(/\s*code=\S+/gi, "")
+    .replace(/^Request failed:\s*/i, '')
+    .replace(/\s*requestType=\S+/gi, '')
+    .replace(/\s*code=\S+/gi, '')
     .trim();
 }
 

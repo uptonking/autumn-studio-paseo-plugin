@@ -1,18 +1,9 @@
-import { readFile, stat } from "node:fs/promises";
-import {
-  aiTextLayoutDocumentSchema,
-  type AiTextLayoutDocument,
-} from "../../shared/contracts.ts";
-import {
-  MAX_SERVED_ASSET_BYTES,
-  sanitizeAssetRelativePath,
-} from "../../shared/asset-paths.ts";
-import { contentTypeFor } from "../scan.ts";
-import { readDocumentMetadata } from "./metadata-store.ts";
-import {
-  resolveAutumnDocPaths,
-  resolveOutputArtifactPath,
-} from "./metadata-paths.ts";
+import { readFile, stat } from 'node:fs/promises';
+import { aiTextLayoutDocumentSchema, type AiTextLayoutDocument } from '../../shared/contracts.ts';
+import { MAX_SERVED_ASSET_BYTES, sanitizeAssetRelativePath } from '../../shared/asset-paths.ts';
+import { contentTypeFor } from '../scan.ts';
+import { readDocumentMetadata } from './metadata-store.ts';
+import { resolveAutumnDocPaths, resolveOutputArtifactPath } from './metadata-paths.ts';
 
 const MAX_LAYOUT_BYTES = 64 * 1024 * 1024;
 
@@ -20,7 +11,7 @@ export async function readExtractedVersionLayout(
   workspaceRootPath: string,
   sourceRelPath: string,
   versionId: string,
-  outputRootDir = ".autumn",
+  outputRootDir = '.autumn',
   workspaceId?: string,
 ): Promise<{
   versionId: string;
@@ -43,7 +34,7 @@ export async function readExtractedVersionLayout(
     return {
       versionId,
       layout: null,
-      message: "No extracted text versions exist for this file.",
+      message: 'No extracted text versions exist for this file.',
     };
   }
 
@@ -52,7 +43,7 @@ export async function readExtractedVersionLayout(
     return {
       versionId,
       layout: null,
-      message: "That text version no longer exists.",
+      message: 'That text version no longer exists.',
     };
   }
   if (!version.layout) {
@@ -60,31 +51,28 @@ export async function readExtractedVersionLayout(
       versionId,
       layout: null,
       message:
-        "This version has no layout metadata. Re-parse with a profile whose engine produces layout blocks.",
+        'This version has no layout metadata. Re-parse with a profile whose engine produces layout blocks.',
     };
   }
 
   try {
-    const absLayoutPath = await resolveOutputArtifactPath(
-      base,
-      version.layout.relPath,
-    );
+    const absLayoutPath = await resolveOutputArtifactPath(base, version.layout.relPath);
     const stats = await stat(absLayoutPath);
     if (stats.size > MAX_LAYOUT_BYTES) {
       return {
         versionId,
         layout: null,
-        message: "Layout metadata is too large to load.",
+        message: 'Layout metadata is too large to load.',
       };
     }
     const parsed = aiTextLayoutDocumentSchema.safeParse(
-      JSON.parse(await readFile(absLayoutPath, "utf8")),
+      JSON.parse(await readFile(absLayoutPath, 'utf8')),
     );
     if (!parsed.success) {
       return {
         versionId,
         layout: null,
-        message: "Layout metadata is corrupt; re-parse this version.",
+        message: 'Layout metadata is corrupt; re-parse this version.',
       };
     }
     return { versionId, layout: parsed.data };
@@ -92,7 +80,7 @@ export async function readExtractedVersionLayout(
     return {
       versionId,
       layout: null,
-      message: "Layout metadata could not be read; re-parse this version.",
+      message: 'Layout metadata could not be read; re-parse this version.',
     };
   }
 }
@@ -102,12 +90,12 @@ export async function readExtractedVersionAsset(
   sourceRelPath: string,
   versionId: string,
   assetPath: string,
-  outputRootDir = ".autumn",
+  outputRootDir = '.autumn',
   workspaceId?: string,
 ): Promise<{ mimeType: string; base64: string }> {
   const safeAssetPath = sanitizeAssetRelativePath(assetPath);
   if (!safeAssetPath) {
-    throw new Error("Invalid image asset path");
+    throw new Error('Invalid image asset path');
   }
 
   const base = resolveAutumnDocPaths(
@@ -122,11 +110,9 @@ export async function readExtractedVersionAsset(
     outputRootDir,
     workspaceId,
   );
-  const version = current.metadata?.versions.find(
-    (item) => item.id === versionId,
-  );
+  const version = current.metadata?.versions.find((item) => item.id === versionId);
   if (!version?.assets) {
-    throw new Error("This text version has no stored image assets");
+    throw new Error('This text version has no stored image assets');
   }
 
   const absAssetPath = await resolveOutputArtifactPath(
@@ -135,7 +121,7 @@ export async function readExtractedVersionAsset(
   );
   const stats = await stat(absAssetPath);
   if (!stats.isFile()) {
-    throw new Error("Image asset not found");
+    throw new Error('Image asset not found');
   }
   if (stats.size > MAX_SERVED_ASSET_BYTES) {
     throw new Error(
@@ -144,7 +130,7 @@ export async function readExtractedVersionAsset(
   }
   const buffer = await readFile(absAssetPath);
   return {
-    mimeType: contentTypeFor(absAssetPath) ?? "application/octet-stream",
-    base64: buffer.toString("base64"),
+    mimeType: contentTypeFor(absAssetPath) ?? 'application/octet-stream',
+    base64: buffer.toString('base64'),
   };
 }

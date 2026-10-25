@@ -1,17 +1,17 @@
-import { defineRpc } from "@getpaseo/plugin";
-import { z } from "zod";
+import { defineRpc } from '@getpaseo/plugin';
+import { z } from 'zod';
 import {
   aiTextAgentOptionSchema,
   aiTextDocumentMetadataSchema,
   aiTextVersionRecordSchema,
-} from "./ai-text/settings.ts";
-import { aiTextLayoutDocumentSchema } from "./ai-text/layout.ts";
-import { aiTextEngineDescriptorSchema } from "./ai-text/engines.ts";
+} from './ai-text/settings.ts';
+import { aiTextLayoutDocumentSchema } from './ai-text/layout.ts';
+import { aiTextEngineDescriptorSchema } from './ai-text/engines.ts';
 import {
   aiTextEngineEnvironmentSchema,
   aiTextTaskKindSchema,
   aiTextTaskSnapshotSchema,
-} from "./ai-text/task.ts";
+} from './ai-text/task.ts';
 
 /**
  * Workspace files as a nested tree. Folder paths carry a trailing slash
@@ -22,9 +22,9 @@ import {
  * z.infer of itself is a circular reference under zod v4.
  */
 export type FileNode =
-  | { kind: "folder"; path: string; name: string; children: FileNode[] }
+  | { kind: 'folder'; path: string; name: string; children: FileNode[] }
   | {
-      kind: "file";
+      kind: 'file';
       path: string;
       name: string;
       size: number;
@@ -33,33 +33,33 @@ export type FileNode =
     };
 
 export const fileNodeSchema: z.ZodType<FileNode> = z.lazy(() =>
-  z.discriminatedUnion("kind", [
+  z.discriminatedUnion('kind', [
     z.object({
-      kind: z.literal("folder"),
+      kind: z.literal('folder'),
       path: z.string(),
       name: z.string(),
       children: z.array(fileNodeSchema),
     }),
     z.object({
-      kind: z.literal("file"),
+      kind: z.literal('file'),
       path: z.string(),
       name: z.string(),
       size: z.number(),
       mtime: z.number(),
       contentType: z.string().optional(),
     }),
-  ])
+  ]),
 );
 
 export const getFileTree = defineRpc({
-  name: "files.tree",
+  name: 'files.tree',
   input: z.object({ workspaceId: z.string() }),
   output: z.object({ tree: fileNodeSchema, truncated: z.boolean() }),
 });
 
 /** One file's bytes as a data URI. The client converts it to a blob URL. */
 export const getFileContent = defineRpc({
-  name: "file.content",
+  name: 'file.content',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -73,12 +73,12 @@ export const getFileContent = defineRpc({
 
 /** Saves edited file content directly back to the workspace file system. */
 export const saveFileContent = defineRpc({
-  name: "file.save",
+  name: 'file.save',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
     content: z.string(),
-    encoding: z.enum(["base64", "utf8"]).default("base64"),
+    encoding: z.enum(['base64', 'utf8']).default('base64'),
   }),
   output: z.object({
     path: z.string(),
@@ -95,7 +95,7 @@ export const saveFileContent = defineRpc({
  * (AI Text, RPC save) do not apply to them.
  */
 export const locateWorkspaceFile = defineRpc({
-  name: "files.locate",
+  name: 'files.locate',
   input: z.object({
     workspaceId: z.string(),
     absPath: z.string(),
@@ -107,21 +107,21 @@ export const locateWorkspaceFile = defineRpc({
 
 /** Local pdfium.wasm binary bytes as a data URI for 100% offline PDF viewing. */
 export const getPdfWasm = defineRpc({
-  name: "files.pdf_wasm",
+  name: 'files.pdf_wasm',
   input: z.object({}),
   output: z.object({ dataUri: z.string() }),
 });
 
 /** Local duke_sheets_wasm_bg.wasm binary bytes as a data URI for 100% offline Excel viewing/editing. */
 export const getXlsxWasm = defineRpc({
-  name: "files.xlsx_wasm",
+  name: 'files.xlsx_wasm',
   input: z.object({}),
   output: z.object({ dataUri: z.string() }),
 });
 
 /** Lists configured and auto-detected Paseo coding agents for AI Text Mode (with `pi` as default). */
 export const listAiTextAgents = defineRpc({
-  name: "ai_text.agents.list",
+  name: 'ai_text.agents.list',
   input: z.object({
     workspaceId: z.string().optional(),
   }),
@@ -132,7 +132,7 @@ export const listAiTextAgents = defineRpc({
 
 /** Loads `.autumn/<doc-slug>/metadata.json` and the active extracted Markdown content for a file. */
 export const getAiTextMetadata = defineRpc({
-  name: "ai_text.metadata.get",
+  name: 'ai_text.metadata.get',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -149,7 +149,7 @@ export const getAiTextMetadata = defineRpc({
  * holding one RPC open.
  */
 export const startAiTextTask = defineRpc({
-  name: "ai_text.task.start",
+  name: 'ai_text.task.start',
   input: z.object({
     /** Required for `parse`; optional for global operations started from settings. */
     workspaceId: z.string().optional(),
@@ -171,7 +171,7 @@ export const startAiTextTask = defineRpc({
 
 /** Registered extraction engines and their JSON-safe descriptors. */
 export const listAiTextEngines = defineRpc({
-  name: "ai_text.engines.list",
+  name: 'ai_text.engines.list',
   input: z.object({}),
   output: z.object({
     engines: z.array(aiTextEngineDescriptorSchema),
@@ -180,7 +180,7 @@ export const listAiTextEngines = defineRpc({
 
 /** Detects one engine's CLI, models, and routes. */
 export const getAiTextEngineEnvironment = defineRpc({
-  name: "ai_text.engine.environment.get",
+  name: 'ai_text.engine.environment.get',
   input: z.object({
     engineId: z.string(),
     /** Optional config override; omitted uses the first profile for the engine. */
@@ -194,7 +194,7 @@ export const getAiTextEngineEnvironment = defineRpc({
 
 /** Snapshot of a running or finished AI Text task. */
 export const getAiTextTask = defineRpc({
-  name: "ai_text.task.get",
+  name: 'ai_text.task.get',
   input: z.object({
     taskId: z.string(),
   }),
@@ -205,7 +205,7 @@ export const getAiTextTask = defineRpc({
 
 /** Cancels a running task and terminates any child process it owns. */
 export const cancelAiTextTask = defineRpc({
-  name: "ai_text.task.cancel",
+  name: 'ai_text.task.cancel',
   input: z.object({
     taskId: z.string(),
   }),
@@ -216,7 +216,7 @@ export const cancelAiTextTask = defineRpc({
 
 /** Loads the stored layout blocks for one extracted version. */
 export const getAiTextLayout = defineRpc({
-  name: "ai_text.layout.get",
+  name: 'ai_text.layout.get',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -231,7 +231,7 @@ export const getAiTextLayout = defineRpc({
 
 /** Returns one version image asset as base64 for a blob URL. */
 export const getAiTextAsset = defineRpc({
-  name: "ai_text.asset.get",
+  name: 'ai_text.asset.get',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -246,7 +246,7 @@ export const getAiTextAsset = defineRpc({
 
 /** Switches the active extracted Markdown version for a file in `.autumn/<doc-slug>/metadata.json`. */
 export const selectAiTextVersion = defineRpc({
-  name: "ai_text.version.select",
+  name: 'ai_text.version.select',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -261,7 +261,7 @@ export const selectAiTextVersion = defineRpc({
 
 /** Deletes a specific extracted Markdown version from `.autumn/<doc-slug>/` and updates `metadata.json`. */
 export const deleteAiTextVersion = defineRpc({
-  name: "ai_text.version.delete",
+  name: 'ai_text.version.delete',
   input: z.object({
     workspaceId: z.string(),
     relPath: z.string(),
@@ -288,9 +288,7 @@ export const aiTextStorageStatsRowSchema = z.object({
   lastParsedAt: z.string().nullable(),
   engines: z.array(z.string()),
 });
-export type AiTextStorageStatsRow = z.infer<
-  typeof aiTextStorageStatsRowSchema
->;
+export type AiTextStorageStatsRow = z.infer<typeof aiTextStorageStatsRowSchema>;
 
 /**
  * Recomputed per document under the output root: versions, sizes, and which
@@ -298,7 +296,7 @@ export type AiTextStorageStatsRow = z.infer<
  * contract so a future cache has a forced-recalculate path from day one.
  */
 export const listAiTextStorageStats = defineRpc({
-  name: "ai_text.stats.list",
+  name: 'ai_text.stats.list',
   input: z.object({
     workspaceId: z.string(),
     refresh: z.boolean().optional(),
@@ -318,9 +316,9 @@ export const listAiTextStorageStats = defineRpc({
  * location.
  */
 export const revealAiTextPath = defineRpc({
-  name: "ai_text.path.reveal",
+  name: 'ai_text.path.reveal',
   input: z.object({
-    kind: z.enum(["output-root", "doc-folder", "engine-tool", "engine-models"]),
+    kind: z.enum(['output-root', 'doc-folder', 'engine-tool', 'engine-models']),
     workspaceId: z.string().optional(),
     /** doc-folder only: doc folder path relative to the output base. */
     docPath: z.string().optional(),
@@ -333,15 +331,13 @@ export const revealAiTextPath = defineRpc({
   }),
 });
 
-export * from "./settings.ts";
-export * from "./ai-text/layout.ts";
-export * from "./ai-text/task.ts";
-export * from "./ai-text/engines.ts";
-export * from "./ai-text/engine-configs.ts";
-export * from "./ai-text/engine-catalog.ts";
-export * from "./ai-text/output-root.ts";
-export * from "./ai-text/profiles.ts";
-export * from "./ai-text/refinement.ts";
-export * from "./ai-text/viewers.ts";
-
-
+export * from './settings.ts';
+export * from './ai-text/layout.ts';
+export * from './ai-text/task.ts';
+export * from './ai-text/engines.ts';
+export * from './ai-text/engine-configs.ts';
+export * from './ai-text/engine-catalog.ts';
+export * from './ai-text/output-root.ts';
+export * from './ai-text/profiles.ts';
+export * from './ai-text/refinement.ts';
+export * from './ai-text/viewers.ts';

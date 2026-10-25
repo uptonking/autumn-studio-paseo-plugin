@@ -1,20 +1,14 @@
-import { randomUUID } from "node:crypto";
-import type {
-  AiTextTaskKind,
-  AiTextTaskSnapshot,
-} from "../../shared/ai-text/task.ts";
-import {
-  resolveAiTextProfile,
-  type AiTextProfile,
-} from "../../shared/ai-text/profiles.ts";
-import type { AiTextSettings } from "../../shared/ai-text/settings.ts";
+import { randomUUID } from 'node:crypto';
+import type { AiTextTaskKind, AiTextTaskSnapshot } from '../../shared/ai-text/task.ts';
+import { resolveAiTextProfile, type AiTextProfile } from '../../shared/ai-text/profiles.ts';
+import type { AiTextSettings } from '../../shared/ai-text/settings.ts';
 import {
   detectEngineEnvironment,
   listAiTextEngineDescriptors,
   resolveEngineConfig,
   runEngineOperation,
-} from "./engine-registry.ts";
-import { runAiTextPipeline } from "./pipeline.ts";
+} from './engine-registry.ts';
+import { runAiTextPipeline } from './pipeline.ts';
 
 const MAX_LOG_LINES = 40;
 const MAX_LOG_LINE_LENGTH = 500;
@@ -59,7 +53,7 @@ function nowIso(): string {
 }
 
 function trimLogLine(line: string): string {
-  const trimmed = line.replace(/\s+$/g, "");
+  const trimmed = line.replace(/\s+$/g, '');
   return trimmed.length > MAX_LOG_LINE_LENGTH
     ? `${trimmed.slice(0, MAX_LOG_LINE_LENGTH)}…`
     : trimmed;
@@ -67,18 +61,16 @@ function trimLogLine(line: string): string {
 
 function detectPhase(line: string): string | null {
   if (/download(ing)?\s+(model|resource)/i.test(line)) {
-    return "Downloading models";
+    return 'Downloading models';
   }
   if (/load(ing)?\s+(the\s+)?model|model(s)?\s+load/i.test(line)) {
-    return "Loading models";
+    return 'Loading models';
   }
   if (/pars(e|ing)\s+(page|document|pdf)|page\s+\d+/i.test(line)) {
-    return "Parsing pages";
+    return 'Parsing pages';
   }
-  if (/writ(e|ing)\s+(result|output|version)|sav(e|ing)\s+(result|output)/i.test(
-    line,
-  )) {
-    return "Writing version";
+  if (/writ(e|ing)\s+(result|output|version)|sav(e|ing)\s+(result|output)/i.test(line)) {
+    return 'Writing version';
   }
   return null;
 }
@@ -98,20 +90,13 @@ function snapshotElapsed(record: TaskRecord): number {
   return Math.max(0, end - started);
 }
 
-function operationProfile(
-  settings: AiTextSettings,
-  engineId: string,
-): AiTextProfile | null {
+function operationProfile(settings: AiTextSettings, engineId: string): AiTextProfile | null {
   // Prefer the profile the user parses with by default — the same policy the
   // settings tab uses for detection — falling back to any profile for the
   // engine when no default targets it.
-  const forEngine = settings.profiles.filter(
-    (profile) => profile.engineId === engineId,
-  );
+  const forEngine = settings.profiles.filter((profile) => profile.engineId === engineId);
   return (
-    forEngine.find((profile) => profile.id === settings.defaultProfileId) ??
-    forEngine[0] ??
-    null
+    forEngine.find((profile) => profile.id === settings.defaultProfileId) ?? forEngine[0] ?? null
   );
 }
 
@@ -164,7 +149,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
 
   function finish(
     record: TaskRecord,
-    status: "succeeded" | "failed" | "cancelled",
+    status: 'succeeded' | 'failed' | 'cancelled',
     error: string | null,
   ): void {
     record.finishedAtMs = Date.now();
@@ -177,33 +162,29 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       logTail: [...record.logLines],
       progressPercent: record.progressPercent,
       message:
-        status === "succeeded"
-          ? record.snapshot.kind === "parse"
-            ? "AI text version created"
-            : "Engine operation completed"
+        status === 'succeeded'
+          ? record.snapshot.kind === 'parse'
+            ? 'AI text version created'
+            : 'Engine operation completed'
           : (error ?? record.message),
     };
-    if (record.kind === "parse" && record.relPath) {
+    if (record.kind === 'parse' && record.relPath) {
       runningParseKeys.delete(`${record.workspaceId}::${record.relPath}`);
     }
   }
 
-  async function executeParse(
-    record: TaskRecord,
-    input: StartAiTextTaskInput,
-  ): Promise<void> {
+  async function executeParse(record: TaskRecord, input: StartAiTextTaskInput): Promise<void> {
     if (!input.relPath || !input.workspaceRootPath) {
-      throw new Error("Missing file path for parsing");
+      throw new Error('Missing file path for parsing');
     }
-    record.snapshot.phase = "Preparing";
+    record.snapshot.phase = 'Preparing';
     updateSnapshot(record);
     const result = await runAiTextPipeline({
       paseo: input.paseo,
       workspaceRootPath: input.workspaceRootPath,
       workspaceId: input.workspaceId,
       sourceRelPath: input.relPath,
-      sourceAbsPath:
-        input.sourceAbsPath ?? `${input.workspaceRootPath}/${input.relPath}`,
+      sourceAbsPath: input.sourceAbsPath ?? `${input.workspaceRootPath}/${input.relPath}`,
       settings: input.settings,
       profileId: input.profileId,
       signal: record.controller.signal,
@@ -218,7 +199,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       onLog: (line) => addLog(record, line),
     });
     if (record.controller.signal.aborted) {
-      throw new Error("AI text extraction was cancelled");
+      throw new Error('AI text extraction was cancelled');
     }
     record.snapshot = {
       ...record.snapshot,
@@ -227,29 +208,23 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       engineId: result.newVersion.provenance.effectiveEngineId,
       parseResult: result,
     };
-    finish(record, "succeeded", null);
+    finish(record, 'succeeded', null);
   }
 
-  async function executeOperation(
-    record: TaskRecord,
-    input: StartAiTextTaskInput,
-  ): Promise<void> {
+  async function executeOperation(record: TaskRecord, input: StartAiTextTaskInput): Promise<void> {
     const engineId = input.engineId?.trim();
     const operationId = input.operationId?.trim();
     if (!engineId || !operationId) {
-      throw new Error("engineId and operationId are required for an engine operation");
+      throw new Error('engineId and operationId are required for an engine operation');
     }
     const profile = operationProfile(input.settings, engineId);
-    const config = resolveEngineConfig(
-      engineId,
-      input.config ?? profile?.config ?? {},
-    );
+    const config = resolveEngineConfig(engineId, input.config ?? profile?.config ?? {});
     record.snapshot = {
       ...record.snapshot,
       engineId,
       operationId,
     };
-    record.snapshot.phase = "Preparing";
+    record.snapshot.phase = 'Preparing';
     updateSnapshot(record);
     const indexUrl = input.settings.pypiIndexUrl.trim();
     await runEngineOperation({
@@ -262,9 +237,9 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       onLog: (line) => addLog(record, line),
     });
     if (record.controller.signal.aborted) {
-      throw new Error("Engine operation was cancelled");
+      throw new Error('Engine operation was cancelled');
     }
-    record.snapshot.phase = "Checking environment";
+    record.snapshot.phase = 'Checking environment';
     updateSnapshot(record);
     const environment = await detectEngineEnvironment({
       engineId,
@@ -273,17 +248,14 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       refresh: true,
     });
     record.snapshot = { ...record.snapshot, environment };
-    finish(record, "succeeded", null);
+    finish(record, 'succeeded', null);
   }
 
-  async function execute(
-    record: TaskRecord,
-    input: StartAiTextTaskInput,
-  ): Promise<void> {
-    record.snapshot.status = "running";
+  async function execute(record: TaskRecord, input: StartAiTextTaskInput): Promise<void> {
+    record.snapshot.status = 'running';
     updateSnapshot(record);
     try {
-      if (record.kind === "parse") {
+      if (record.kind === 'parse') {
         await executeParse(record, input);
       } else {
         await executeOperation(record, input);
@@ -291,30 +263,26 @@ export function createAiTextTaskStore(): AiTextTaskStore {
     } catch (error) {
       const cancelled = record.controller.signal.aborted;
       const message = error instanceof Error ? error.message : String(error);
-      finish(
-        record,
-        cancelled ? "cancelled" : "failed",
-        cancelled ? "Cancelled" : message,
-      );
+      finish(record, cancelled ? 'cancelled' : 'failed', cancelled ? 'Cancelled' : message);
     }
   }
 
   return {
     start(input) {
       prune();
-      if (!input.relPath && input.kind === "parse") {
-        throw new Error("relPath is required for a parse task");
+      if (!input.relPath && input.kind === 'parse') {
+        throw new Error('relPath is required for a parse task');
       }
-      if (input.kind === "parse" && input.relPath) {
+      if (input.kind === 'parse' && input.relPath) {
         const key = `${input.workspaceId}::${input.relPath}`;
         if (runningParseKeys.has(key)) {
-          throw new Error("An AI text extraction is already running for this file");
+          throw new Error('An AI text extraction is already running for this file');
         }
         runningParseKeys.add(key);
       }
 
       const resolvedProfile =
-        input.kind === "parse"
+        input.kind === 'parse'
           ? resolveAiTextProfile(input.settings.profiles, {
               profileId: input.profileId,
               defaultProfileId: input.settings.defaultProfileId,
@@ -325,9 +293,9 @@ export function createAiTextTaskStore(): AiTextTaskStore {
         snapshot: {
           id,
           kind: input.kind,
-          status: "queued",
-          phase: "Queued",
-          message: "Waiting to start",
+          status: 'queued',
+          phase: 'Queued',
+          message: 'Waiting to start',
           progressPercent: null,
           logTail: [],
           startedAt: nowIso(),
@@ -336,8 +304,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
           error: null,
           profileId: resolvedProfile?.id ?? input.profileId ?? null,
           profileName: resolvedProfile?.name ?? null,
-          engineId:
-            resolvedProfile?.engineId ?? input.engineId ?? null,
+          engineId: resolvedProfile?.engineId ?? input.engineId ?? null,
           operationId: input.operationId ?? null,
           engineIds: listAiTextEngineDescriptors().map((engine) => engine.id),
         },
@@ -346,7 +313,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
         relPath: input.relPath,
         kind: input.kind,
         logLines: [],
-        message: "Waiting to start",
+        message: 'Waiting to start',
         progressPercent: null,
         finishedAtMs: null,
       };
@@ -369,7 +336,7 @@ export function createAiTextTaskStore(): AiTextTaskStore {
       const record = records.get(taskId);
       if (!record || record.finishedAtMs !== null) return false;
       record.controller.abort();
-      record.message = "Cancelling…";
+      record.message = 'Cancelling…';
       updateSnapshot(record);
       return true;
     },

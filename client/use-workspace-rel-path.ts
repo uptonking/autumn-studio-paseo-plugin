@@ -1,15 +1,12 @@
-import { useEffect, useState } from "react";
-import { useRpc } from "@getpaseo/plugin/client";
-import { locateWorkspaceFile } from "../shared/contracts.js";
-import {
-  isAbsoluteLikePath,
-  normalizeWorkspaceRelPath,
-} from "../shared/path-identity.ts";
+import { useEffect, useState } from 'react';
+import { useRpc } from '@getpaseo/plugin/client';
+import { locateWorkspaceFile } from '../shared/contracts.js';
+import { isAbsoluteLikePath, normalizeWorkspaceRelPath } from '../shared/path-identity.ts';
 
 export type WorkspaceRelPathState =
-  | { status: "loading" }
-  | { status: "ready"; relPath: string }
-  | { status: "outside" };
+  | { status: 'loading' }
+  | { status: 'ready'; relPath: string }
+  | { status: 'outside' };
 
 const relPathCache = new Map<string, string | null>();
 
@@ -62,10 +59,8 @@ export function useWorkspaceRelPath(input: {
 
   if (!isAbsoluteLikePath(paramsPath)) {
     const relPath = normalizeWorkspaceRelPath(paramsPath);
-    return relPath ? { status: "ready", relPath } : { status: "outside" };
+    return relPath ? { status: 'ready', relPath } : { status: 'outside' };
   }
-  if (resolved === undefined) return { status: "loading" };
-  return resolved === null
-    ? { status: "outside" }
-    : { status: "ready", relPath: resolved };
+  if (resolved === undefined) return { status: 'loading' };
+  return resolved === null ? { status: 'outside' } : { status: 'ready', relPath: resolved };
 }

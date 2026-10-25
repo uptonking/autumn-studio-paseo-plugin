@@ -1,4 +1,4 @@
-@import "tailwindcss" source(none);
+@import 'tailwindcss' source(none);
 
 /* The island toggles `.dark` on its wrapper div; the host theme decides. */
 @custom-variant dark (&:is(.dark *));

@@ -13,15 +13,15 @@ export const MAX_SERVED_ASSET_BYTES = 20 * 1024 * 1024;
  * traversal, empty segments, and anything outside `images/`.
  */
 export function sanitizeAssetRelativePath(rawPath: string): string | null {
-  let normalized = rawPath.replace(/\\/g, "/");
-  while (normalized.startsWith("./")) normalized = normalized.slice(2);
-  if (normalized.startsWith("//")) return null;
-  normalized = normalized.replace(/^\/+/, "");
+  let normalized = rawPath.replace(/\\/g, '/');
+  while (normalized.startsWith('./')) normalized = normalized.slice(2);
+  if (normalized.startsWith('//')) return null;
+  normalized = normalized.replace(/^\/+/, '');
   if (!normalized) return null;
-  const segments = normalized.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
+  const segments = normalized.split('/');
+  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) {
     return null;
   }
-  if (segments[0] !== "images" || segments.length < 2) return null;
+  if (segments[0] !== 'images' || segments.length < 2) return null;
   return normalized;
 }

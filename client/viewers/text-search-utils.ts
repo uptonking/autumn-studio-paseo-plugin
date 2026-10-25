@@ -23,14 +23,11 @@ export function findTextSearchMatches(
   const totalLen = content.length;
 
   while (lineStartOffset <= totalLen && matches.length < maxMatches) {
-    let lineEndOffset = content.indexOf("\n", lineStartOffset);
+    let lineEndOffset = content.indexOf('\n', lineStartOffset);
     let hasCr = false;
     if (lineEndOffset === -1) {
       lineEndOffset = totalLen;
-    } else if (
-      lineEndOffset > lineStartOffset &&
-      content.charCodeAt(lineEndOffset - 1) === 13
-    ) {
+    } else if (lineEndOffset > lineStartOffset && content.charCodeAt(lineEndOffset - 1) === 13) {
       hasCr = true;
     }
     const contentEnd = hasCr ? lineEndOffset - 1 : lineEndOffset;
@@ -38,10 +35,7 @@ export function findTextSearchMatches(
     const lowerLine = lineText.toLowerCase();
 
     let searchFrom = 0;
-    while (
-      searchFrom <= lowerLine.length - needleLen &&
-      matches.length < maxMatches
-    ) {
+    while (searchFrom <= lowerLine.length - needleLen && matches.length < maxMatches) {
       const col = lowerLine.indexOf(needle, searchFrom);
       if (col === -1) break;
       const startOffset = lineStartOffset + col;

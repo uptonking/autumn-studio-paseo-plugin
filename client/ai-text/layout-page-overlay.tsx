@@ -1,9 +1,6 @@
-import * as React from "react";
-import type {
-  AiTextLayoutBlock,
-  AiTextLayoutDocument,
-} from "../../shared/contracts.js";
-import { cn } from "../vendor/lib/utils.js";
+import * as React from 'react';
+import type { AiTextLayoutBlock, AiTextLayoutDocument } from '../../shared/contracts.js';
+import { cn } from '../vendor/lib/utils.js';
 
 export interface LayoutPageOverlayProps {
   pageNumber: number;
@@ -12,10 +9,9 @@ export interface LayoutPageOverlayProps {
   showOutlines: boolean;
 }
 
-const OUTLINE_CLASS =
-  "absolute rounded-[2px] border border-sky-500/35 bg-sky-400/5";
+const OUTLINE_CLASS = 'absolute rounded-[2px] border border-sky-500/35 bg-sky-400/5';
 const ACTIVE_CLASS =
-  "absolute rounded-[2px] border border-amber-500 bg-amber-400/25 ring-1 ring-amber-500/70";
+  'absolute rounded-[2px] border border-amber-500 bg-amber-400/25 ring-1 ring-amber-500/70';
 
 /**
  * Percentage-positioned boxes over one rendered PDF page. Pointer events stay
@@ -35,9 +31,9 @@ export function LayoutPageOverlay({
 
   return (
     <div
-      aria-hidden="true"
+      aria-hidden='true'
       data-testid={`ai-text-layout-overlay-${pageNumber}`}
-      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+      className='pointer-events-none absolute inset-0 z-10 overflow-hidden'
     >
       {blocks.map((block) => {
         const isActive = block.id === activeBlock?.id;
@@ -59,7 +55,7 @@ export function LayoutPageOverlay({
             className={cn(isActive ? ACTIVE_CLASS : OUTLINE_CLASS)}
           >
             {isActive ? (
-              <span className="absolute -top-4 left-0 rounded-sm bg-amber-500 px-1 py-0.5 text-[9px] font-medium leading-none text-white">
+              <span className='absolute -top-4 left-0 rounded-sm bg-amber-500 px-1 py-0.5 text-[9px] font-medium leading-none text-white'>
                 {block.type}
               </span>
             ) : null}

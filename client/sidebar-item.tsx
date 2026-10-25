@@ -1,9 +1,9 @@
-import { useEffect } from "react";
-import { Platform } from "react-native";
-import type { PluginSidebarItemProps } from "@getpaseo/plugin/client";
-import { SidebarRow } from "@getpaseo/plugin/client/ui";
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
+import type { PluginSidebarItemProps } from '@getpaseo/plugin/client';
+import { SidebarRow } from '@getpaseo/plugin/client/ui';
 
-let latestOpenScreen: PluginSidebarItemProps["openScreen"] | null = null;
+let latestOpenScreen: PluginSidebarItemProps['openScreen'] | null = null;
 let settingsPreloader: (() => void) | null = null;
 
 export function setSettingsScreenPreloader(preload: () => void): void {
@@ -13,16 +13,11 @@ export function setSettingsScreenPreloader(preload: () => void): void {
 export function openAutumnStudioSettingsScreen(section?: string): void {
   settingsPreloader?.();
   latestOpenScreen?.(
-    section
-      ? { screenId: "settings", params: { section } }
-      : { screenId: "settings" },
+    section ? { screenId: 'settings', params: { section } } : { screenId: 'settings' },
   );
 }
 
-export function AutumnStudioSidebarItem({
-  currentScreen,
-  openScreen,
-}: PluginSidebarItemProps) {
+export function AutumnStudioSidebarItem({ currentScreen, openScreen }: PluginSidebarItemProps) {
   useEffect(() => {
     latestOpenScreen = openScreen;
     settingsPreloader?.();
@@ -33,18 +28,18 @@ export function AutumnStudioSidebarItem({
     };
   }, [openScreen]);
 
-  if (Platform.OS !== "web") return null;
+  if (Platform.OS !== 'web') return null;
 
-  const isActive = currentScreen?.screenId === "settings";
+  const isActive = currentScreen?.screenId === 'settings';
 
   return (
     <SidebarRow
-      icon="FolderTree"
-      label="Autumn Studio"
+      icon='FolderTree'
+      label='Autumn Studio'
       active={isActive}
       onPress={() => {
         settingsPreloader?.();
-        openScreen({ screenId: "settings" });
+        openScreen({ screenId: 'settings' });
       }}
     />
   );

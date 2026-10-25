@@ -1,41 +1,32 @@
-import * as React from "react";
-import {
-  AiTextSurfaceSplitWrapper,
-  type AiTextBridge,
-} from "../ai-text/ai-text-context.js";
-import { AiTextMenuInjector } from "../ai-text/ai-text-menu-items.js";
-import { FileSurfacePreloadContext } from "../editing/surface-mode-controls.js";
-import type { SurfacePersistenceHandle } from "../surface-persistence.js";
+import * as React from 'react';
+import { AiTextSurfaceSplitWrapper, type AiTextBridge } from '../ai-text/ai-text-context.js';
+import { AiTextMenuInjector } from '../ai-text/ai-text-menu-items.js';
+import { FileSurfacePreloadContext } from '../editing/surface-mode-controls.js';
+import type { SurfacePersistenceHandle } from '../surface-persistence.js';
 import {
   useFileEditSession,
   type FileEditSession,
   type SerializedFilePayload,
-} from "../editing/use-file-edit-session.js";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "../vendor/components/ui/dropdown-menu.js";
+} from '../editing/use-file-edit-session.js';
+import { DropdownMenuItem, DropdownMenuSeparator } from '../vendor/components/ui/dropdown-menu.js';
 import type {
   FileSystemFormatSettingsMap,
   FileSystemPdfSettings,
   FileSystemTextSettings,
   FileSystemViewerKind,
   FileSystemXlsxSettings,
-} from "../vendor/file-system/types.js";
-import {
-  FileViewerLoadingFallback,
-  registerBuiltinSurfaceProviders,
-} from "./builtin-providers.js";
-import { useSurfaceSourceState } from "./surface-source-state.js";
+} from '../vendor/file-system/types.js';
+import { FileViewerLoadingFallback, registerBuiltinSurfaceProviders } from './builtin-providers.js';
+import { useSurfaceSourceState } from './surface-source-state.js';
 import {
   registerSurfaceProviderMeta,
   type FileSurfaceProviderMeta,
   type FileSurfaceRole,
-} from "./provider-catalog.js";
+} from './provider-catalog.js';
 
 export { FileViewerLoadingFallback };
 
-export type FileViewerVariant = "stage" | "in-place" | "dialog" | "tab";
+export type FileViewerVariant = 'stage' | 'in-place' | 'dialog' | 'tab';
 
 export interface FileSaveCallbackInput {
   relPath: string;
@@ -87,9 +78,7 @@ export interface ResolvedFileSurfaceRenderProps extends FileViewerRenderProps {
   editSession?: FileEditSession;
 }
 
-export type FileViewerRenderer = (
-  props: ResolvedFileSurfaceRenderProps,
-) => React.ReactNode;
+export type FileViewerRenderer = (props: ResolvedFileSurfaceRenderProps) => React.ReactNode;
 
 export interface FileSurfaceProviderDescriptor extends FileSurfaceProviderMeta {
   renderer: FileViewerRenderer;
@@ -98,9 +87,7 @@ export interface FileSurfaceProviderDescriptor extends FileSurfaceProviderMeta {
 
 const surfaceProvidersById = new Map<string, FileSurfaceProviderDescriptor>();
 
-export function registerFileSurfaceProvider(
-  descriptor: FileSurfaceProviderDescriptor,
-): () => void {
+export function registerFileSurfaceProvider(descriptor: FileSurfaceProviderDescriptor): () => void {
   surfaceProvidersById.set(descriptor.id, descriptor);
   const unregisterMeta = registerSurfaceProviderMeta({
     id: descriptor.id,
@@ -141,9 +128,7 @@ export function resolveFileSurfaceProvider(
   return (
     candidates.find((p) => p.isDefault) ??
     candidates[0] ??
-    (role === "editor"
-      ? resolveFileSurfaceProvider(kind, "viewer")
-      : undefined)
+    (role === 'editor' ? resolveFileSurfaceProvider(kind, 'viewer') : undefined)
   );
 }
 
@@ -160,48 +145,35 @@ export function getFormatSettingsPreference(
   defaultViewer?: string;
   defaultEditor?: string;
 } {
-  if (kind === "pdf") {
+  if (kind === 'pdf') {
     return {
       defaultOpenBehavior:
-        settings?.pdfSettings?.defaultOpenBehavior === "editor"
-          ? "editor"
-          : "viewer",
+        settings?.pdfSettings?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer',
       defaultViewer: settings?.pdfSettings?.defaultViewer,
       defaultEditor: settings?.pdfSettings?.defaultEditor,
     };
   }
-  if (kind === "xlsx") {
+  if (kind === 'xlsx') {
     return {
       defaultOpenBehavior:
-        settings?.xlsxSettings?.defaultOpenBehavior === "editor"
-          ? "editor"
-          : "viewer",
+        settings?.xlsxSettings?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer',
       defaultViewer: settings?.xlsxSettings?.defaultViewer,
       defaultEditor: settings?.xlsxSettings?.defaultEditor,
     };
   }
-  if (kind === "text") {
+  if (kind === 'text') {
     return {
       defaultOpenBehavior:
-        settings?.textSettings?.defaultOpenBehavior === "editor"
-          ? "editor"
-          : "viewer",
+        settings?.textSettings?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer',
       defaultViewer: settings?.textSettings?.defaultViewer,
       defaultEditor: settings?.textSettings?.defaultEditor,
     };
   }
   const extra = settings?.formatSettings?.[kind];
   return {
-    defaultOpenBehavior:
-      extra?.defaultOpenBehavior === "editor" ? "editor" : "viewer",
-    defaultViewer:
-      typeof extra?.defaultViewer === "string"
-        ? extra.defaultViewer
-        : undefined,
-    defaultEditor:
-      typeof extra?.defaultEditor === "string"
-        ? extra.defaultEditor
-        : undefined,
+    defaultOpenBehavior: extra?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer',
+    defaultViewer: typeof extra?.defaultViewer === 'string' ? extra.defaultViewer : undefined,
+    defaultEditor: typeof extra?.defaultEditor === 'string' ? extra.defaultEditor : undefined,
   };
 }
 
@@ -213,26 +185,25 @@ export function resolveDefaultSurfaceForFile(
     textSettings?: FileSystemTextSettings;
     formatSettings?: FileSystemFormatSettingsMap;
   },
-  variant: FileViewerVariant = "in-place",
+  variant: FileViewerVariant = 'in-place',
 ): {
   role: FileSurfaceRole;
   provider?: FileSurfaceProviderDescriptor;
 } {
-  if (variant === "stage") {
+  if (variant === 'stage') {
     const pref = getFormatSettingsPreference(kind, settings);
     return {
-      role: "viewer",
-      provider: resolveFileSurfaceProvider(kind, "viewer", pref.defaultViewer),
+      role: 'viewer',
+      provider: resolveFileSurfaceProvider(kind, 'viewer', pref.defaultViewer),
     };
   }
 
   const pref = getFormatSettingsPreference(kind, settings);
   const targetRole = pref.defaultOpenBehavior;
-  const preferredId =
-    targetRole === "editor" ? pref.defaultEditor : pref.defaultViewer;
+  const preferredId = targetRole === 'editor' ? pref.defaultEditor : pref.defaultViewer;
   const provider = resolveFileSurfaceProvider(kind, targetRole, preferredId);
   return {
-    role: provider?.role ?? "viewer",
+    role: provider?.role ?? 'viewer',
     provider,
   };
 }
@@ -273,8 +244,7 @@ export function preloadFileSurfaceForKind(
 ): Promise<void> {
   const pref = getFormatSettingsPreference(kind, settings);
   const targetRole = roleOverride ?? pref.defaultOpenBehavior;
-  const preferredId =
-    targetRole === "editor" ? pref.defaultEditor : pref.defaultViewer;
+  const preferredId = targetRole === 'editor' ? pref.defaultEditor : pref.defaultViewer;
   const provider = resolveFileSurfaceProvider(kind, targetRole, preferredId);
   if (!provider?.preload) {
     return Promise.resolve();
@@ -290,7 +260,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     src,
     filePath,
     contentType,
-    variant = "in-place",
+    variant = 'in-place',
     role: explicitRole,
     providerId: explicitProviderId,
     pdfSettings,
@@ -315,25 +285,20 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     [formatSettings, kind, pdfSettings, textSettings, xlsxSettings],
   );
 
-  const [roleOverride, setRoleOverride] =
-    React.useState<FileSurfaceRole | null>(null);
-  const [providerOverride, setProviderOverride] = React.useState<string | null>(
-    null,
-  );
+  const [roleOverride, setRoleOverride] = React.useState<FileSurfaceRole | null>(null);
+  const [providerOverride, setProviderOverride] = React.useState<string | null>(null);
 
   const hasEditorSupport = React.useMemo(
-    () => getRegisteredSurfaceProviders(kind, "editor").length > 0,
+    () => getRegisteredSurfaceProviders(kind, 'editor').length > 0,
     [kind],
   );
 
   const effectiveRole: FileSurfaceRole =
-    variant === "stage"
-      ? "viewer"
+    variant === 'stage'
+      ? 'viewer'
       : (explicitRole ??
         roleOverride ??
-        (formatPrefs.defaultOpenBehavior === "editor" && hasEditorSupport
-          ? "editor"
-          : "viewer"));
+        (formatPrefs.defaultOpenBehavior === 'editor' && hasEditorSupport ? 'editor' : 'viewer'));
   const effectiveRoleRef = React.useRef<FileSurfaceRole>(effectiveRole);
   effectiveRoleRef.current = effectiveRole;
 
@@ -345,31 +310,21 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
   const preferredProviderId =
     explicitProviderId ??
     providerOverride ??
-    (effectiveRole === "editor"
-      ? formatPrefs.defaultEditor
-      : formatPrefs.defaultViewer);
+    (effectiveRole === 'editor' ? formatPrefs.defaultEditor : formatPrefs.defaultViewer);
 
-  const resolvedProvider = resolveFileSurfaceProvider(
-    kind,
-    effectiveRole,
-    preferredProviderId,
-  );
+  const resolvedProvider = resolveFileSurfaceProvider(kind, effectiveRole, preferredProviderId);
 
-  const surfaceSessionKey = `${filePath ?? ""}::${variant}::${effectiveRole}::${resolvedProvider?.id ?? ""}`;
+  const surfaceSessionKey = `${filePath ?? ''}::${variant}::${effectiveRole}::${resolvedProvider?.id ?? ''}`;
   const surfaceSessionKeyRef = React.useRef(surfaceSessionKey);
   surfaceSessionKeyRef.current = surfaceSessionKey;
 
-  const {
-    activeSrc,
-    latestSavedBlobUrlRef,
-    savedBlobUrlsRef,
-    setSurfaceSourceState,
-  } = useSurfaceSourceState({
-    filePath,
-    src,
-    sessionKey: surfaceSessionKey,
-    isEditor: effectiveRole === "editor",
-  });
+  const { activeSrc, latestSavedBlobUrlRef, savedBlobUrlsRef, setSurfaceSourceState } =
+    useSurfaceSourceState({
+      filePath,
+      src,
+      sessionKey: surfaceSessionKey,
+      isEditor: effectiveRole === 'editor',
+    });
 
   const availableRoleProviders = React.useMemo(
     () => getRegisteredSurfaceProviders(kind, effectiveRole),
@@ -392,7 +347,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
             latestSavedBlobUrlRef.current = saved.blobUrl;
             savedBlobUrlsRef.current.add(saved.blobUrl);
             if (
-              effectiveRoleRef.current === "viewer" ||
+              effectiveRoleRef.current === 'viewer' ||
               surfaceSessionKeyRef.current !== sessionAtSaveStart
             ) {
               setSurfaceSourceState((prev) => ({
@@ -409,9 +364,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
     editSession.discardPendingChanges();
     // A dirty editor pins its src; dropping the edits must unpin so the
     // renderer re-initializes from the refreshed file URL.
-    setSurfaceSourceState((prev) =>
-      prev.activeSrc === src ? prev : { ...prev, activeSrc: src },
-    );
+    setSurfaceSourceState((prev) => (prev.activeSrc === src ? prev : { ...prev, activeSrc: src }));
   }, [editSession, setSurfaceSourceState, src]);
 
   const surfacedEditSession = React.useMemo<FileEditSession | undefined>(
@@ -426,14 +379,14 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
   React.useEffect(() => {
     const prevRole = previousEffectiveRoleRef.current;
     previousEffectiveRoleRef.current = effectiveRole;
-    if (prevRole === "editor" && effectiveRole !== "editor") {
+    if (prevRole === 'editor' && effectiveRole !== 'editor') {
       editSession.flushBeforeSave();
       void editSession.saveNow();
     }
   }, [editSession, effectiveRole]);
 
   React.useEffect(() => {
-    onDirtyChange?.(effectiveRole === "editor" && editSession.isDirty);
+    onDirtyChange?.(effectiveRole === 'editor' && editSession.isDirty);
   }, [editSession.isDirty, effectiveRole, onDirtyChange]);
 
   const handlePreloadRole = React.useCallback(
@@ -454,7 +407,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
         { pdfSettings, xlsxSettings, textSettings, formatSettings },
         nextRole,
       );
-      if (effectiveRoleRef.current === "editor" && nextRole === "viewer") {
+      if (effectiveRoleRef.current === 'editor' && nextRole === 'viewer') {
         editSession.flushBeforeSave();
         void editSession.saveNow().then((didSave) => {
           const latestUrl = latestSavedBlobUrlRef.current;
@@ -536,9 +489,7 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
         <AiTextMenuInjector
           extraMenuItems={combinedExtraMenuItems}
           allowHideOriginal={
-            resolvedProvider.role !== "editor" ||
-            !editSession?.isDirty ||
-            autoSaveEdits
+            resolvedProvider.role !== 'editor' || !editSession?.isDirty || autoSaveEdits
           }
         >
           {(menuItems) => (
@@ -549,15 +500,10 @@ export function RegisteredFileViewer(props: FileViewerRenderProps) {
                 src: activeSrc,
                 role: resolvedProvider.role,
                 providerId: resolvedProvider.id,
-                canSwitchRole: variant !== "stage" && hasEditorSupport,
+                canSwitchRole: variant !== 'stage' && hasEditorSupport,
                 onRoleChange:
-                  variant !== "stage" && hasEditorSupport
-                    ? handleRoleChange
-                    : undefined,
-                editSession:
-                  resolvedProvider.role === "editor"
-                    ? surfacedEditSession
-                    : undefined,
+                  variant !== 'stage' && hasEditorSupport ? handleRoleChange : undefined,
+                editSession: resolvedProvider.role === 'editor' ? surfacedEditSession : undefined,
                 extraMenuItems: menuItems,
               }}
             />

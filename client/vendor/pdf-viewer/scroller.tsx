@@ -1,49 +1,46 @@
-import * as React from "react"
-import type { Rect, Rotation } from "@embedpdf/models"
+import * as React from 'react';
+import type { Rect, Rotation } from '@embedpdf/models';
 import {
   ScrollStrategy,
   useScrollPlugin,
   type PageLayout,
   type ScrollerLayout,
-} from "@embedpdf/plugin-scroll/react"
-import {
-  useSelectionCapability,
-  useSelectionPlugin,
-} from "@embedpdf/plugin-selection/react"
+} from '@embedpdf/plugin-scroll/react';
+import { useSelectionCapability, useSelectionPlugin } from '@embedpdf/plugin-selection/react';
 import {
   useIsViewportGated,
   useViewportCapability,
   useViewportElement,
   useViewportRef,
   ViewportElementContext,
-} from "@embedpdf/plugin-viewport/react"
+} from '@embedpdf/plugin-viewport/react';
 
-import { PDFViewerScrollArea } from "./thumbnails"
+import { PDFViewerScrollArea } from './thumbnails';
 import {
   applyPageRotationDeltasToScrollerLayout,
   TEXT_SELECTION_BACKGROUND,
   type PageRotationDeltas,
-} from "./types"
+} from './types';
 
 export function PDFViewerScrollAreaViewport({
   children,
   className,
   documentId,
 }: {
-  children: React.ReactNode
-  className?: string
-  documentId: string
+  children: React.ReactNode;
+  className?: string;
+  documentId: string;
 }) {
-  const viewportRef = useViewportRef(documentId)
-  const { provides: viewport } = useViewportCapability()
-  const isGated = useIsViewportGated(documentId)
-  const viewportGap = viewport?.getViewportGap() ?? 0
+  const viewportRef = useViewportRef(documentId);
+  const { provides: viewport } = useViewportCapability();
+  const isGated = useIsViewportGated(documentId);
+  const viewportGap = viewport?.getViewportGap() ?? 0;
 
   return (
     <ViewportElementContext.Provider value={viewportRef}>
       <PDFViewerScrollArea
         className={className}
-        viewportClassName="relative select-none selection:bg-transparent selection:text-inherit"
+        viewportClassName='relative select-none selection:bg-transparent selection:text-inherit'
         viewportProps={{
           style: {
             padding: viewportGap,
@@ -54,21 +51,21 @@ export function PDFViewerScrollAreaViewport({
         {isGated ? null : children}
       </PDFViewerScrollArea>
     </ViewportElementContext.Provider>
-  )
+  );
 }
 
 export function PDFViewerViewportBridge({
   viewportElementRef,
 }: {
-  viewportElementRef: React.MutableRefObject<HTMLDivElement | null>
+  viewportElementRef: React.MutableRefObject<HTMLDivElement | null>;
 }) {
-  const elementRef = useViewportElement()
+  const elementRef = useViewportElement();
 
   React.useEffect(() => {
-    viewportElementRef.current = elementRef?.current ?? null
-  })
+    viewportElementRef.current = elementRef?.current ?? null;
+  });
 
-  return null
+  return null;
 }
 
 export function PDFViewerTextSelectionLayer({
@@ -76,33 +73,33 @@ export function PDFViewerTextSelectionLayer({
   pageIndex,
   scale,
 }: {
-  documentId: string
-  pageIndex: number
-  scale: number
+  documentId: string;
+  pageIndex: number;
+  scale: number;
 }) {
-  const { plugin: selectionPlugin } = useSelectionPlugin()
-  const [rects, setRects] = React.useState<Rect[]>([])
+  const { plugin: selectionPlugin } = useSelectionPlugin();
+  const [rects, setRects] = React.useState<Rect[]>([]);
 
   React.useEffect(() => {
-    if (!selectionPlugin) return
+    if (!selectionPlugin) return;
 
     return selectionPlugin.registerSelectionOnPage({
       documentId,
       pageIndex,
       onRectsChange: ({ rects: nextRects }) => {
-        setRects(nextRects)
+        setRects(nextRects);
       },
-    })
-  }, [documentId, pageIndex, selectionPlugin])
+    });
+  }, [documentId, pageIndex, selectionPlugin]);
 
-  if (!rects.length) return null
+  if (!rects.length) return null;
 
   return (
     <>
       {rects.map((rect, index) => (
         <div
           key={`${index}-${rect.origin.x}-${rect.origin.y}`}
-          className="pointer-events-none absolute"
+          className='pointer-events-none absolute'
           style={{
             background: TEXT_SELECTION_BACKGROUND,
             height: rect.size.height * scale,
@@ -113,113 +110,105 @@ export function PDFViewerTextSelectionLayer({
         />
       ))}
     </>
-  )
+  );
 }
 
-export function PDFViewerSelectionReleaseGuard({
-  documentId,
-}: {
-  documentId: string
-}) {
-  const { plugin: selectionPlugin } = useSelectionPlugin()
-  const { provides: selection } = useSelectionCapability()
-  const lastSelectionModeIdRef = React.useRef<string | null>(null)
+export function PDFViewerSelectionReleaseGuard({ documentId }: { documentId: string }) {
+  const { plugin: selectionPlugin } = useSelectionPlugin();
+  const { provides: selection } = useSelectionCapability();
+  const lastSelectionModeIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (!selection) return
+    if (!selection) return;
 
     return selection.forDocument(documentId).onBeginSelection(({ modeId }) => {
-      lastSelectionModeIdRef.current = modeId
-    })
-  }, [documentId, selection])
+      lastSelectionModeIdRef.current = modeId;
+    });
+  }, [documentId, selection]);
 
   React.useEffect(() => {
-    if (!selection) return
+    if (!selection) return;
 
-    let cleanupFrame = 0
+    let cleanupFrame = 0;
     const finalizeIfStillSelecting = () => {
-      window.cancelAnimationFrame(cleanupFrame)
+      window.cancelAnimationFrame(cleanupFrame);
       cleanupFrame = window.requestAnimationFrame(() => {
-        const selectionState = selection.getState(documentId)
+        const selectionState = selection.getState(documentId);
 
-        if (!selectionState.selecting) return
+        if (!selectionState.selecting) return;
 
         if (selectionState.selection && selectionPlugin) {
           const pluginWithEndSelection = selectionPlugin as unknown as {
-            endSelection?: (documentId: string, modeId: string) => void
-          }
+            endSelection?: (documentId: string, modeId: string) => void;
+          };
 
           pluginWithEndSelection.endSelection?.(
             documentId,
-            lastSelectionModeIdRef.current ?? "pointerMode"
-          )
-          return
+            lastSelectionModeIdRef.current ?? 'pointerMode',
+          );
+          return;
         }
 
         if (!selectionState.selection) {
-          selection.clear(documentId)
+          selection.clear(documentId);
         }
-      })
-    }
+      });
+    };
 
-    window.addEventListener("pointerup", finalizeIfStillSelecting)
-    window.addEventListener("pointercancel", finalizeIfStillSelecting)
-    window.addEventListener("blur", finalizeIfStillSelecting)
+    window.addEventListener('pointerup', finalizeIfStillSelecting);
+    window.addEventListener('pointercancel', finalizeIfStillSelecting);
+    window.addEventListener('blur', finalizeIfStillSelecting);
 
     return () => {
-      window.cancelAnimationFrame(cleanupFrame)
-      window.removeEventListener("pointerup", finalizeIfStillSelecting)
-      window.removeEventListener("pointercancel", finalizeIfStillSelecting)
-      window.removeEventListener("blur", finalizeIfStillSelecting)
-    }
-  }, [documentId, selection, selectionPlugin])
+      window.cancelAnimationFrame(cleanupFrame);
+      window.removeEventListener('pointerup', finalizeIfStillSelecting);
+      window.removeEventListener('pointercancel', finalizeIfStillSelecting);
+      window.removeEventListener('blur', finalizeIfStillSelecting);
+    };
+  }, [documentId, selection, selectionPlugin]);
 
-  return null
+  return null;
 }
 
 function isEditableCopyTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
+  if (!(target instanceof HTMLElement)) return false;
 
-  if (target.isContentEditable) return true
+  if (target.isContentEditable) return true;
 
-  return Boolean(target.closest("input, textarea, [contenteditable='true']"))
+  return Boolean(target.closest("input, textarea, [contenteditable='true']"));
 }
 
-export function PDFViewerSelectionCopyShortcut({
-  documentId,
-}: {
-  documentId: string
-}) {
-  const { provides: selection } = useSelectionCapability()
+export function PDFViewerSelectionCopyShortcut({ documentId }: { documentId: string }) {
+  const { provides: selection } = useSelectionCapability();
 
   React.useEffect(() => {
-    if (!selection) return
+    if (!selection) return;
 
     const copySelectedPdfText = (event: Event) => {
-      if (isEditableCopyTarget(event.target)) return
-      if (!selection.getState(documentId).selection) return
+      if (isEditableCopyTarget(event.target)) return;
+      if (!selection.getState(documentId).selection) return;
 
-      event.preventDefault()
-      selection.copyToClipboard(documentId)
-    }
+      event.preventDefault();
+      selection.copyToClipboard(documentId);
+    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "c") return
-      if (!event.metaKey && !event.ctrlKey) return
+      if (event.key.toLowerCase() !== 'c') return;
+      if (!event.metaKey && !event.ctrlKey) return;
 
-      copySelectedPdfText(event)
-    }
+      copySelectedPdfText(event);
+    };
 
-    document.addEventListener("copy", copySelectedPdfText)
-    document.addEventListener("keydown", handleKeyDown)
+    document.addEventListener('copy', copySelectedPdfText);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener("copy", copySelectedPdfText)
-      document.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [documentId, selection])
+      document.removeEventListener('copy', copySelectedPdfText);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [documentId, selection]);
 
-  return null
+  return null;
 }
 
 export function PDFViewerScroller({
@@ -228,74 +217,74 @@ export function PDFViewerScroller({
   basePageRotations,
   renderPage,
 }: {
-  documentId: string
-  pageRotationDeltas: PageRotationDeltas
-  basePageRotations: Rotation[]
-  renderPage: (props: PageLayout) => React.ReactNode
+  documentId: string;
+  pageRotationDeltas: PageRotationDeltas;
+  basePageRotations: Rotation[];
+  renderPage: (props: PageLayout) => React.ReactNode;
 }) {
-  const { plugin: scrollPlugin } = useScrollPlugin()
+  const { plugin: scrollPlugin } = useScrollPlugin();
   const [layoutData, setLayoutData] = React.useState<{
-    docId: string | null
-    layout: ScrollerLayout | null
-  }>({ docId: null, layout: null })
+    docId: string | null;
+    layout: ScrollerLayout | null;
+  }>({ docId: null, layout: null });
 
   React.useEffect(() => {
-    if (!scrollPlugin || !documentId) return
-    let frame = 0
+    if (!scrollPlugin || !documentId) return;
+    let frame = 0;
 
     const setCurrentLayout = () => {
       try {
         setLayoutData({
           docId: documentId,
           layout: scrollPlugin.getScrollerLayout(documentId),
-        })
+        });
       } catch {
-        setLayoutData({ docId: documentId, layout: null })
+        setLayoutData({ docId: documentId, layout: null });
       }
-    }
+    };
 
     const unsubscribe = scrollPlugin.onScrollerData(documentId, (layout) => {
-      setLayoutData({ docId: documentId, layout })
-    })
+      setLayoutData({ docId: documentId, layout });
+    });
 
-    frame = window.requestAnimationFrame(setCurrentLayout)
+    frame = window.requestAnimationFrame(setCurrentLayout);
 
     return () => {
-      window.cancelAnimationFrame(frame)
-      unsubscribe()
-      setLayoutData({ docId: null, layout: null })
-      scrollPlugin.clearLayoutReady(documentId)
-    }
-  }, [documentId, scrollPlugin])
+      window.cancelAnimationFrame(frame);
+      unsubscribe();
+      setLayoutData({ docId: null, layout: null });
+      scrollPlugin.clearLayoutReady(documentId);
+    };
+  }, [documentId, scrollPlugin]);
 
   const scrollerLayout = React.useMemo(() => {
-    if (layoutData.docId !== documentId || !layoutData.layout) return null
+    if (layoutData.docId !== documentId || !layoutData.layout) return null;
 
     return applyPageRotationDeltasToScrollerLayout({
       basePageRotations,
       layout: layoutData.layout,
       pageRotationDeltas,
-    })
-  }, [basePageRotations, documentId, layoutData, pageRotationDeltas])
+    });
+  }, [basePageRotations, documentId, layoutData, pageRotationDeltas]);
 
   React.useLayoutEffect(() => {
-    if (!scrollPlugin || !documentId || !scrollerLayout) return
-    scrollPlugin.setLayoutReady(documentId)
-  }, [documentId, scrollPlugin, scrollerLayout])
+    if (!scrollPlugin || !documentId || !scrollerLayout) return;
+    scrollPlugin.setLayoutReady(documentId);
+  }, [documentId, scrollPlugin, scrollerLayout]);
 
-  if (!scrollerLayout) return null
+  if (!scrollerLayout) return null;
 
   return (
     <div
       style={{
         width: `${scrollerLayout.totalWidth}px`,
         height: `${scrollerLayout.totalHeight}px`,
-        position: "relative",
-        boxSizing: "border-box",
-        margin: "0 auto",
+        position: 'relative',
+        boxSizing: 'border-box',
+        margin: '0 auto',
         ...(scrollerLayout.strategy === ScrollStrategy.Horizontal && {
-          display: "flex",
-          flexDirection: "row",
+          display: 'flex',
+          flexDirection: 'row',
         }),
       }}
     >
@@ -304,30 +293,30 @@ export function PDFViewerScroller({
           scrollerLayout.strategy === ScrollStrategy.Horizontal
             ? {
                 width: scrollerLayout.startSpacing,
-                height: "100%",
+                height: '100%',
                 flexShrink: 0,
               }
             : {
                 height: scrollerLayout.startSpacing,
-                width: "100%",
+                width: '100%',
               }
         }
       />
       <div
         style={{
           gap: scrollerLayout.pageGap,
-          display: "flex",
-          alignItems: "center",
-          position: "relative",
-          boxSizing: "border-box",
+          display: 'flex',
+          alignItems: 'center',
+          position: 'relative',
+          boxSizing: 'border-box',
           ...(scrollerLayout.strategy === ScrollStrategy.Horizontal
             ? {
-                flexDirection: "row",
-                minHeight: "100%",
+                flexDirection: 'row',
+                minHeight: '100%',
               }
             : {
-                flexDirection: "column",
-                minWidth: "fit-content",
+                flexDirection: 'column',
+                minWidth: 'fit-content',
               }),
         }}
       >
@@ -335,8 +324,8 @@ export function PDFViewerScroller({
           <div
             key={item.pageNumbers[0]}
             style={{
-              display: "flex",
-              justifyContent: "center",
+              display: 'flex',
+              justifyContent: 'center',
               gap: scrollerLayout.pageGap,
             }}
           >
@@ -346,7 +335,7 @@ export function PDFViewerScroller({
                 style={{
                   width: `${layout.rotatedWidth}px`,
                   height: `${layout.rotatedHeight}px`,
-                  position: "relative",
+                  position: 'relative',
                   zIndex: layout.elevated ? 1 : undefined,
                 }}
               >
@@ -361,15 +350,15 @@ export function PDFViewerScroller({
           scrollerLayout.strategy === ScrollStrategy.Horizontal
             ? {
                 width: scrollerLayout.endSpacing,
-                height: "100%",
+                height: '100%',
                 flexShrink: 0,
               }
             : {
                 height: scrollerLayout.endSpacing,
-                width: "100%",
+                width: '100%',
               }
         }
       />
     </div>
-  )
+  );
 }

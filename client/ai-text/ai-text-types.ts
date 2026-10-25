@@ -1,5 +1,5 @@
-import type * as React from "react";
-import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
+import type * as React from 'react';
+import type { PDFViewerHandle } from '../vendor/pdf-viewer/types.js';
 import type {
   AiTextDocumentMetadata,
   AiTextEngineEnvironment,
@@ -9,7 +9,7 @@ import type {
   AiTextTaskKind,
   AiTextTaskSnapshot,
   AiTextVersionRecord,
-} from "../../shared/contracts.js";
+} from '../../shared/contracts.js';
 
 export interface AiTextExtractOptions {
   /** Profile selected in the split view; omitted uses the default profile. */
@@ -24,7 +24,7 @@ export interface AiTextTaskStartOptions {
   operationOptions?: Record<string, string>;
 }
 
-export type AiTextLayoutStatus = "idle" | "loading" | "ready" | "missing";
+export type AiTextLayoutStatus = 'idle' | 'loading' | 'ready' | 'missing';
 
 /** Client-side view of the daemon RPCs used by AI Text Mode. */
 export interface AiTextBridge {
@@ -34,10 +34,12 @@ export interface AiTextBridge {
     metadata: AiTextDocumentMetadata | null;
     activeContent: string | null;
   }>;
-  startTask(input: {
-    kind: AiTextTaskKind;
-    relPath?: string;
-  } & AiTextTaskStartOptions): Promise<{ taskId: string }>;
+  startTask(
+    input: {
+      kind: AiTextTaskKind;
+      relPath?: string;
+    } & AiTextTaskStartOptions,
+  ): Promise<{ taskId: string }>;
   getTask(taskId: string): Promise<{ task: AiTextTaskSnapshot }>;
   cancelTask(taskId: string): Promise<{ cancelled: boolean }>;
   getLayout(

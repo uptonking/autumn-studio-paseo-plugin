@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   formatFileLoadError,
   isFileNotFoundError,
   type OpenedFileTab,
-} from "./opened-tabs-store.js";
-import { RecentFilesQuickList } from "./file-viewer-tab-bar.js";
-import { Spinner } from "./vendor/components/ui/spinner.js";
-import { FileTypeIcon } from "./vendor/file-system/icons.js";
-import { fileUrlCacheKey } from "./vendor/file-system/virtual-window.js";
-import { setPdfiumWasmResolver } from "./vendor/lib/pdf-thumbnail-utils.js";
-import { setXlsxWasmResolver } from "./vendor/xlsx-viewer/wasm-loader.js";
+} from './opened-tabs-store.js';
+import { RecentFilesQuickList } from './file-viewer-tab-bar.js';
+import { Spinner } from './vendor/components/ui/spinner.js';
+import { FileTypeIcon } from './vendor/file-system/icons.js';
+import { fileUrlCacheKey } from './vendor/file-system/virtual-window.js';
+import { setPdfiumWasmResolver } from './vendor/lib/pdf-thumbnail-utils.js';
+import { setXlsxWasmResolver } from './vendor/xlsx-viewer/wasm-loader.js';
 import {
   preloadFileSurfaceForKind,
   RegisteredFileViewer,
   type FileSaveCallbackInput,
-} from "./viewers/registry.js";
-import { viewerKindForFile } from "./vendor/file-system/types.js";
-import type { FileViewerViewProps } from "./view-props.js";
+} from './viewers/registry.js';
+import { viewerKindForFile } from './vendor/file-system/types.js';
+import type { FileViewerViewProps } from './view-props.js';
 
 /**
  * How a surface resolves blob URLs for the file it shows. The workspace
@@ -45,7 +45,7 @@ export interface FileSourceAdapter {
  */
 export function FileViewerFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
+    <div className='flex h-full w-full flex-col overflow-hidden bg-background text-foreground'>
       {children}
     </div>
   );
@@ -59,7 +59,7 @@ export interface FileViewerStageProps {
    * "workspace" adds tab-close affordances to the missing-file state;
    * "native" leaves closing to the Paseo tab that hosts the stage.
    */
-  mode?: "workspace" | "native";
+  mode?: 'workspace' | 'native';
 }
 
 /**
@@ -73,7 +73,7 @@ export function FileViewerStage({
   view,
   activeTab,
   source,
-  mode = "workspace",
+  mode = 'workspace',
 }: FileViewerStageProps) {
   const [urlByKey, setUrlByKey] = useState<Record<string, string>>({});
   const [urlByPath, setUrlByPath] = useState<Record<string, string>>({});
@@ -150,15 +150,13 @@ export function FileViewerStage({
     });
 
     const tabKind = viewerKindForFile({
-      kind: "file",
+      kind: 'file',
       path: activeTab.path,
       name: activeTab.name,
       contentType: activeTab.contentType,
     });
 
-    const isAlreadyOpenTab = Boolean(
-      validatedKeyByPathRef.current[activeTab.path],
-    );
+    const isAlreadyOpenTab = Boolean(validatedKeyByPathRef.current[activeTab.path]);
 
     Promise.all([
       source.getUrl(activeTab, {
@@ -183,8 +181,7 @@ export function FileViewerStage({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message =
-          err instanceof Error ? err.message : "Failed to load file";
+        const message = err instanceof Error ? err.message : 'Failed to load file';
         setErrorByKey((prev) => ({ ...prev, [activeCacheKey]: message }));
         setLoadingKey((prev) => (prev === activeCacheKey ? null : prev));
       });
@@ -195,11 +192,7 @@ export function FileViewerStage({
   }, [activeCacheKey, activeTab, retryNonce, urlByKey, view, source]);
 
   useEffect(() => {
-    if (
-      view.enabled === false ||
-      !source.revalidateOnFocus ||
-      typeof window === "undefined"
-    ) {
+    if (view.enabled === false || !source.revalidateOnFocus || typeof window === 'undefined') {
       return;
     }
     const revalidateActiveTab = () => {
@@ -209,33 +202,29 @@ export function FileViewerStage({
         .then((nextUrl) => {
           validatedKeyByPathRef.current[activeTab.path] = currentKey;
           setUrlByKey((prev) =>
-            prev[currentKey] === nextUrl
-              ? prev
-              : { ...prev, [currentKey]: nextUrl },
+            prev[currentKey] === nextUrl ? prev : { ...prev, [currentKey]: nextUrl },
           );
           setUrlByPath((prev) =>
-            prev[activeTab.path] === nextUrl
-              ? prev
-              : { ...prev, [activeTab.path]: nextUrl },
+            prev[activeTab.path] === nextUrl ? prev : { ...prev, [activeTab.path]: nextUrl },
           );
         })
         .catch(() => {});
     };
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") revalidateActiveTab();
+      if (document.visibilityState === 'visible') revalidateActiveTab();
     };
-    window.addEventListener("focus", revalidateActiveTab);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener('focus', revalidateActiveTab);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      window.removeEventListener("focus", revalidateActiveTab);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener('focus', revalidateActiveTab);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [activeTab, source, view.enabled]);
 
   const handleSaveFile = useCallback(
     async (input: FileSaveCallbackInput) => {
       if (!view.onSaveFile) {
-        throw new Error("File save handler is not configured");
+        throw new Error('File save handler is not configured');
       }
       const saved = await view.onSaveFile(input);
       const nextCacheKey = fileUrlCacheKey({
@@ -261,15 +250,10 @@ export function FileViewerStage({
     [activeTabPath, view],
   );
 
-  const openPathSet = useMemo(
-    () => new Set(view.tabs.map((tab) => tab.path)),
-    [view.tabs],
-  );
+  const openPathSet = useMemo(() => new Set(view.tabs.map((tab) => tab.path)), [view.tabs]);
 
   const activeError = errorByKey[activeCacheKey] ?? null;
-  const isMissingFileError = Boolean(
-    activeError && isFileNotFoundError(activeError),
-  );
+  const isMissingFileError = Boolean(activeError && isFileNotFoundError(activeError));
 
   useEffect(() => {
     if (isMissingFileError && activeTabPath) {
@@ -277,67 +261,63 @@ export function FileViewerStage({
     }
   }, [activeTabPath, isMissingFileError, view]);
 
-  const activeUrl =
-    urlByKey[activeCacheKey] ?? urlByPath[activeTab.path] ?? null;
+  const activeUrl = urlByKey[activeCacheKey] ?? urlByPath[activeTab.path] ?? null;
   const isResolving = loadingKey === activeCacheKey && !activeUrl;
   const viewerKind = viewerKindForFile({
-    kind: "file",
+    kind: 'file',
     path: activeTab.path,
     name: activeTab.name,
     contentType: activeTab.contentType,
   });
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
       {activeError ? (
         isMissingFileError ? (
           <div
-            data-testid="file-viewer-missing-file"
-            className="flex h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto p-6 text-center"
+            data-testid='file-viewer-missing-file'
+            className='flex h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto p-6 text-center'
           >
-            <div className="flex size-12 items-center justify-center rounded-xl border bg-muted/40">
-              <FileTypeIcon fileName={activeTab.name} className="size-6" />
+            <div className='flex size-12 items-center justify-center rounded-xl border bg-muted/40'>
+              <FileTypeIcon fileName={activeTab.name} className='size-6' />
             </div>
-            <div className="flex max-w-md flex-col gap-1">
-              <p className="text-sm font-semibold text-foreground">
+            <div className='flex max-w-md flex-col gap-1'>
+              <p className='text-sm font-semibold text-foreground'>
                 “{activeTab.name}” was moved or deleted
               </p>
-              <p className="break-all text-xs text-muted-foreground">
-                The file at{" "}
-                <span className="font-mono text-foreground/80">
-                  {activeTab.path}
-                </span>{" "}
+              <p className='break-all text-xs text-muted-foreground'>
+                The file at <span className='font-mono text-foreground/80'>{activeTab.path}</span>{' '}
                 could not be found on the filesystem.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {mode === "workspace" ? (
+            <div className='flex flex-wrap items-center justify-center gap-2'>
+              {mode === 'workspace' ? (
                 <button
-                  type="button"
-                  data-testid="file-viewer-missing-close-tab"
+                  type='button'
+                  data-testid='file-viewer-missing-close-tab'
                   onClick={() => view.onCloseTab(activeTab.path)}
-                  className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className='rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent'
                 >
                   Close tab
                 </button>
               ) : null}
               {view.onOpenExplorer ? (
                 <button
-                  type="button"
+                  type='button'
                   onClick={view.onOpenExplorer}
-                  className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className='rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent'
                 >
                   Open explorer
                 </button>
               ) : null}
               <button
-                type="button"
-                data-testid="file-viewer-missing-retry"
+                type='button'
+                data-testid='file-viewer-missing-retry'
                 onClick={() => {
                   delete validatedKeyByPathRef.current[activeTab.path];
                   setRetryNonce((count) => count + 1);
                 }}
-                className="rounded-md border px-3 py-1.5 text-xs font-muted-foreground hover:bg-accent hover:text-foreground"
+                className='rounded-md border px-3 py-1.5 text-xs font-muted-foreground hover:bg-accent hover:text-foreground'
               >
                 Retry
               </button>
@@ -346,8 +326,8 @@ export function FileViewerStage({
               recentFiles={view.recentFiles ?? []}
               excludePath={activeTab.path}
               openPathSet={openPathSet}
-              testId="file-viewer-missing-recent-files"
-              itemTestIdPrefix="file-viewer-missing-recent-item-"
+              testId='file-viewer-missing-recent-files'
+              itemTestIdPrefix='file-viewer-missing-recent-item-'
               onSelectFile={(file) => {
                 const missingPath = activeTab.path;
                 if (view.onOpenRecentFile) {
@@ -363,25 +343,25 @@ export function FileViewerStage({
             />
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-sm text-destructive">
+          <div className='flex h-full flex-col items-center justify-center gap-3 p-6 text-center'>
+            <p className='text-sm text-destructive'>
               {formatFileLoadError(activeError, activeTab.name)}
             </p>
             <button
-              type="button"
+              type='button'
               onClick={() => {
                 delete validatedKeyByPathRef.current[activeTab.path];
                 setRetryNonce((count) => count + 1);
               }}
-              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              className='rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent'
             >
               Retry
             </button>
           </div>
         )
       ) : isResolving || !activeUrl ? (
-        <div className="grid h-full flex-1 place-items-center">
-          <Spinner className="size-5 text-muted-foreground" />
+        <div className='grid h-full flex-1 place-items-center'>
+          <Spinner className='size-5 text-muted-foreground' />
         </div>
       ) : viewerKind ? (
         <RegisteredFileViewer
@@ -391,7 +371,7 @@ export function FileViewerStage({
           filePath={activeTab.path}
           fileName={activeTab.name}
           contentType={activeTab.contentType}
-          variant="tab"
+          variant='tab'
           autoSaveEdits={view.autoSaveEdits}
           pdfSettings={view.pdfSettings}
           xlsxSettings={view.xlsxSettings}
@@ -399,21 +379,17 @@ export function FileViewerStage({
           formatSettings={view.formatSettings}
           aiText={view.aiText}
           sourceUpdatedAt={
-            activeTab.updatedAt
-              ? Date.parse(activeTab.updatedAt) || undefined
-              : undefined
+            activeTab.updatedAt ? Date.parse(activeTab.updatedAt) || undefined : undefined
           }
           sourceFileSize={activeTab.size}
           onSaveFile={view.onSaveFile ? handleSaveFile : undefined}
           onOpenSettings={view.onOpenSettings}
           surfacePersistence={view.surfacePersistence}
-          onDirtyChange={
-            view.onTabDirtyChange ? handleActiveTabDirtyChange : undefined
-          }
+          onDirtyChange={view.onTabDirtyChange ? handleActiveTabDirtyChange : undefined}
         />
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-          <p className="text-sm font-medium text-foreground">
+        <div className='flex h-full flex-col items-center justify-center gap-2 p-6 text-center'>
+          <p className='text-sm font-medium text-foreground'>
             Preview not available for {activeTab.name}
           </p>
         </div>

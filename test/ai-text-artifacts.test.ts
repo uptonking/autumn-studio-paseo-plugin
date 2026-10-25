@@ -1,43 +1,35 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   appendExtractedVersion,
   deleteExtractedVersion,
   readDocumentMetadata,
-} from "../server/ai-text/metadata-store.ts";
-import { sanitizeAssetRelativePath } from "../shared/asset-paths.ts";
+} from '../server/ai-text/metadata-store.ts';
+import { sanitizeAssetRelativePath } from '../shared/asset-paths.ts';
 import {
   readExtractedVersionAsset,
   readExtractedVersionLayout,
-} from "../server/ai-text/version-artifacts.ts";
-import type { AiTextLayoutDocument } from "../shared/ai-text/layout.ts";
-import { DEFAULT_AI_TEXT_EXTRACTION } from "../shared/ai-text/profiles.ts";
-import type { AiTextVersionProvenance } from "../shared/ai-text/settings.ts";
+} from '../server/ai-text/version-artifacts.ts';
+import type { AiTextLayoutDocument } from '../shared/ai-text/layout.ts';
+import { DEFAULT_AI_TEXT_EXTRACTION } from '../shared/ai-text/profiles.ts';
+import type { AiTextVersionProvenance } from '../shared/ai-text/settings.ts';
 
 function sampleProvenance(
   overrides: Partial<AiTextVersionProvenance> = {},
 ): AiTextVersionProvenance {
   return {
-    profileId: "mineru-auto",
-    profileName: "MinerU Auto",
-    profileFingerprint: "fingerprint",
-    requestedEngineId: "mineru",
-    effectiveEngineId: "mineru",
-    engineLabel: "MinerU",
-    route: "local-cli",
+    profileId: 'mineru-auto',
+    profileName: 'MinerU Auto',
+    profileFingerprint: 'fingerprint',
+    requestedEngineId: 'mineru',
+    effectiveEngineId: 'mineru',
+    engineLabel: 'MinerU',
+    route: 'local-cli',
     extraction: DEFAULT_AI_TEXT_EXTRACTION,
-    refinement: { mode: "local", didRun: false },
+    refinement: { mode: 'local', didRun: false },
     warnings: [],
     ...overrides,
   };
@@ -45,99 +37,93 @@ function sampleProvenance(
 
 const SAMPLE_LAYOUT: AiTextLayoutDocument = {
   schemaVersion: 1,
-  source: "mineru-kit",
-  parserId: "mineru",
-  producedAt: "2026-10-21T00:00:00.000Z",
+  source: 'mineru-kit',
+  parserId: 'mineru',
+  producedAt: '2026-10-21T00:00:00.000Z',
   pageCount: 1,
   blockCount: 2,
   blocks: [
     {
-      id: "p1-b0",
+      id: 'p1-b0',
       pageNumber: 1,
-      type: "text",
+      type: 'text',
       bbox: [0.1, 0.1, 0.9, 0.3],
-      text: "Hello layout",
+      text: 'Hello layout',
     },
     {
-      id: "p1-b1",
+      id: 'p1-b1',
       pageNumber: 1,
-      type: "image",
+      type: 'image',
       bbox: [0.1, 0.4, 0.6, 0.8],
-      text: "Diagram",
-      imagePath: "images/pixel.png",
+      text: 'Diagram',
+      imagePath: 'images/pixel.png',
     },
   ],
 };
 
 const PIXEL_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64",
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
 );
 
-describe("ai-text artifacts: layout and assets", () => {
+describe('ai-text artifacts: layout and assets', () => {
   let workspaceRoot: string;
 
   before(async () => {
-    workspaceRoot = await mkdtemp(join(tmpdir(), "paseo-ai-text-artifacts-"));
+    workspaceRoot = await mkdtemp(join(tmpdir(), 'paseo-ai-text-artifacts-'));
   });
 
   after(async () => {
     await rm(workspaceRoot, { recursive: true, force: true });
   });
 
-  it("rejects unsafe asset paths", () => {
-    assert.equal(sanitizeAssetRelativePath("images/a.png"), "images/a.png");
-    assert.equal(
-      sanitizeAssetRelativePath("./images/nested/a.jpg"),
-      "images/nested/a.jpg",
-    );
-    assert.equal(sanitizeAssetRelativePath("/images/a.png"), "images/a.png");
-    assert.equal(
-      sanitizeAssetRelativePath("images/nested/deep/a.png"),
-      "images/nested/deep/a.png",
-    );
+  it('rejects unsafe asset paths', () => {
+    assert.equal(sanitizeAssetRelativePath('images/a.png'), 'images/a.png');
+    assert.equal(sanitizeAssetRelativePath('./images/nested/a.jpg'), 'images/nested/a.jpg');
+    assert.equal(sanitizeAssetRelativePath('/images/a.png'), 'images/a.png');
+    assert.equal(sanitizeAssetRelativePath('images/nested/deep/a.png'), 'images/nested/deep/a.png');
     for (const unsafe of [
-      "../images/a.png",
-      "//images/a.png",
-      "images/../../a.png",
-      "images//a.png",
-      "files/a.png",
-      "a.png",
-      "",
+      '../images/a.png',
+      '//images/a.png',
+      'images/../../a.png',
+      'images//a.png',
+      'files/a.png',
+      'a.png',
+      '',
     ]) {
       assert.equal(sanitizeAssetRelativePath(unsafe), null, unsafe);
     }
   });
 
-  it("persists layout, assets, and metadata together and serves them back", async () => {
+  it('persists layout, assets, and metadata together and serves them back', async () => {
     const appended = await appendExtractedVersion({
       workspaceRootPath: workspaceRoot,
-      sourceRelPath: "docs/guide.pdf",
+      sourceRelPath: 'docs/guide.pdf',
       sourceSize: 2048,
       sourceMtimeMs: 1700000000000,
-      markdownContent: "# Guide\n\nHello layout\n",
+      markdownContent: '# Guide\n\nHello layout\n',
       durationMs: 120,
       provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
       assets: [
-        { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },
-        { path: "../escape.png", data: new Uint8Array([1, 2, 3]) },
+        { path: 'images/pixel.png', data: new Uint8Array(PIXEL_PNG) },
+        { path: '../escape.png', data: new Uint8Array([1, 2, 3]) },
       ],
     });
 
     const version = appended.newVersion;
-    assert.equal(version.provenance.route, "local-cli");
+    assert.equal(version.provenance.route, 'local-cli');
     assert.equal(version.provenance.warnings?.length, 1);
-    assert.match(version.provenance.warnings![0]!, /unsafe asset path/);
+    assert.match(version.provenance.warnings![0], /unsafe asset path/);
     assert.equal(version.layout?.blockCount, 2);
     assert.equal(version.layout?.pageCount, 1);
-    assert.equal(version.layout?.source, "mineru-kit");
+    assert.equal(version.layout?.source, 'mineru-kit');
     assert.equal(version.assets?.imageCount, 1);
     assert.ok(version.assets!.totalBytes > 0);
 
     const layoutResult = await readExtractedVersionLayout(
       workspaceRoot,
-      "docs/guide.pdf",
+      'docs/guide.pdf',
       version.id,
     );
     assert.equal(layoutResult.message, undefined);
@@ -145,109 +131,102 @@ describe("ai-text artifacts: layout and assets", () => {
 
     const asset = await readExtractedVersionAsset(
       workspaceRoot,
-      "docs/guide.pdf",
+      'docs/guide.pdf',
       version.id,
-      "images/pixel.png",
+      'images/pixel.png',
     );
-    assert.equal(asset.mimeType, "image/png");
-    assert.deepEqual(Buffer.from(asset.base64, "base64"), PIXEL_PNG);
+    assert.equal(asset.mimeType, 'image/png');
+    assert.deepEqual(Buffer.from(asset.base64, 'base64'), PIXEL_PNG);
 
     const assetDir = await readdir(
-      join(workspaceRoot, ".autumn", "docs__guide.pdf", version.assets!.dirName, "images"),
+      join(workspaceRoot, '.autumn', 'docs__guide.pdf', version.assets!.dirName, 'images'),
     );
-    assert.deepEqual(assetDir, ["pixel.png"]);
+    assert.deepEqual(assetDir, ['pixel.png']);
 
     await assert.rejects(
-      readExtractedVersionAsset(
-        workspaceRoot,
-        "docs/guide.pdf",
-        version.id,
-        "../metadata.json",
-      ),
+      readExtractedVersionAsset(workspaceRoot, 'docs/guide.pdf', version.id, '../metadata.json'),
       /Invalid image asset path/,
     );
   });
 
-  it("degrades to a clear message when a version has no layout", async () => {
+  it('degrades to a clear message when a version has no layout', async () => {
     const appended = await appendExtractedVersion({
       workspaceRootPath: workspaceRoot,
-      sourceRelPath: "docs/plain.pdf",
+      sourceRelPath: 'docs/plain.pdf',
       sourceSize: 10,
       sourceMtimeMs: 1700000000000,
-      markdownContent: "# Plain\n",
+      markdownContent: '# Plain\n',
       durationMs: 10,
       provenance: sampleProvenance(),
     });
 
     const result = await readExtractedVersionLayout(
       workspaceRoot,
-      "docs/plain.pdf",
+      'docs/plain.pdf',
       appended.newVersion.id,
     );
     assert.equal(result.layout, null);
-    assert.match(result.message ?? "", /no layout metadata/);
+    assert.match(result.message ?? '', /no layout metadata/);
 
-    const metadata = await readDocumentMetadata(workspaceRoot, "docs/plain.pdf");
+    const metadata = await readDocumentMetadata(workspaceRoot, 'docs/plain.pdf');
     assert.equal(metadata.metadata?.versions[0]?.layout, null);
   });
 
-  it("stores nested and duplicate image paths once", async () => {
+  it('stores nested and duplicate image paths once', async () => {
     const appended = await appendExtractedVersion({
       workspaceRootPath: workspaceRoot,
-      sourceRelPath: "docs/nested.pdf",
+      sourceRelPath: 'docs/nested.pdf',
       sourceSize: 10,
       sourceMtimeMs: 1700000000000,
-      markdownContent: "# Nested\n",
+      markdownContent: '# Nested\n',
       durationMs: 10,
       provenance: sampleProvenance(),
       assets: [
-        { path: "images/nested/deep/pixel.png", data: new Uint8Array(PIXEL_PNG) },
-        { path: "images/nested/deep/pixel.png", data: new Uint8Array(PIXEL_PNG) },
+        {
+          path: 'images/nested/deep/pixel.png',
+          data: new Uint8Array(PIXEL_PNG),
+        },
+        {
+          path: 'images/nested/deep/pixel.png',
+          data: new Uint8Array(PIXEL_PNG),
+        },
       ],
     });
 
     const version = appended.newVersion;
     assert.equal(version.assets?.imageCount, 1);
-    assert.match(
-      version.provenance.warnings?.join("\n") ?? "",
-      /duplicate image asset/,
-    );
+    assert.match(version.provenance.warnings?.join('\n') ?? '', /duplicate image asset/);
 
     const asset = await readExtractedVersionAsset(
       workspaceRoot,
-      "docs/nested.pdf",
+      'docs/nested.pdf',
       version.id,
-      "images/nested/deep/pixel.png",
+      'images/nested/deep/pixel.png',
     );
-    assert.deepEqual(Buffer.from(asset.base64, "base64"), PIXEL_PNG);
+    assert.deepEqual(Buffer.from(asset.base64, 'base64'), PIXEL_PNG);
   });
 
-  it("clears missing layout and asset refs on read, and deletes them with the version", async () => {
+  it('clears missing layout and asset refs on read, and deletes them with the version', async () => {
     const appended = await appendExtractedVersion({
       workspaceRootPath: workspaceRoot,
-      sourceRelPath: "docs/removable.pdf",
+      sourceRelPath: 'docs/removable.pdf',
       sourceSize: 10,
       sourceMtimeMs: 1700000000000,
-      markdownContent: "# Removable\n",
+      markdownContent: '# Removable\n',
       durationMs: 10,
       provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
-      assets: [
-        { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },
-      ],
+      assets: [{ path: 'images/pixel.png', data: new Uint8Array(PIXEL_PNG) }],
     });
     const version = appended.newVersion;
-    const docFolder = join(workspaceRoot, ".autumn", "docs__removable.pdf");
+    const docFolder = join(workspaceRoot, '.autumn', 'docs__removable.pdf');
 
     await rm(join(docFolder, version.layout!.fileName));
-    const withoutLayout = await readDocumentMetadata(
-      workspaceRoot,
-      "docs/removable.pdf",
-    );
+    const withoutLayout = await readDocumentMetadata(workspaceRoot, 'docs/removable.pdf');
     assert.equal(withoutLayout.metadata?.versions[0]?.layout, null);
     assert.ok(withoutLayout.metadata?.versions[0]?.assets);
 
-    await deleteExtractedVersion(workspaceRoot, "docs/removable.pdf", version.id);
+    await deleteExtractedVersion(workspaceRoot, 'docs/removable.pdf', version.id);
     assert.equal(
       await readdir(docFolder).then(
         () => true,
@@ -256,54 +235,45 @@ describe("ai-text artifacts: layout and assets", () => {
       false,
     );
 
-    const deleted = await readDocumentMetadata(
-      workspaceRoot,
-      "docs/removable.pdf",
-    );
+    const deleted = await readDocumentMetadata(workspaceRoot, 'docs/removable.pdf');
     assert.equal(deleted.metadata, null);
   });
 
-  it("ignores tampered metadata paths instead of deleting workspace files", async () => {
-    await mkdir(join(workspaceRoot, "docs"), { recursive: true });
-    const sentinelPath = join(workspaceRoot, "docs", "keep.txt");
-    await writeFile(sentinelPath, "keep me");
+  it('ignores tampered metadata paths instead of deleting workspace files', async () => {
+    await mkdir(join(workspaceRoot, 'docs'), { recursive: true });
+    const sentinelPath = join(workspaceRoot, 'docs', 'keep.txt');
+    await writeFile(sentinelPath, 'keep me');
 
     const appended = await appendExtractedVersion({
       workspaceRootPath: workspaceRoot,
-      sourceRelPath: "docs/tamper.pdf",
+      sourceRelPath: 'docs/tamper.pdf',
       sourceSize: 10,
       sourceMtimeMs: 1700000000000,
-      markdownContent: "# Tamper\n",
+      markdownContent: '# Tamper\n',
       durationMs: 10,
       provenance: sampleProvenance(),
       layout: SAMPLE_LAYOUT,
-      assets: [
-        { path: "images/pixel.png", data: new Uint8Array(PIXEL_PNG) },
-      ],
+      assets: [{ path: 'images/pixel.png', data: new Uint8Array(PIXEL_PNG) }],
     });
     const version = appended.newVersion;
-    const docFolder = join(workspaceRoot, ".autumn", "docs__tamper.pdf");
-    const metadataPath = join(docFolder, "metadata.json");
-    const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    const docFolder = join(workspaceRoot, '.autumn', 'docs__tamper.pdf');
+    const metadataPath = join(docFolder, 'metadata.json');
+    const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
 
     // A record whose Markdown path points at an unrelated workspace file is
     // skipped, so deleting the version cannot unlink that file.
     metadata.versions[0] = {
       ...metadata.versions[0],
-      fileName: "keep.txt",
-      relPath: "docs/keep.txt",
+      fileName: 'keep.txt',
+      relPath: 'docs/keep.txt',
     };
     await writeFile(metadataPath, JSON.stringify(metadata));
 
-    const hidden = await readDocumentMetadata(workspaceRoot, "docs/tamper.pdf");
+    const hidden = await readDocumentMetadata(workspaceRoot, 'docs/tamper.pdf');
     assert.equal(hidden.metadata, null);
-    const untouched = await deleteExtractedVersion(
-      workspaceRoot,
-      "docs/tamper.pdf",
-      version.id,
-    );
+    const untouched = await deleteExtractedVersion(workspaceRoot, 'docs/tamper.pdf', version.id);
     assert.equal(untouched.metadata, null);
-    assert.equal(await readFile(sentinelPath, "utf8"), "keep me");
+    assert.equal(await readFile(sentinelPath, 'utf8'), 'keep me');
     assert.ok((await stat(docFolder)).isDirectory());
 
     // Layout and asset refs are derived from the version id, so hostile refs
@@ -315,29 +285,20 @@ describe("ai-text artifacts: layout and assets", () => {
       relPath: version.relPath,
       layout: {
         ...version.layout!,
-        fileName: "keep.txt",
-        relPath: "docs/keep.txt",
+        fileName: 'keep.txt',
+        relPath: 'docs/keep.txt',
       },
-      assets: { ...version.assets!, dirName: ".." },
+      assets: { ...version.assets!, dirName: '..' },
     };
     await writeFile(metadataPath, JSON.stringify(metadata));
 
-    const normalized = await readDocumentMetadata(
-      workspaceRoot,
-      "docs/tamper.pdf",
-    );
-    assert.equal(
-      normalized.metadata?.versions[0]?.layout?.relPath,
-      version.layout?.relPath,
-    );
-    assert.equal(
-      normalized.metadata?.versions[0]?.assets?.dirName,
-      version.assets?.dirName,
-    );
+    const normalized = await readDocumentMetadata(workspaceRoot, 'docs/tamper.pdf');
+    assert.equal(normalized.metadata?.versions[0]?.layout?.relPath, version.layout?.relPath);
+    assert.equal(normalized.metadata?.versions[0]?.assets?.dirName, version.assets?.dirName);
 
-    await deleteExtractedVersion(workspaceRoot, "docs/tamper.pdf", version.id);
-    assert.equal(await readFile(sentinelPath, "utf8"), "keep me");
-    assert.ok((await stat(join(workspaceRoot, ".autumn"))).isDirectory());
+    await deleteExtractedVersion(workspaceRoot, 'docs/tamper.pdf', version.id);
+    assert.equal(await readFile(sentinelPath, 'utf8'), 'keep me');
+    assert.ok((await stat(join(workspaceRoot, '.autumn'))).isDirectory());
     assert.equal(
       await readdir(docFolder).then(
         () => true,

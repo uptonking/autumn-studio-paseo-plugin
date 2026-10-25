@@ -1,10 +1,10 @@
 // Runtime helpers for the AI Text view chrome: the docked metadata panel,
 // the right-pane actions menu, and hiding/showing the original viewer.
 
-import { rpcInputs } from "./runtime-test-harness.mjs";
+import { rpcInputs } from './runtime-test-harness.mjs';
 
 const click = (dom, element) =>
-  element.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  element.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -12,35 +12,31 @@ export async function verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane })
   // The metadata panel starts hidden (settings default) and opens on demand
   // from the view's ⋯ menu.
   if (rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]')) {
-    throw new Error("AI text metadata panel must be hidden by default");
+    throw new Error('AI text metadata panel must be hidden by default');
   }
   const initialActionsTrigger = rightSplitPane.querySelector(
     '[data-testid="ai-text-view-actions"]',
   );
   if (!initialActionsTrigger) {
-    throw new Error("AI text view three-dots actions button missing");
+    throw new Error('AI text view three-dots actions button missing');
   }
   click(dom, initialActionsTrigger);
   await wait(80);
-  const initialShowItem = shadow.querySelector(
-    '[data-testid="ai-text-show-metadata-menu-item"]',
-  );
+  const initialShowItem = shadow.querySelector('[data-testid="ai-text-show-metadata-menu-item"]');
   if (!initialShowItem) {
     throw new Error("'Show AI text metadata' menu item missing on first open");
   }
   click(dom, initialShowItem);
   await wait(80);
 
-  const metadataPanel = rightSplitPane.querySelector(
-    '[data-testid="ai-text-metadata-panel"]',
-  );
+  const metadataPanel = rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]');
   if (
     !metadataPanel ||
-    !(metadataPanel.textContent ?? "").includes("MinerU · Cloud Free") ||
-    !(metadataPanel.textContent ?? "").includes("Auto formatting")
+    !(metadataPanel.textContent ?? '').includes('MinerU · Cloud Free') ||
+    !(metadataPanel.textContent ?? '').includes('Auto formatting')
   ) {
     throw new Error(
-      "AI text metadata panel in right split pane did not display the profile and refinement provenance",
+      'AI text metadata panel in right split pane did not display the profile and refinement provenance',
     );
   }
 
@@ -49,86 +45,66 @@ export async function verifyAiTextMetadataPanel({ shadow, dom, rightSplitPane })
   );
   if (
     !profileSelect ||
-    ![...profileSelect.querySelectorAll("option")].some(
-      (option) => option.value === "mineru-cloud-free",
+    ![...profileSelect.querySelectorAll('option')].some(
+      (option) => option.value === 'mineru-cloud-free',
     )
   ) {
-    throw new Error(
-      "AI text metadata panel did not offer the configured profiles for re-parsing",
-    );
+    throw new Error('AI text metadata panel did not offer the configured profiles for re-parsing');
   }
   if (!metadataPanel.querySelector('[data-testid="ai-text-reparse-run-button"]')) {
-    throw new Error("AI text metadata panel is missing the Re-parse button");
+    throw new Error('AI text metadata panel is missing the Re-parse button');
   }
 
   // Close the metadata panel; it must disappear from the AI text view.
-  const metadataCloseBtn = metadataPanel.querySelector(
-    '[data-testid="ai-text-metadata-close"]',
-  );
+  const metadataCloseBtn = metadataPanel.querySelector('[data-testid="ai-text-metadata-close"]');
   if (!metadataCloseBtn) {
-    throw new Error("AI text metadata panel close button missing");
+    throw new Error('AI text metadata panel close button missing');
   }
   click(dom, metadataCloseBtn);
   await wait(80);
   if (rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]')) {
-    throw new Error(
-      "AI text metadata panel did not close after clicking its close icon",
-    );
+    throw new Error('AI text metadata panel did not close after clicking its close icon');
   }
 
   // Re-open it from the right pane's three-dots menu.
-  const rightActionsTrigger = rightSplitPane.querySelector(
-    '[data-testid="ai-text-view-actions"]',
-  );
+  const rightActionsTrigger = rightSplitPane.querySelector('[data-testid="ai-text-view-actions"]');
   if (!rightActionsTrigger) {
-    throw new Error("AI text view three-dots actions button missing");
+    throw new Error('AI text view three-dots actions button missing');
   }
   click(dom, rightActionsTrigger);
   await wait(80);
-  const showMetadataItem = shadow.querySelector(
-    '[data-testid="ai-text-show-metadata-menu-item"]',
-  );
+  const showMetadataItem = shadow.querySelector('[data-testid="ai-text-show-metadata-menu-item"]');
   if (!showMetadataItem) {
-    throw new Error(
-      "'Show AI text metadata' menu item missing from AI text view actions menu",
-    );
+    throw new Error("'Show AI text metadata' menu item missing from AI text view actions menu");
   }
   click(dom, showMetadataItem);
   await wait(80);
-  const reopenedPanel = rightSplitPane.querySelector(
-    '[data-testid="ai-text-metadata-panel"]',
-  );
+  const reopenedPanel = rightSplitPane.querySelector('[data-testid="ai-text-metadata-panel"]');
   if (!reopenedPanel) {
-    throw new Error(
-      "AI text metadata panel did not reopen from the three-dots menu",
-    );
+    throw new Error('AI text metadata panel did not reopen from the three-dots menu');
   }
 
   // Blocks/pages counts live only here — the layout chip is the single home.
   if (!reopenedPanel.querySelector('[data-testid="ai-text-provenance-layout"]')) {
-    throw new Error("AI text metadata panel is missing the layout stats chip");
+    throw new Error('AI text metadata panel is missing the layout stats chip');
   }
 
   // Re-parse is guarded by an inline confirmation: the first click arms the
   // button without starting a task, and Escape disarms it.
   const rpcStart = rpcInputs.length;
-  const runBtn = reopenedPanel.querySelector(
-    '[data-testid="ai-text-reparse-run-button"]',
-  );
+  const runBtn = reopenedPanel.querySelector('[data-testid="ai-text-reparse-run-button"]');
   click(dom, runBtn);
   await wait(80);
-  if (runBtn.getAttribute("data-armed") !== "true") {
-    throw new Error("First Re-parse click did not arm the inline confirmation");
+  if (runBtn.getAttribute('data-armed') !== 'true') {
+    throw new Error('First Re-parse click did not arm the inline confirmation');
   }
-  if (rpcInputs.slice(rpcStart).some((r) => r.name === "ai_text.task.start")) {
-    throw new Error("Armed Re-parse must not start a parse task");
+  if (rpcInputs.slice(rpcStart).some((r) => r.name === 'ai_text.task.start')) {
+    throw new Error('Armed Re-parse must not start a parse task');
   }
-  runBtn.dispatchEvent(
-    new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-  );
+  runBtn.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   await wait(80);
-  if (runBtn.getAttribute("data-armed") === "true") {
-    throw new Error("Escape did not disarm the Re-parse confirmation");
+  if (runBtn.getAttribute('data-armed') === 'true') {
+    throw new Error('Escape did not disarm the Re-parse confirmation');
   }
 }
 
@@ -138,7 +114,7 @@ export async function verifyAiTextSplitPaneToggles({ shadow, dom }) {
     '[data-testid="ai-text-original-pane"] [aria-label="Open PDF actions"]',
   );
   if (!pdfActionsTrigger) {
-    throw new Error("PDF actions menu trigger missing in original pane");
+    throw new Error('PDF actions menu trigger missing in original pane');
   }
   click(dom, pdfActionsTrigger);
   await wait(80);
@@ -146,22 +122,16 @@ export async function verifyAiTextSplitPaneToggles({ shadow, dom }) {
     '[data-testid="ai-text-original-close-menu-item"]',
   );
   if (!closeThisViewerItem) {
-    throw new Error(
-      "'Close this viewer' menu item missing from the original PDF actions menu",
-    );
+    throw new Error("'Close this viewer' menu item missing from the original PDF actions menu");
   }
   click(dom, closeThisViewerItem);
   await wait(150);
 
   if (shadow.querySelector('[data-testid="ai-text-original-pane"]')) {
-    throw new Error(
-      "Original viewer did not hide after clicking 'Close this viewer'",
-    );
+    throw new Error("Original viewer did not hide after clicking 'Close this viewer'");
   }
   if (!shadow.querySelector('[data-testid="ai-text-split-pane"]')) {
-    throw new Error(
-      "AI text pane disappeared when the original viewer was hidden",
-    );
+    throw new Error('AI text pane disappeared when the original viewer was hidden');
   }
 
   // Right AI text view: "Show original file" restores the left viewer.
@@ -169,29 +139,21 @@ export async function verifyAiTextSplitPaneToggles({ shadow, dom }) {
     '[data-testid="ai-text-split-pane"] [data-testid="ai-text-view-actions"]',
   );
   if (!rightActionsTriggerAfterHide) {
-    throw new Error(
-      "AI text view actions button missing after hiding the original viewer",
-    );
+    throw new Error('AI text view actions button missing after hiding the original viewer');
   }
   click(dom, rightActionsTriggerAfterHide);
   await wait(80);
-  const showOriginalItem = shadow.querySelector(
-    '[data-testid="ai-text-show-original-menu-item"]',
-  );
+  const showOriginalItem = shadow.querySelector('[data-testid="ai-text-show-original-menu-item"]');
   if (!showOriginalItem) {
-    throw new Error(
-      "'Show original file' menu item missing from AI text view actions menu",
-    );
+    throw new Error("'Show original file' menu item missing from AI text view actions menu");
   }
   click(dom, showOriginalItem);
   await wait(200);
 
   if (!shadow.querySelector('[data-testid="ai-text-original-pane"]')) {
-    throw new Error(
-      "Original viewer did not reappear after clicking 'Show original file'",
-    );
+    throw new Error("Original viewer did not reappear after clicking 'Show original file'");
   }
   if (!shadow.querySelector('[data-testid="ai-text-split-resizer"]')) {
-    throw new Error("Split resizer did not reappear with the original viewer");
+    throw new Error('Split resizer did not reappear with the original viewer');
   }
 }

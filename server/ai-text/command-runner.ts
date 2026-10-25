@@ -1,5 +1,5 @@
-import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { spawnProcess, terminateProcess } from "@getpaseo/plugin/server";
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawnProcess, terminateProcess } from '@getpaseo/plugin/server';
 
 export interface RunProcessOptions {
   command: string;
@@ -32,7 +32,7 @@ const MAX_PENDING_CHARS = 16 * 1024;
 class OutputCollector {
   readonly chunks: string[] = [];
   private bytes = 0;
-  private pending = "";
+  private pending = '';
   private readonly maxBytes: number;
   private readonly onLine?: (line: string) => void;
 
@@ -60,18 +60,18 @@ class OutputCollector {
     if (this.onLine && this.pending.trim()) {
       this.emitLine(this.pending);
     }
-    this.pending = "";
+    this.pending = '';
   }
 
   text(): string {
-    return this.chunks.join("");
+    return this.chunks.join('');
   }
 
   private emitCompleteLines(): void {
     // Progress bars redraw with `\r`; treat it as a line break so phase and
     // percentage detection sees each update instead of one giant line.
     const lines = this.pending.split(/\r\n|\r|\n/);
-    this.pending = lines.pop() ?? "";
+    this.pending = lines.pop() ?? '';
     for (const line of lines) this.emitLine(line);
   }
 
@@ -79,9 +79,7 @@ class OutputCollector {
     const trimmed = line.trim();
     if (!trimmed) return;
     this.onLine?.(
-      trimmed.length > MAX_EMITTED_LINE_CHARS
-        ? trimmed.slice(-MAX_EMITTED_LINE_CHARS)
-        : trimmed,
+      trimmed.length > MAX_EMITTED_LINE_CHARS ? trimmed.slice(-MAX_EMITTED_LINE_CHARS) : trimmed,
     );
   }
 }
@@ -90,9 +88,7 @@ class OutputCollector {
  * Spawns a CLI with piped output, streaming complete log lines while the
  * process runs. Resolves for any exit code; callers decide what failure means.
  */
-export async function runProcess(
-  options: RunProcessOptions,
-): Promise<RunProcessResult> {
+export async function runProcess(options: RunProcessOptions): Promise<RunProcessResult> {
   const maxBufferBytes = options.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES;
   const stdout = new OutputCollector(maxBufferBytes, options.onLog);
   const stderr = new OutputCollector(maxBufferBytes, options.onLog);
@@ -101,8 +97,8 @@ export async function runProcess(
     return {
       code: null,
       signal: null,
-      stdout: "",
-      stderr: "",
+      stdout: '',
+      stderr: '',
       timedOut: false,
       aborted: true,
     };
@@ -113,18 +109,16 @@ export async function runProcess(
     child = spawnProcess(options.command, options.args ?? [], {
       cwd: options.cwd,
       env: options.env,
-      stdio: "pipe",
+      stdio: 'pipe',
     });
   } catch (error) {
-    throw error instanceof Error
-      ? error
-      : new Error(`Failed to start ${options.command}`);
+    throw error instanceof Error ? error : new Error(`Failed to start ${options.command}`);
   }
 
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk: string) => stdout.push(chunk));
-  child.stderr.on("data", (chunk: string) => stderr.push(chunk));
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk: string) => stdout.push(chunk));
+  child.stderr.on('data', (chunk: string) => stderr.push(chunk));
 
   let timedOut = false;
   let aborted = false;
@@ -132,10 +126,10 @@ export async function runProcess(
   let timeoutHandle: NodeJS.Timeout | null = null;
 
   const stopChild = () => {
-    void terminateProcess(child, "SIGTERM").catch(() => undefined);
+    void terminateProcess(child, 'SIGTERM').catch(() => undefined);
     setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
-        void terminateProcess(child, "SIGKILL").catch(() => undefined);
+        void terminateProcess(child, 'SIGKILL').catch(() => undefined);
       }
     }, 3000).unref?.();
   };
@@ -144,7 +138,7 @@ export async function runProcess(
     aborted = true;
     stopChild();
   };
-  options.signal?.addEventListener("abort", onAbort, { once: true });
+  options.signal?.addEventListener('abort', onAbort, { once: true });
   // The signal can flip between the check above and the listener; a missed
   // abort would leave the CLI running to completion.
   if (options.signal?.aborted) onAbort();
@@ -159,21 +153,17 @@ export async function runProcess(
   return await new Promise<RunProcessResult>((resolve, reject) => {
     const cleanup = () => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      options.signal?.removeEventListener("abort", onAbort);
+      options.signal?.removeEventListener('abort', onAbort);
     };
 
-    child.on("error", (error) => {
+    child.on('error', (error) => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(
-        error instanceof Error
-          ? error
-          : new Error(`Failed to run ${options.command}`),
-      );
+      reject(error instanceof Error ? error : new Error(`Failed to run ${options.command}`));
     });
 
-    child.on("close", (code, signal) => {
+    child.on('close', (code, signal) => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -191,14 +181,9 @@ export async function runProcess(
   });
 }
 
-export function buildProcessError(
-  command: string,
-  result: RunProcessResult,
-): string {
+export function buildProcessError(command: string, result: RunProcessResult): string {
   if (result.timedOut) return `${command} timed out`;
   if (result.aborted) return `${command} was cancelled`;
   const detail = (result.stderr || result.stdout).trim().slice(-1200);
-  return `${command} exited with code ${result.code ?? "unknown"}${
-    detail ? `: ${detail}` : ""
-  }`;
+  return `${command} exited with code ${result.code ?? 'unknown'}${detail ? `: ${detail}` : ''}`;
 }

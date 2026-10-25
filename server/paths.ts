@@ -1,5 +1,5 @@
-import { realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 /**
  * Resolves a workspace id to its directory on disk.
@@ -26,21 +26,23 @@ export async function workspaceRoot(paseo: any, workspaceId: string): Promise<st
  * scoped to the workspace.
  */
 export async function safeResolve(root: string, relPath: string): Promise<string> {
-  if (relPath.includes("\0")) throw new Error("Invalid path");
+  if (relPath.includes('\0')) throw new Error('Invalid path');
   const realRoot = await realpath(root);
-  const normalizedRel = relPath.replace(/^\/+/, "");
+  const normalizedRel = relPath.replace(/^\/+/, '');
   let target: string;
   try {
     target = await realpath(resolve(realRoot, normalizedRel));
   } catch (err: any) {
-    if (err && typeof err === "object" && err.code === "ENOENT") {
-      throw new Error(`ENOENT: File not found: ${normalizedRel}`);
+    if (err && typeof err === 'object' && err.code === 'ENOENT') {
+      throw new Error(`ENOENT: File not found: ${normalizedRel}`, {
+        cause: err,
+      });
     }
     throw err;
   }
   const rootPrefix = realRoot.endsWith(sep) ? realRoot : realRoot + sep;
   if (target !== realRoot && !target.startsWith(rootPrefix)) {
-    throw new Error("Path escapes the workspace");
+    throw new Error('Path escapes the workspace');
   }
   return target;
 }
@@ -55,11 +57,8 @@ export async function safeResolve(root: string, relPath: string): Promise<string
  * ancestor and reattaches the missing tail, so a deleted file keeps a stable
  * identity for workspace-keyed features even when the root is a symlink.
  */
-export async function locateInWorkspace(
-  root: string,
-  absPath: string,
-): Promise<string | null> {
-  if (absPath.includes("\0") || !isAbsolute(absPath)) return null;
+export async function locateInWorkspace(root: string, absPath: string): Promise<string | null> {
+  if (absPath.includes('\0') || !isAbsolute(absPath)) return null;
   const realRoot = await realpath(root);
   let target: string;
   try {
@@ -70,20 +69,14 @@ export async function locateInWorkspace(
   const rootPrefix = realRoot.endsWith(sep) ? realRoot : realRoot + sep;
   if (!target.startsWith(rootPrefix)) return null;
   const rel = target.slice(rootPrefix.length);
-  return rel ? rel.split(sep).join("/") : null;
+  return rel ? rel.split(sep).join('/') : null;
 }
 
 async function realpathMissingTail(path: string): Promise<string> {
   try {
     return await realpath(path);
   } catch (err: unknown) {
-    if (
-      !(
-        err &&
-        typeof err === "object" &&
-        (err as { code?: string }).code === "ENOENT"
-      )
-    ) {
+    if (!(err && typeof err === 'object' && (err as { code?: string }).code === 'ENOENT')) {
       throw err;
     }
     const parent = dirname(path);
@@ -105,7 +98,7 @@ export async function atomicWriteFile(
 ): Promise<{ size: number; mtimeMs: number }> {
   const existingStats = await stat(filePath);
   if (existingStats.isDirectory()) {
-    throw new Error("Cannot overwrite a directory");
+    throw new Error('Cannot overwrite a directory');
   }
   const dir = dirname(filePath);
   const base = basename(filePath);
@@ -128,4 +121,3 @@ export async function atomicWriteFile(
     mtimeMs: updatedStats.mtimeMs,
   };
 }
-

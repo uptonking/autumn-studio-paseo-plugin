@@ -1,85 +1,65 @@
-import { defineSettings } from "@getpaseo/plugin";
-import { z } from "zod";
+import { defineSettings } from '@getpaseo/plugin';
+import { z } from 'zod';
 import {
   aiTextSettingsSchema,
   createDefaultAiTextSettings,
   migrateAutumnStudioSettingsV1,
   type AiTextSettings,
-} from "./ai-text/settings.ts";
+} from './ai-text/settings.ts';
 import {
   aiTextProfileSchema,
   createDefaultAiTextProfiles,
   isValidAiTextProfileId,
   normalizeAiTextProfile,
   type AiTextProfile,
-} from "./ai-text/profiles.ts";
-import { normalizeAiTextOutputRootDir } from "./ai-text/output-root.ts";
+} from './ai-text/profiles.ts';
+import { normalizeAiTextOutputRootDir } from './ai-text/output-root.ts';
 
-export * from "./ai-text/settings.ts";
+export * from './ai-text/settings.ts';
 
-export const fileOpenModeSchema = z.enum(["in-place", "dialog", "new-tab"]);
+export const fileOpenModeSchema = z.enum(['in-place', 'dialog', 'new-tab']);
 export type FileOpenMode = z.infer<typeof fileOpenModeSchema>;
 
-export const explorerViewModeSchema = z.enum([
-  "list",
-  "icons",
-  "columns",
-  "gallery",
-]);
+export const explorerViewModeSchema = z.enum(['list', 'icons', 'columns', 'gallery']);
 export type ExplorerViewMode = z.infer<typeof explorerViewModeSchema>;
 
-export const fileFormatOpenBehaviorSchema = z.enum(["viewer", "editor"]);
-export type FileFormatOpenBehavior = z.infer<
-  typeof fileFormatOpenBehaviorSchema
->;
+export const fileFormatOpenBehaviorSchema = z.enum(['viewer', 'editor']);
+export type FileFormatOpenBehavior = z.infer<typeof fileFormatOpenBehaviorSchema>;
 
-export const pdfDefaultZoomSchema = z.enum([
-  "fit-width",
-  "fit-page",
-  "100",
-  "125",
-  "150",
-]);
+export const pdfDefaultZoomSchema = z.enum(['fit-width', 'fit-page', '100', '125', '150']);
 export type PdfDefaultZoom = z.infer<typeof pdfDefaultZoomSchema>;
 
-export const xlsxDefaultZoomSchema = z.enum([
-  "50",
-  "75",
-  "100",
-  "125",
-  "150",
-  "200",
-]);
+export const xlsxDefaultZoomSchema = z.enum(['50', '75', '100', '125', '150', '200']);
 export type XlsxDefaultZoom = z.infer<typeof xlsxDefaultZoomSchema>;
 
 export const DEFAULT_MAX_OPEN_TABS = 8;
 
 export const generalSettingsSchema = z.object({
   enabled: z.boolean().default(true),
-  fileOpenMode: fileOpenModeSchema.default("in-place"),
+  fileOpenMode: fileOpenModeSchema.default('in-place'),
   maxOpenTabs: z.number().int().min(1).max(50).default(DEFAULT_MAX_OPEN_TABS),
-  defaultViewMode: explorerViewModeSchema.default("list"),
+  defaultViewMode: explorerViewModeSchema.default('list'),
   autoSaveEdits: z.boolean().default(true),
   fileTreeDeprecationDismissed: z.boolean().default(false),
 });
 export type GeneralSettings = z.infer<typeof generalSettingsSchema>;
 
 export const pdfSettingsSchema = z.object({
-  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default("viewer"),
-  defaultViewer: z.string().default("embedpdf-viewer"),
-  defaultEditor: z.string().default("embedpdf-editor"),
+  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('viewer'),
+  defaultViewer: z.string().default('embedpdf-viewer'),
+  defaultEditor: z.string().default('embedpdf-editor'),
   showThumbnailsByDefault: z.boolean().default(false),
-  defaultZoom: pdfDefaultZoomSchema.default("fit-width"),
+  defaultZoom: pdfDefaultZoomSchema.default('fit-width'),
   showRotateControls: z.boolean().default(true),
   showDownloadButton: z.boolean().default(true),
 });
 export type PdfSettings = z.infer<typeof pdfSettingsSchema>;
 
 export const xlsxSettingsSchema = z.object({
-  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default("viewer"),
-  defaultViewer: z.string().default("extend-xlsx-viewer"),
-  defaultEditor: z.string().default("extend-xlsx-editor"),
-  defaultZoom: xlsxDefaultZoomSchema.default("100"),
+  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('viewer'),
+  defaultViewer: z.string().default('extend-xlsx-viewer'),
+  defaultEditor: z.string().default('extend-xlsx-editor'),
+  defaultZoom: xlsxDefaultZoomSchema.default('100'),
   showFormulaBar: z.boolean().default(true),
   showHiddenSheets: z.boolean().default(false),
   showDownloadButton: z.boolean().default(true),
@@ -87,9 +67,9 @@ export const xlsxSettingsSchema = z.object({
 export type XlsxSettings = z.infer<typeof xlsxSettingsSchema>;
 
 export const textSettingsSchema = z.object({
-  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default("viewer"),
-  defaultViewer: z.string().default("code-text-viewer"),
-  defaultEditor: z.string().default("code-text-editor"),
+  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('viewer'),
+  defaultViewer: z.string().default('code-text-viewer'),
+  defaultEditor: z.string().default('code-text-editor'),
   showLineNumbers: z.boolean().default(true),
   wordWrap: z.boolean().default(true),
 });
@@ -97,37 +77,37 @@ export type TextViewerSettings = z.infer<typeof textSettingsSchema>;
 
 export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   enabled: true,
-  fileOpenMode: "in-place",
+  fileOpenMode: 'in-place',
   maxOpenTabs: DEFAULT_MAX_OPEN_TABS,
-  defaultViewMode: "list",
+  defaultViewMode: 'list',
   autoSaveEdits: true,
   fileTreeDeprecationDismissed: false,
 };
 
 export const DEFAULT_PDF_SETTINGS: PdfSettings = {
-  defaultOpenBehavior: "viewer",
-  defaultViewer: "embedpdf-viewer",
-  defaultEditor: "embedpdf-editor",
+  defaultOpenBehavior: 'viewer',
+  defaultViewer: 'embedpdf-viewer',
+  defaultEditor: 'embedpdf-editor',
   showThumbnailsByDefault: false,
-  defaultZoom: "fit-width",
+  defaultZoom: 'fit-width',
   showRotateControls: true,
   showDownloadButton: true,
 };
 
 export const DEFAULT_XLSX_SETTINGS: XlsxSettings = {
-  defaultOpenBehavior: "viewer",
-  defaultViewer: "extend-xlsx-viewer",
-  defaultEditor: "extend-xlsx-editor",
-  defaultZoom: "100",
+  defaultOpenBehavior: 'viewer',
+  defaultViewer: 'extend-xlsx-viewer',
+  defaultEditor: 'extend-xlsx-editor',
+  defaultZoom: '100',
   showFormulaBar: true,
   showHiddenSheets: false,
   showDownloadButton: true,
 };
 
 export const DEFAULT_TEXT_VIEWER_SETTINGS: TextViewerSettings = {
-  defaultOpenBehavior: "viewer",
-  defaultViewer: "code-text-viewer",
-  defaultEditor: "code-text-editor",
+  defaultOpenBehavior: 'viewer',
+  defaultViewer: 'code-text-viewer',
+  defaultEditor: 'code-text-editor',
   showLineNumbers: true,
   wordWrap: true,
 };
@@ -145,9 +125,7 @@ export const autumnStudioSettingsSchema = z.object({
   formats: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
 });
 
-export type AutumnStudioSettingsValues = z.infer<
-  typeof autumnStudioSettingsSchema
->;
+export type AutumnStudioSettingsValues = z.infer<typeof autumnStudioSettingsSchema>;
 
 export const DEFAULT_AUTUMN_STUDIO_SETTINGS: AutumnStudioSettingsValues = {
   general: DEFAULT_GENERAL_SETTINGS,
@@ -159,49 +137,47 @@ export const DEFAULT_AUTUMN_STUDIO_SETTINGS: AutumnStudioSettingsValues = {
 };
 
 export const autumnStudioSettings = defineSettings({
-  id: "preferences",
-  scope: "host",
+  id: 'preferences',
+  scope: 'host',
   version: 2,
   schema: autumnStudioSettingsSchema,
   migrate: migrateAutumnStudioSettingsV1,
 });
 
-export function toPdfViewerZoom(
-  zoom: PdfDefaultZoom
-): "fit-width" | "fit-page" | number {
+export function toPdfViewerZoom(zoom: PdfDefaultZoom): 'fit-width' | 'fit-page' | number {
   switch (zoom) {
-    case "fit-width":
-      return "fit-width";
-    case "fit-page":
-      return "fit-page";
-    case "100":
+    case 'fit-width':
+      return 'fit-width';
+    case 'fit-page':
+      return 'fit-page';
+    case '100':
       return 1;
-    case "125":
+    case '125':
       return 1.25;
-    case "150":
+    case '150':
       return 1.5;
   }
 }
 
 export function toXlsxViewerZoom(zoom: XlsxDefaultZoom): number {
   switch (zoom) {
-    case "50":
+    case '50':
       return 50;
-    case "75":
+    case '75':
       return 75;
-    case "100":
+    case '100':
       return 100;
-    case "125":
+    case '125':
       return 125;
-    case "150":
+    case '150':
       return 150;
-    case "200":
+    case '200':
       return 200;
   }
 }
 
 export function getXlsxSettings(
-  values: Partial<AutumnStudioSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined,
 ): XlsxSettings {
   return {
     ...DEFAULT_XLSX_SETTINGS,
@@ -211,7 +187,7 @@ export function getXlsxSettings(
 
 export function withXlsxSettings(
   values: AutumnStudioSettingsValues,
-  patch: Partial<XlsxSettings>
+  patch: Partial<XlsxSettings>,
 ): AutumnStudioSettingsValues {
   return {
     ...values,
@@ -230,9 +206,9 @@ export interface FormatBehaviorConfig {
 
 export function getFormatBehaviorConfig(
   values: Partial<AutumnStudioSettingsValues> | undefined,
-  kind: string
+  kind: string,
 ): FormatBehaviorConfig {
-  if (kind === "pdf") {
+  if (kind === 'pdf') {
     const pdf = { ...DEFAULT_PDF_SETTINGS, ...values?.pdf };
     return {
       defaultOpenBehavior: pdf.defaultOpenBehavior,
@@ -240,7 +216,7 @@ export function getFormatBehaviorConfig(
       defaultEditor: pdf.defaultEditor,
     };
   }
-  if (kind === "xlsx") {
+  if (kind === 'xlsx') {
     const xlsx = { ...DEFAULT_XLSX_SETTINGS, ...values?.xlsx };
     return {
       defaultOpenBehavior: xlsx.defaultOpenBehavior,
@@ -248,7 +224,7 @@ export function getFormatBehaviorConfig(
       defaultEditor: xlsx.defaultEditor,
     };
   }
-  if (kind === "text") {
+  if (kind === 'text') {
     const text = getTextViewerSettings(values);
     return {
       defaultOpenBehavior: text.defaultOpenBehavior,
@@ -257,23 +233,20 @@ export function getFormatBehaviorConfig(
     };
   }
   const raw = values?.formats?.[kind];
-  const behavior =
-    raw?.defaultOpenBehavior === "editor" ? "editor" : "viewer";
+  const behavior = raw?.defaultOpenBehavior === 'editor' ? 'editor' : 'viewer';
   return {
     defaultOpenBehavior: behavior,
-    defaultViewer:
-      typeof raw?.defaultViewer === "string" ? raw.defaultViewer : undefined,
-    defaultEditor:
-      typeof raw?.defaultEditor === "string" ? raw.defaultEditor : undefined,
+    defaultViewer: typeof raw?.defaultViewer === 'string' ? raw.defaultViewer : undefined,
+    defaultEditor: typeof raw?.defaultEditor === 'string' ? raw.defaultEditor : undefined,
   };
 }
 
 export function withFormatBehaviorConfig(
   values: AutumnStudioSettingsValues,
   kind: string,
-  patch: Partial<FormatBehaviorConfig>
+  patch: Partial<FormatBehaviorConfig>,
 ): AutumnStudioSettingsValues {
-  if (kind === "pdf") {
+  if (kind === 'pdf') {
     return {
       ...values,
       pdf: {
@@ -283,7 +256,7 @@ export function withFormatBehaviorConfig(
       },
     };
   }
-  if (kind === "xlsx") {
+  if (kind === 'xlsx') {
     return {
       ...values,
       xlsx: {
@@ -293,7 +266,7 @@ export function withFormatBehaviorConfig(
       },
     };
   }
-  if (kind === "text") {
+  if (kind === 'text') {
     return withTextViewerSettings(values, patch);
   }
   const current = getFormatBehaviorConfig(values, kind);
@@ -311,7 +284,7 @@ export function withFormatBehaviorConfig(
 }
 
 export function getTextViewerSettings(
-  values: Partial<AutumnStudioSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined,
 ): TextViewerSettings {
   return {
     ...DEFAULT_TEXT_VIEWER_SETTINGS,
@@ -321,7 +294,7 @@ export function getTextViewerSettings(
 
 export function withTextViewerSettings(
   values: AutumnStudioSettingsValues,
-  patch: Partial<TextViewerSettings>
+  patch: Partial<TextViewerSettings>,
 ): AutumnStudioSettingsValues {
   return {
     ...values,
@@ -355,20 +328,16 @@ function normalizeStoredProfiles(rawProfiles: unknown): AiTextProfile[] {
 }
 
 export function getAiTextSettings(
-  values: Partial<AutumnStudioSettingsValues> | undefined
+  values: Partial<AutumnStudioSettingsValues> | undefined,
 ): AiTextSettings {
   const raw = values?.aiText;
   const defaults = createDefaultAiTextSettings();
   const scalars = aiTextScalarSettingsSchema.safeParse(raw ?? {});
-  const base = scalars.success
-    ? scalars.data
-    : aiTextScalarSettingsSchema.parse({});
+  const base = scalars.success ? scalars.data : aiTextScalarSettingsSchema.parse({});
   const profiles = normalizeStoredProfiles(
-    typeof raw === "object" && raw !== null ? raw.profiles : undefined
+    typeof raw === 'object' && raw !== null ? raw.profiles : undefined,
   );
-  const defaultProfileId = profiles.some(
-    (profile) => profile.id === base.defaultProfileId
-  )
+  const defaultProfileId = profiles.some((profile) => profile.id === base.defaultProfileId)
     ? base.defaultProfileId
     : (profiles[0]?.id ?? defaults.defaultProfileId);
   return {
@@ -383,7 +352,7 @@ export function getAiTextSettings(
 
 export function withAiTextSettings(
   values: AutumnStudioSettingsValues,
-  patch: Partial<AiTextSettings>
+  patch: Partial<AiTextSettings>,
 ): AutumnStudioSettingsValues {
   const current = getAiTextSettings(values);
   return {

@@ -1,18 +1,8 @@
-import {
-  mkdir,
-  rename,
-  rm,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
-import type { AiTextVersionAssetsRef } from "../../shared/contracts.ts";
-import {
-  MAX_SERVED_ASSET_BYTES,
-  sanitizeAssetRelativePath,
-} from "../../shared/asset-paths.ts";
-import { resolveOutputArtifactPath } from "./metadata-paths.ts";
+import { mkdir, rename, rm, stat, unlink, writeFile } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
+import type { AiTextVersionAssetsRef } from '../../shared/contracts.ts';
+import { MAX_SERVED_ASSET_BYTES, sanitizeAssetRelativePath } from '../../shared/asset-paths.ts';
+import { resolveOutputArtifactPath } from './metadata-paths.ts';
 
 /** One image is rejected above what the asset RPC can serve. */
 export const MAX_ASSET_BYTES = MAX_SERVED_ASSET_BYTES;
@@ -38,7 +28,7 @@ export async function writeFileAtomically(
     dir,
     `.${base}.paseo-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`,
   );
-  const buf = typeof data === "string" ? Buffer.from(data, "utf8") : data;
+  const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
   try {
     await writeFile(tempPath, buf, { mode: 0o644 });
     await rename(tempPath, filePath);
@@ -82,49 +72,32 @@ export async function writeVersionAssets(input: {
         continue;
       }
       if (totalBytes + asset.data.byteLength > MAX_ASSETS_TOTAL_BYTES) {
-        input.warnings.push(
-          "Skipped remaining image assets over the 512MB version cap",
-        );
+        input.warnings.push('Skipped remaining image assets over the 512MB version cap');
         break;
       }
       const assetRelPath = `${assetsDirRelPath}/${safePath}`;
-      const assetParentRelPath = assetRelPath.slice(
-        0,
-        assetRelPath.lastIndexOf("/"),
-      );
-      const assetParentAbsPath = join(
-        assetsDirAbsPath,
-        ...safePath.split("/").slice(0, -1),
-      );
+      const assetParentRelPath = assetRelPath.slice(0, assetRelPath.lastIndexOf('/'));
+      const assetParentAbsPath = join(assetsDirAbsPath, ...safePath.split('/').slice(0, -1));
       await mkdir(assetParentAbsPath, { recursive: true });
       const resolvedParent = await resolveOutputArtifactPath(
         input.artifactBaseAbsPath,
         assetParentRelPath,
       );
-      await writeFileAtomically(
-        join(resolvedParent, basename(safePath)),
-        Buffer.from(asset.data),
-      );
+      await writeFileAtomically(join(resolvedParent, basename(safePath)), Buffer.from(asset.data));
       seen.add(safePath);
       imageCount += 1;
       totalBytes += asset.data.byteLength;
     }
   } catch (error) {
     input.warnings.push(
-      `Image assets could not be stored: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `Image assets could not be stored: ${error instanceof Error ? error.message : String(error)}`,
     );
-    await rm(assetsDirAbsPath, { recursive: true, force: true }).catch(
-      () => undefined,
-    );
+    await rm(assetsDirAbsPath, { recursive: true, force: true }).catch(() => undefined);
     return null;
   }
 
   if (imageCount === 0) {
-    await rm(assetsDirAbsPath, { recursive: true, force: true }).catch(
-      () => undefined,
-    );
+    await rm(assetsDirAbsPath, { recursive: true, force: true }).catch(() => undefined);
     return null;
   }
   return { dirName: input.assetsDirName, imageCount, totalBytes };

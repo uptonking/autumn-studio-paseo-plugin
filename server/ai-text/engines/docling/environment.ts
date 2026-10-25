@@ -1,22 +1,16 @@
-import { readdir, realpath } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import type { AiTextEngineEnvironment } from "../../../../shared/ai-text/task.ts";
-import type { DoclingConfig } from "../../../../shared/ai-text/engine-configs.ts";
-import { runProcess } from "../../command-runner.ts";
-import {
-  resolveExecutable,
-  uvToolDirFromExecutablePath,
-} from "../../executable.ts";
-import { computeDirectorySize } from "../../disk.ts";
-import {
-  compareVersions,
-  fetchLatestEngineVersion,
-} from "../../engine-versions.ts";
+import { readdir, realpath } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import type { AiTextEngineEnvironment } from '../../../../shared/ai-text/task.ts';
+import type { DoclingConfig } from '../../../../shared/ai-text/engine-configs.ts';
+import { runProcess } from '../../command-runner.ts';
+import { resolveExecutable, uvToolDirFromExecutablePath } from '../../executable.ts';
+import { computeDirectorySize } from '../../disk.ts';
+import { compareVersions, fetchLatestEngineVersion } from '../../engine-versions.ts';
 
 const ENVIRONMENT_CACHE_MS = 60_000;
 const VERSION_TIMEOUT_MS = 20_000;
-const MIN_DOCLING_VERSION = "2.50.0";
+const MIN_DOCLING_VERSION = '2.50.0';
 
 interface CacheEntry {
   at: number;
@@ -44,9 +38,8 @@ export async function resolveModelPath(config: DoclingConfig): Promise<{
   path: string;
   populated: boolean;
 }> {
-  const configured =
-    config.artifactsPath.trim() || process.env.DOCLING_ARTIFACTS_PATH?.trim();
-  const path = configured || join(homedir(), ".cache", "docling", "models");
+  const configured = config.artifactsPath.trim() || process.env.DOCLING_ARTIFACTS_PATH?.trim();
+  const path = configured || join(homedir(), '.cache', 'docling', 'models');
   try {
     const entries = await readdir(path);
     return { path, populated: entries.length > 0 };
@@ -69,19 +62,19 @@ export async function getDoclingEnvironment(input: {
   indexUrl?: string;
   refresh?: boolean;
 }): Promise<AiTextEngineEnvironment> {
-  const indexUrl = input.indexUrl?.trim() ?? "";
+  const indexUrl = input.indexUrl?.trim() ?? '';
   const key = cacheKey(input.config, indexUrl);
   const cached = cache.get(key);
   if (!input.refresh && cached && Date.now() - cached.at < ENVIRONMENT_CACHE_MS) {
     return cached.value;
   }
 
-  const command = input.config.doclingCommand.trim() || "docling";
-  const toolsCommand = input.config.doclingToolsCommand.trim() || "docling-tools";
+  const command = input.config.doclingCommand.trim() || 'docling';
+  const toolsCommand = input.config.doclingToolsCommand.trim() || 'docling-tools';
   const [doclingPath, toolsPath, uvPath, modelDir] = await Promise.all([
     resolveExecutable(command),
     resolveExecutable(toolsCommand),
-    resolveExecutable("uv"),
+    resolveExecutable('uv'),
     resolveModelPath(input.config),
   ]);
 
@@ -89,7 +82,7 @@ export async function getDoclingEnvironment(input: {
   if (doclingPath) {
     const result = await runProcess({
       command: doclingPath,
-      args: ["--version"],
+      args: ['--version'],
       timeoutMs: VERSION_TIMEOUT_MS,
     });
     version = parseDoclingVersion(`${result.stdout}\n${result.stderr}`);
@@ -98,75 +91,74 @@ export async function getDoclingEnvironment(input: {
   const cliReady = Boolean(doclingPath);
   const supported = isDoclingVersionSupported(version);
   const cliComponentStatus = !cliReady
-    ? "missing"
+    ? 'missing'
     : !version
-      ? "unknown"
+      ? 'unknown'
       : supported
-        ? "ready"
-        : "outdated";
-  const components: AiTextEngineEnvironment["components"] = [
+        ? 'ready'
+        : 'outdated';
+  const components: AiTextEngineEnvironment['components'] = [
     {
-      id: "docling",
-      label: "docling CLI",
+      id: 'docling',
+      label: 'docling CLI',
       status: cliComponentStatus,
       version,
-      detail: cliReady
-        ? doclingPath
-        : `Run "uv tool install docling".`,
+      detail: cliReady ? doclingPath : `Run "uv tool install docling".`,
     },
     {
-      id: "docling-tools",
-      label: "docling-tools CLI",
-      status: toolsPath ? "ready" : "missing",
+      id: 'docling-tools',
+      label: 'docling-tools CLI',
+      status: toolsPath ? 'ready' : 'missing',
       version: null,
       detail: toolsPath ?? `Installed with Docling; run "uv tool install docling".`,
     },
     {
-      id: "models",
-      label: "Model cache",
-      status: modelDir.populated ? "ready" : "unknown",
+      id: 'models',
+      label: 'Model cache',
+      status: modelDir.populated ? 'ready' : 'unknown',
       version: null,
       detail: modelDir.populated
         ? modelDir.path
         : `No models cached at ${modelDir.path}. Docling downloads them on first parse.`,
     },
     {
-      id: "uv",
-      label: "uv",
-      status: uvPath ? "ready" : "missing",
+      id: 'uv',
+      label: 'uv',
+      status: uvPath ? 'ready' : 'missing',
       version: null,
-      detail: uvPath ?? "Needed to install or repair Docling.",
+      detail: uvPath ?? 'Needed to install or repair Docling.',
     },
   ];
 
-  const routeStatus: AiTextEngineEnvironment["routes"][number]["status"] =
-    !cliReady ? "needs-setup" : !version ? "unknown" : supported ? "ready" : "needs-setup";
+  const routeStatus: AiTextEngineEnvironment['routes'][number]['status'] = !cliReady
+    ? 'needs-setup'
+    : !version
+      ? 'unknown'
+      : supported
+        ? 'ready'
+        : 'needs-setup';
   const routeMessage = (firstParse: string): string => {
-    if (!cliReady) return "Install Docling first.";
+    if (!cliReady) return 'Install Docling first.';
     if (!version) {
-      return "Could not read the Docling version; conversion may fail.";
+      return 'Could not read the Docling version; conversion may fail.';
     }
     if (!supported) {
       return `Upgrade Docling to ${MIN_DOCLING_VERSION} or newer.`;
     }
     return firstParse;
   };
-  const routes: AiTextEngineEnvironment["routes"] = [
+  const routes: AiTextEngineEnvironment['routes'] = [
     {
-      id: "standard",
-      label: "Standard",
+      id: 'standard',
+      label: 'Standard',
       status: routeStatus,
-      message: routeMessage(
-        "First parse downloads the layout, table, and OCR models.",
-      ),
+      message: routeMessage('First parse downloads the layout, table, and OCR models.'),
     },
     {
-      id: "vlm",
-      label: "VLM",
+      id: 'vlm',
+      label: 'VLM',
       status: routeStatus,
-      message: routeMessage(
-        "First VLM parse downloads the Granite Docling model.",
-      ),
+      message: routeMessage('First VLM parse downloads the Granite Docling model.'),
     },
   ];
 
@@ -183,27 +175,19 @@ export async function getDoclingEnvironment(input: {
     );
   }
   if (!modelDir.populated) {
-    recommendations.push(
-      'Download models ahead of time with "docling-tools models download".',
-    );
+    recommendations.push('Download models ahead of time with "docling-tools models download".');
   }
 
   // The release check is fail-soft: unreachable index → null, no update badge.
-  const latestVersion = version
-    ? await fetchLatestEngineVersion("docling", indexUrl)
-    : null;
+  const latestVersion = version ? await fetchLatestEngineVersion('docling', indexUrl) : null;
   const updateAvailable = Boolean(
     latestVersion && version && compareVersions(version, latestVersion) < 0,
   );
 
-  const doclingRealPath = doclingPath
-    ? await realpath(doclingPath).catch(() => doclingPath)
-    : null;
+  const doclingRealPath = doclingPath ? await realpath(doclingPath).catch(() => doclingPath) : null;
   const enginePath = uvToolDirFromExecutablePath(doclingRealPath);
   const [engineBytes, modelBytes] = await Promise.all([
-    enginePath
-      ? computeDirectorySize(enginePath, { maxEntries: 10_000 })
-      : Promise.resolve(null),
+    enginePath ? computeDirectorySize(enginePath, { maxEntries: 10_000 }) : Promise.resolve(null),
     modelDir.populated
       ? computeDirectorySize(modelDir.path, { maxEntries: 10_000 })
       : Promise.resolve(null),
@@ -216,15 +200,9 @@ export async function getDoclingEnvironment(input: {
   };
 
   const value: AiTextEngineEnvironment = {
-    engineId: "docling",
+    engineId: 'docling',
     checkedAt: new Date().toISOString(),
-    status: !cliReady
-      ? "needs-setup"
-      : !version
-        ? "unknown"
-        : supported
-          ? "ready"
-          : "needs-setup",
+    status: !cliReady ? 'needs-setup' : !version ? 'unknown' : supported ? 'ready' : 'needs-setup',
     version,
     latestVersion,
     updateAvailable,

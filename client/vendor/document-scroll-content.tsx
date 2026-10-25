@@ -1,4 +1,3 @@
+import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 
-import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
-
-export const ScrollAreaContent = ScrollAreaPrimitive.Content
+export const ScrollAreaContent = ScrollAreaPrimitive.Content;

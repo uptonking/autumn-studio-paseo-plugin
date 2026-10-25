@@ -1,8 +1,4 @@
-import type {
-  XlsxCellAddress,
-  XlsxSheetData,
-  XlsxViewerController,
-} from "@extend-ai/react-xlsx";
+import type { XlsxCellAddress, XlsxSheetData, XlsxViewerController } from '@extend-ai/react-xlsx';
 
 const XLSX_SEARCH_BATCH_ROW_COUNT = 500;
 const XLSX_GRID_HEADER_HEIGHT = 24;
@@ -29,15 +25,15 @@ interface XlsxBatchRow {
 }
 
 function normalizeSearchText(value: unknown): string {
-  return typeof value === "string"
-    ? value
-    : value === null || value === undefined
-      ? ""
-      : String(value);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '';
 }
 
 function cellValueToSearchText(value: unknown): string {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     return normalizeSearchText(value);
   }
 
@@ -53,18 +49,18 @@ function cellValueToSearchText(value: unknown): string {
     is_text?: boolean;
   };
 
-  if (record.is_empty) return "";
-  if (record.is_error) return record.asError?.() ?? "";
-  if (record.is_text) return record.asText?.() ?? "";
+  if (record.is_empty) return '';
+  if (record.is_error) return record.asError?.() ?? '';
+  if (record.is_text) return record.asText?.() ?? '';
   if (record.is_number) return normalizeSearchText(record.asNumber?.());
-  if (record.is_boolean) return record.asBoolean?.() ? "TRUE" : "FALSE";
+  if (record.is_boolean) return record.asBoolean?.() ? 'TRUE' : 'FALSE';
 
   return normalizeSearchText(value);
 }
 
 export function cellAddressToA1({ col, row }: XlsxCellAddress): string {
   let columnNumber = col + 1;
-  let columnName = "";
+  let columnName = '';
 
   while (columnNumber > 0) {
     const remainder = (columnNumber - 1) % 26;
@@ -83,19 +79,16 @@ function getCellSearchText(
 ) {
   const worksheet = controller.workbook?.getSheet(sheet.workbookSheetIndex);
   if (!worksheet) {
-    return { displayValue: "", formula: "" };
+    return { displayValue: '', formula: '' };
   }
 
-  const formula = worksheet.getFormulaAt(row, col) ?? "";
+  const formula = worksheet.getFormulaAt(row, col) ?? '';
   const cachedFormulaValue = formula
     ? sheet.cachedFormulaValues[cellAddressToA1({ row, col })]
     : undefined;
   const formatted = worksheet.getFormattedValueAt(row, col);
 
-  if (
-    formatted &&
-    !(formula && cachedFormulaValue !== undefined && formatted.startsWith("#"))
-  ) {
+  if (formatted && !(formula && cachedFormulaValue !== undefined && formatted.startsWith('#'))) {
     return { displayValue: formatted, formula };
   }
 
@@ -116,15 +109,8 @@ function getBatchCells(row: XlsxBatchRow): XlsxBatchCell[] {
   return Array.isArray(row.cells) ? (row.cells as XlsxBatchCell[]) : [];
 }
 
-function cellMatchesQuery(
-  displayValue: string,
-  formula: string,
-  query: string,
-): boolean {
-  return (
-    displayValue.toLowerCase().includes(query) ||
-    formula.toLowerCase().includes(query)
-  );
+function cellMatchesQuery(displayValue: string, formula: string, query: string): boolean {
+  return displayValue.toLowerCase().includes(query) || formula.toLowerCase().includes(query);
 }
 
 export async function findXlsxSearchResults(
@@ -167,16 +153,9 @@ export async function findXlsxSearchResults(
       batchStartRow <= endRow;
       batchStartRow += XLSX_SEARCH_BATCH_ROW_COUNT
     ) {
-      const rowCount = Math.min(
-        XLSX_SEARCH_BATCH_ROW_COUNT,
-        endRow - batchStartRow + 1,
-      );
+      const rowCount = Math.min(XLSX_SEARCH_BATCH_ROW_COUNT, endRow - batchStartRow + 1);
       const rows = controller.getRowsBatchAsync
-        ? await controller.getRowsBatchAsync(
-            sheet.workbookSheetIndex,
-            batchStartRow,
-            rowCount,
-          )
+        ? await controller.getRowsBatchAsync(sheet.workbookSheetIndex, batchStartRow, rowCount)
         : worksheetWithBatch?.getRowsBatch?.(batchStartRow, rowCount, {
             includeFormulas: true,
             useFormattedValues: true,
@@ -225,12 +204,7 @@ export async function findXlsxSearchResults(
         }
 
         for (const col of visibleCols) {
-          const { displayValue, formula } = getCellSearchText(
-            controller,
-            sheet,
-            row,
-            col,
-          );
+          const { displayValue, formula } = getCellSearchText(controller, sheet, row, col);
           if (!cellMatchesQuery(displayValue, formula, query)) {
             continue;
           }
@@ -251,11 +225,7 @@ export async function findXlsxSearchResults(
   return results;
 }
 
-function sumAxisBefore(
-  values: number[],
-  endIndex: number,
-  zoomFactor: number,
-): number {
+function sumAxisBefore(values: number[], endIndex: number, zoomFactor: number): number {
   let total = 0;
   for (let index = 0; index < endIndex; index += 1) {
     total += (values[index] ?? 0) * zoomFactor;
@@ -284,14 +254,10 @@ export function scrollXlsxCellIntoView({
   const zoomFactor = Math.max(0.1, controller.zoomScale / 100);
   const headerHeight = XLSX_GRID_HEADER_HEIGHT * zoomFactor;
   const rowHeaderWidth = XLSX_GRID_ROW_HEADER_WIDTH * zoomFactor;
-  const rowStart =
-    headerHeight + sumAxisBefore(sheet.rowHeights, rowIndex, zoomFactor);
-  const colStart =
-    rowHeaderWidth + sumAxisBefore(sheet.colWidths, colIndex, zoomFactor);
-  const rowHeight =
-    (sheet.rowHeights[rowIndex] ?? sheet.defaultRowHeightPx) * zoomFactor;
-  const colWidth =
-    (sheet.colWidths[colIndex] ?? sheet.defaultColWidthPx) * zoomFactor;
+  const rowStart = headerHeight + sumAxisBefore(sheet.rowHeights, rowIndex, zoomFactor);
+  const colStart = rowHeaderWidth + sumAxisBefore(sheet.colWidths, colIndex, zoomFactor);
+  const rowHeight = (sheet.rowHeights[rowIndex] ?? sheet.defaultRowHeightPx) * zoomFactor;
+  const colWidth = (sheet.colWidths[colIndex] ?? sheet.defaultColWidthPx) * zoomFactor;
   const rowEnd = rowStart + rowHeight;
   const colEnd = colStart + colWidth;
   let nextTop = viewport.scrollTop;
@@ -316,6 +282,6 @@ export function scrollXlsxCellIntoView({
   viewport.scrollTo?.({
     left: Math.max(0, nextLeft),
     top: Math.max(0, nextTop),
-    behavior: "auto",
+    behavior: 'auto',
   });
 }

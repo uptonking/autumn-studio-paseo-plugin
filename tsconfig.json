@@ -2,14 +2,9 @@
   "compilerOptions": {
     "target": "ES2021",
     "module": "ESNext",
-    "lib": [
-      "ES2021",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
       "react-dom": ["./node_modules/.paseo-vendor/ui-vendor.js"],
       "react-dom/client": ["./node_modules/.paseo-vendor/ui-vendor.js"],
@@ -43,8 +38,5 @@
     "index.server.ts",
     "styles/**/*.css"
   ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

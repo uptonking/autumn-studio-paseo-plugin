@@ -1,26 +1,20 @@
-import { useCallback } from "react";
+import { useCallback } from 'react';
 import {
   SettingsCard,
   SettingsSection,
   SettingsSelect,
   SettingsSwitch,
-} from "@getpaseo/plugin/client/ui";
-import {
-  DEFAULT_PDF_SETTINGS,
-  type PdfDefaultZoom,
-} from "../../../shared/settings.js";
-import { FormatOpenBehaviorFields } from "../components/format-open-behavior-fields.js";
-import type {
-  SettingsSectionComponentProps,
-  SettingsSectionDescriptor,
-} from "../registry.js";
+} from '@getpaseo/plugin/client/ui';
+import { DEFAULT_PDF_SETTINGS, type PdfDefaultZoom } from '../../../shared/settings.js';
+import { FormatOpenBehaviorFields } from '../components/format-open-behavior-fields.js';
+import type { SettingsSectionComponentProps, SettingsSectionDescriptor } from '../registry.js';
 
 const PDF_ZOOM_OPTIONS: readonly { label: string; value: PdfDefaultZoom }[] = [
-  { label: "Fit width", value: "fit-width" },
-  { label: "Fit page", value: "fit-page" },
-  { label: "100%", value: "100" },
-  { label: "125%", value: "125" },
-  { label: "150%", value: "150" },
+  { label: 'Fit width', value: 'fit-width' },
+  { label: 'Fit page', value: 'fit-page' },
+  { label: '100%', value: '100' },
+  { label: '125%', value: '125' },
+  { label: '150%', value: '150' },
 ];
 
 export function PdfSettingsSection({
@@ -38,7 +32,7 @@ export function PdfSettingsSection({
         pdf: { ...current.pdf, showThumbnailsByDefault },
       }));
     },
-    [updateValues]
+    [updateValues],
   );
 
   const handleDefaultZoomChange = useCallback(
@@ -48,7 +42,7 @@ export function PdfSettingsSection({
         pdf: { ...current.pdf, defaultZoom },
       }));
     },
-    [updateValues]
+    [updateValues],
   );
 
   const handleRotateControlsChange = useCallback(
@@ -58,7 +52,7 @@ export function PdfSettingsSection({
         pdf: { ...current.pdf, showRotateControls },
       }));
     },
-    [updateValues]
+    [updateValues],
   );
 
   const handleDownloadButtonChange = useCallback(
@@ -68,51 +62,51 @@ export function PdfSettingsSection({
         pdf: { ...current.pdf, showDownloadButton },
       }));
     },
-    [updateValues]
+    [updateValues],
   );
 
   return (
-    <SettingsSection title="PDF" testID="autumn-studio-settings-pdf">
+    <SettingsSection title='PDF' testID='autumn-studio-settings-pdf'>
       <SettingsCard>
         <FormatOpenBehaviorFields
-          kind="pdf"
-          formatLabel="PDF"
+          kind='pdf'
+          formatLabel='PDF'
           values={values}
           disabled={controlsDisabled}
           updateValues={updateValues}
         />
         <SettingsSwitch
-          label="Show page thumbnails by default"
-          hint="Automatically open the left thumbnail side panel when viewing PDF documents."
+          label='Show page thumbnails by default'
+          hint='Automatically open the left thumbnail side panel when viewing PDF documents.'
           value={pdf.showThumbnailsByDefault}
           disabled={controlsDisabled}
           onValueChange={handleThumbnailsChange}
-          testID="autumn-studio-setting-pdf-thumbnails"
+          testID='autumn-studio-setting-pdf-thumbnails'
         />
         <SettingsSelect
-          label="Default zoom level"
-          hint="Initial zoom applied when a PDF document opens."
+          label='Default zoom level'
+          hint='Initial zoom applied when a PDF document opens.'
           value={pdf.defaultZoom}
           options={PDF_ZOOM_OPTIONS}
           disabled={controlsDisabled}
           onValueChange={handleDefaultZoomChange}
-          testID="autumn-studio-setting-pdf-zoom"
+          testID='autumn-studio-setting-pdf-zoom'
         />
         <SettingsSwitch
-          label="Show page rotation controls"
-          hint="Display clockwise and counterclockwise rotation buttons in the PDF toolbar."
+          label='Show page rotation controls'
+          hint='Display clockwise and counterclockwise rotation buttons in the PDF toolbar.'
           value={pdf.showRotateControls}
           disabled={controlsDisabled}
           onValueChange={handleRotateControlsChange}
-          testID="autumn-studio-setting-pdf-rotate"
+          testID='autumn-studio-setting-pdf-rotate'
         />
         <SettingsSwitch
-          label="Show download action"
+          label='Show download action'
           hint="Include the Download PDF option in the PDF toolbar's top-right More (…) menu."
           value={pdf.showDownloadButton}
           disabled={controlsDisabled}
           onValueChange={handleDownloadButtonChange}
-          testID="autumn-studio-setting-pdf-download"
+          testID='autumn-studio-setting-pdf-download'
         />
       </SettingsCard>
     </SettingsSection>
@@ -120,14 +114,13 @@ export function PdfSettingsSection({
 }
 
 export const pdfSectionDescriptor: SettingsSectionDescriptor = {
-  id: "pdf",
-  title: "PDF",
+  id: 'pdf',
+  title: 'PDF',
   order: 20,
-  sidebarGroup: "primary",
-  formatKind: "pdf",
-  extensions: [".pdf"],
-  description:
-    "Default viewer and editor engines, initial zoom level, and PDF toolbar controls.",
+  sidebarGroup: 'primary',
+  formatKind: 'pdf',
+  extensions: ['.pdf'],
+  description: 'Default viewer and editor engines, initial zoom level, and PDF toolbar controls.',
   resetSection: (current) => ({
     ...current,
     pdf: { ...DEFAULT_PDF_SETTINGS },

@@ -1,32 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   useSettings,
   type PluginScreenParams,
   type PluginScreenProps,
   type PluginSurfaceProps,
-} from "@getpaseo/plugin/client";
-import {
-  SettingsAction,
-  SettingsCard,
-  SettingsSection,
-} from "@getpaseo/plugin/client/ui";
+} from '@getpaseo/plugin/client';
+import { SettingsAction, SettingsCard, SettingsSection } from '@getpaseo/plugin/client/ui';
 import {
   DEFAULT_AUTUMN_STUDIO_SETTINGS,
   autumnStudioSettings,
   getAiTextSettings,
   type AutumnStudioSettingsValues,
-} from "../../shared/settings.js";
+} from '../../shared/settings.js';
 import {
   MORE_FORMATS_NAV_ID,
   MoreFormatsFilterBar,
   resolveNavStateFromSectionParam,
   SectionMetaBanner,
   SettingsSidebarNav,
-} from "./components/settings-sidebar-nav.js";
-import { PlatformSupportNotice } from "./platform-support-notice.js";
-import type { ReadyAutumnStudioSettings } from "./registry.js";
-import { getSettingsSections } from "./sections/index.js";
+} from './components/settings-sidebar-nav.js';
+import { PlatformSupportNotice } from './platform-support-notice.js';
+import type { ReadyAutumnStudioSettings } from './registry.js';
+import { getSettingsSections } from './sections/index.js';
 
 function SettingsSectionsWorkspace({
   settings,
@@ -36,9 +32,9 @@ function SettingsSectionsWorkspace({
   params,
 }: {
   settings: ReadyAutumnStudioSettings;
-  theme: PluginSurfaceProps["theme"];
+  theme: PluginSurfaceProps['theme'];
   compact?: boolean;
-  platform?: PluginSurfaceProps["layout"]["platform"];
+  platform?: PluginSurfaceProps['layout']['platform'];
   params?: PluginScreenParams;
 }) {
   const allSections = useMemo(() => getSettingsSections(), []);
@@ -70,61 +66,37 @@ function SettingsSectionsWorkspace({
   );
 
   const visibleSections = useMemo(
-    () =>
-      allSections.filter((section) =>
-        section.isVisible ? section.isVisible(values) : true,
-      ),
+    () => allSections.filter((section) => (section.isVisible ? section.isVisible(values) : true)),
     [allSections, values],
   );
 
   const primarySections = useMemo(
-    () =>
-      visibleSections.filter(
-        (section) => (section.sidebarGroup ?? "more") === "primary",
-      ),
+    () => visibleSections.filter((section) => (section.sidebarGroup ?? 'more') === 'primary'),
     [visibleSections],
   );
 
   const moreSections = useMemo(
-    () =>
-      visibleSections.filter(
-        (section) => (section.sidebarGroup ?? "more") !== "primary",
-      ),
+    () => visibleSections.filter((section) => (section.sidebarGroup ?? 'more') !== 'primary'),
     [visibleSections],
   );
 
   const initialNav = useMemo(
-    () =>
-      resolveNavStateFromSectionParam(
-        params?.section,
-        primarySections,
-        moreSections,
-      ),
+    () => resolveNavStateFromSectionParam(params?.section, primarySections, moreSections),
     [moreSections, params?.section, primarySections],
   );
 
   const [activeNavId, setActiveNavId] = useState<string>(initialNav.activeNavId);
-  const [moreFilterId, setMoreFilterId] = useState<string>(
-    initialNav.moreFilterId,
-  );
+  const [moreFilterId, setMoreFilterId] = useState<string>(initialNav.moreFilterId);
 
   useEffect(() => {
     if (!params?.section) return;
-    const resolved = resolveNavStateFromSectionParam(
-      params.section,
-      primarySections,
-      moreSections,
-    );
+    const resolved = resolveNavStateFromSectionParam(params.section, primarySections, moreSections);
     setActiveNavId(resolved.activeNavId);
     setMoreFilterId(resolved.moreFilterId);
   }, [moreSections, params?.section, primarySections]);
 
   const updateValues = useCallback(
-    (
-      updater: (
-        current: AutumnStudioSettingsValues,
-      ) => AutumnStudioSettingsValues,
-    ) => {
+    (updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues) => {
       const next = updater(values);
       void settings.save(next, settings.revision);
     },
@@ -141,12 +113,11 @@ function SettingsSectionsWorkspace({
     [activeNavId, primarySections],
   );
 
-  const isMoreActive =
-    activeNavId === MORE_FORMATS_NAV_ID && moreSections.length > 0;
+  const isMoreActive = activeNavId === MORE_FORMATS_NAV_ID && moreSections.length > 0;
 
   const displayedMoreSections = useMemo(() => {
     if (!isMoreActive) return [];
-    if (moreFilterId === "all") return moreSections;
+    if (moreFilterId === 'all') return moreSections;
     const matched = moreSections.find((section) => section.id === moreFilterId);
     return matched ? [matched] : moreSections;
   }, [isMoreActive, moreFilterId, moreSections]);
@@ -177,12 +148,12 @@ function SettingsSectionsWorkspace({
 
   return (
     <View
-      testID="autumn-studio-settings-sections"
+      testID='autumn-studio-settings-sections'
       style={{
-        flexDirection: compact ? "column" : "row",
-        alignItems: "flex-start",
+        flexDirection: compact ? 'column' : 'row',
+        alignItems: 'flex-start',
         gap: compact ? 16 : 24,
-        width: "100%",
+        width: '100%',
       }}
     >
       <SettingsSidebarNav
@@ -197,16 +168,16 @@ function SettingsSectionsWorkspace({
       />
 
       <View
-        testID="autumn-studio-settings-detail"
+        testID='autumn-studio-settings-detail'
         style={{
           flex: 1,
           minWidth: 0,
-          width: "100%",
+          width: '100%',
         }}
       >
         {settings.saveError ? (
           <Text
-            accessibilityRole="alert"
+            accessibilityRole='alert'
             style={{
               color: theme.colors.statusDanger,
               fontSize: 13,
@@ -217,10 +188,9 @@ function SettingsSectionsWorkspace({
           </Text>
         ) : null}
 
-        {!values.general.enabled &&
-        (isMoreActive || activePrimarySection?.id !== "general") ? (
+        {!values.general.enabled && (isMoreActive || activePrimarySection?.id !== 'general') ? (
           <View
-            testID="autumn-studio-settings-disabled-banner"
+            testID='autumn-studio-settings-disabled-banner'
             style={{
               marginBottom: 16,
               padding: 12,
@@ -228,9 +198,9 @@ function SettingsSectionsWorkspace({
               backgroundColor: theme.colors.surface1,
               borderColor: theme.colors.border,
               borderWidth: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               gap: 12,
             }}
           >
@@ -241,11 +211,11 @@ function SettingsSectionsWorkspace({
                 fontSize: 13,
               }}
             >
-              Autumn Studio is currently disabled in General settings. Enable it
-              to customize format viewers and editors.
+              Autumn Studio is currently disabled in General settings. Enable it to customize format
+              viewers and editors.
             </Text>
             <Pressable
-              testID="autumn-studio-settings-enable-shortcut"
+              testID='autumn-studio-settings-enable-shortcut'
               onPress={handleEnableNow}
               style={{
                 backgroundColor: theme.colors.accent,
@@ -258,7 +228,7 @@ function SettingsSectionsWorkspace({
                 style={{
                   color: theme.colors.accentForeground,
                   fontSize: 12,
-                  fontWeight: "600",
+                  fontWeight: '600',
                 }}
               >
                 Enable
@@ -270,7 +240,7 @@ function SettingsSectionsWorkspace({
         {!isMoreActive && activePrimarySection ? (
           <View key={activePrimarySection.id}>
             <SectionMetaBanner section={activePrimarySection} theme={theme} />
-            {activePrimarySection.id === "general" ? (
+            {activePrimarySection.id === 'general' ? (
               <PlatformSupportNotice theme={theme} platform={platform} />
             ) : null}
             <activePrimarySection.Component
@@ -280,27 +250,24 @@ function SettingsSectionsWorkspace({
               theme={theme}
               updateValues={updateValues}
             />
-            {activePrimarySection.id === "general" ? (
-              <SettingsSection
-                title="Reset"
-                testID="autumn-studio-settings-reset"
-              >
+            {activePrimarySection.id === 'general' ? (
+              <SettingsSection title='Reset' testID='autumn-studio-settings-reset'>
                 <SettingsCard>
                   <SettingsAction
-                    label="Restore default settings"
-                    hint="Reset all Autumn Studio viewer and editor preferences back to their defaults."
-                    actionLabel="Reset to defaults"
+                    label='Restore default settings'
+                    hint='Reset all Autumn Studio viewer and editor preferences back to their defaults.'
+                    actionLabel='Reset to defaults'
                     disabled={settings.saving}
                     onPress={() => {
                       void settings.reset();
                     }}
-                    testID="autumn-studio-setting-reset"
+                    testID='autumn-studio-setting-reset'
                   />
                 </SettingsCard>
               </SettingsSection>
             ) : activePrimarySection.resetSection ? (
               <SettingsSection
-                title="Reset"
+                title='Reset'
                 testID={`autumn-studio-settings-reset-${activePrimarySection.id}`}
               >
                 <SettingsCard>
@@ -319,7 +286,7 @@ function SettingsSectionsWorkspace({
         ) : null}
 
         {isMoreActive ? (
-          <View testID="autumn-studio-settings-more-pane">
+          <View testID='autumn-studio-settings-more-pane'>
             <MoreFormatsFilterBar
               moreSections={moreSections}
               moreFilterId={moreFilterId}
@@ -343,22 +310,19 @@ function SettingsSectionsWorkspace({
               );
             })}
 
-            <SettingsSection
-              title="Reset"
-              testID="autumn-studio-settings-reset-more"
-            >
+            <SettingsSection title='Reset' testID='autumn-studio-settings-reset-more'>
               <SettingsCard>
                 <SettingsAction
                   label={
-                    moreFilterId === "all"
-                      ? "Restore default More Formats settings"
-                      : `Restore default ${displayedMoreSections[0]?.title ?? "format"} settings`
+                    moreFilterId === 'all'
+                      ? 'Restore default More Formats settings'
+                      : `Restore default ${displayedMoreSections[0]?.title ?? 'format'} settings`
                   }
-                  hint="Reset the format preferences shown above back to their defaults."
-                  actionLabel="Reset format defaults"
+                  hint='Reset the format preferences shown above back to their defaults.'
+                  actionLabel='Reset format defaults'
                   disabled={settings.saving}
                   onPress={handleResetDisplayedMoreSections}
-                  testID="autumn-studio-setting-reset-more"
+                  testID='autumn-studio-setting-reset-more'
                 />
               </SettingsCard>
             </SettingsSection>
@@ -384,25 +348,25 @@ export function AutumnStudioSettingsContent({
     [theme.colors.foreground],
   );
 
-  if (settings.status === "loading") {
+  if (settings.status === 'loading') {
     return <Text style={textStyle}>Loading Autumn Studio settings…</Text>;
   }
 
-  if (settings.status !== "ready") {
+  if (settings.status !== 'ready') {
     return (
-      <SettingsSection title="Autumn Studio">
+      <SettingsSection title='Autumn Studio'>
         <SettingsCard>
           <SettingsAction
-            label={settings.error || "Unable to load Autumn Studio settings"}
-            actionLabel="Reload"
+            label={settings.error || 'Unable to load Autumn Studio settings'}
+            actionLabel='Reload'
             onPress={() => {
               void settings.reload();
             }}
           />
-          {settings.status === "invalid" ? (
+          {settings.status === 'invalid' ? (
             <SettingsAction
-              label="Stored settings do not match the current schema"
-              actionLabel="Reset to defaults"
+              label='Stored settings do not match the current schema'
+              actionLabel='Reset to defaults'
               onPress={() => {
                 void settings.reset();
               }}
@@ -436,8 +400,8 @@ export function AutumnStudioSettingsPage(props: PluginScreenProps) {
         paddingHorizontal: props.layout.compact ? 16 : 28,
         paddingVertical: 24,
         maxWidth: 980,
-        width: "100%",
-        alignSelf: "center",
+        width: '100%',
+        alignSelf: 'center',
       }}
     >
       <AutumnStudioSettingsContent {...props} />

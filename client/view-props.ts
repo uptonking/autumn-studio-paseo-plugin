@@ -4,25 +4,19 @@ import type {
   FileNode,
   FileOpenMode,
   TextViewerSettings,
-} from "../shared/contracts.js";
-import type { AiTextBridge } from "./ai-text/ai-text-context.js";
-import type { OpenedFileTab } from "./opened-tabs-store.js";
-import type { SurfacePersistenceHandle } from "./surface-persistence.ts";
-import {
-  TEXT_VIEWABLE_BASENAMES,
-  TEXT_VIEWABLE_EXTENSIONS,
-} from "./viewers/format-families.ts";
-import type {
-  FileSaveCallbackInput,
-  FileSaveCallbackResult,
-} from "./viewers/registry.js";
+} from '../shared/contracts.js';
+import type { AiTextBridge } from './ai-text/ai-text-context.js';
+import type { OpenedFileTab } from './opened-tabs-store.js';
+import type { SurfacePersistenceHandle } from './surface-persistence.ts';
+import { TEXT_VIEWABLE_BASENAMES, TEXT_VIEWABLE_EXTENSIONS } from './viewers/format-families.ts';
+import type { FileSaveCallbackInput, FileSaveCallbackResult } from './viewers/registry.js';
 
 export interface PdfViewerPreferences {
   defaultOpenBehavior?: FileFormatOpenBehavior;
   defaultViewer?: string;
   defaultEditor?: string;
   showThumbnailsByDefault?: boolean;
-  defaultZoom?: "fit-page" | "fit-width" | number;
+  defaultZoom?: 'fit-page' | 'fit-width' | number;
   showRotateControls?: boolean;
   showDownloadButton?: boolean;
 }
@@ -122,7 +116,7 @@ export interface FileViewerViewProps {
 }
 
 export interface FileSystemItemView {
-  kind: "folder" | "file";
+  kind: 'folder' | 'file';
   path: string;
   name: string;
   size?: number;
@@ -130,10 +124,7 @@ export interface FileSystemItemView {
   contentType?: string;
 }
 
-export type FileSystemFileViewItem = Extract<
-  FileSystemItemView,
-  { kind: "file" }
->;
+export type FileSystemFileViewItem = Extract<FileSystemItemView, { kind: 'file' }>;
 
 /** Minimal shape the island hands back on open/unsupported — vendor item
  * types stay inside the island and both directions stay assignable. */
@@ -150,13 +141,12 @@ export interface FileOpenRef {
 export function flattenTree(node: FileNode | undefined): FileSystemItemView[] {
   const items: FileSystemItemView[] = [];
   const walk = (n: FileNode) => {
-    if (n.kind === "folder") {
-      if (n.path !== "/")
-        items.push({ kind: "folder", path: n.path, name: n.name });
+    if (n.kind === 'folder') {
+      if (n.path !== '/') items.push({ kind: 'folder', path: n.path, name: n.name });
       for (const child of n.children) walk(child);
     } else {
       items.push({
-        kind: "file",
+        kind: 'file',
         path: n.path,
         name: n.name,
         size: n.size,
@@ -176,7 +166,7 @@ export function fileBlobCacheKey(file: {
   updatedAt?: string;
   size?: number;
 }): string {
-  return `${file.path}::${file.updatedAt ?? ""}::${file.size ?? ""}`;
+  return `${file.path}::${file.updatedAt ?? ''}::${file.size ?? ''}`;
 }
 
 /** data: → blob:. fetch handles the base64 decode natively, which is far
@@ -191,9 +181,7 @@ export function isMarkdownFileName(fileName?: string): boolean {
   return /\.(md|mdx|markdown)$/i.test(fileName.trim());
 }
 
-const TEXT_VIEWABLE_EXTENSION_SET = new Set<string>(
-  TEXT_VIEWABLE_EXTENSIONS,
-);
+const TEXT_VIEWABLE_EXTENSION_SET = new Set<string>(TEXT_VIEWABLE_EXTENSIONS);
 
 const TEXT_VIEWABLE_BASENAME_SET = new Set<string>(TEXT_VIEWABLE_BASENAMES);
 
@@ -202,33 +190,28 @@ export function isTextViewableFile(file: {
   path: string;
   contentType?: string;
 }): boolean {
-  const type = file.contentType?.toLowerCase() ?? "";
+  const type = file.contentType?.toLowerCase() ?? '';
   if (
-    type.startsWith("text/") ||
-    type === "application/json" ||
-    type === "application/ld+json" ||
-    type === "application/javascript" ||
-    type === "application/typescript" ||
-    type === "application/xml" ||
-    type === "application/x-yaml" ||
-    type === "application/toml" ||
-    type === "application/sql" ||
-    type === "application/x-sh"
+    type.startsWith('text/') ||
+    type === 'application/json' ||
+    type === 'application/ld+json' ||
+    type === 'application/javascript' ||
+    type === 'application/typescript' ||
+    type === 'application/xml' ||
+    type === 'application/x-yaml' ||
+    type === 'application/toml' ||
+    type === 'application/sql' ||
+    type === 'application/x-sh'
   ) {
     return true;
   }
 
-  const rawName = (
-    file.name ??
-    file.path.split("/").pop() ??
-    ""
-  ).toLowerCase();
+  const rawName = (file.name ?? file.path.split('/').pop() ?? '').toLowerCase();
   if (!rawName) return false;
   if (TEXT_VIEWABLE_BASENAME_SET.has(rawName)) return true;
 
-  const dotIndex = rawName.lastIndexOf(".");
+  const dotIndex = rawName.lastIndexOf('.');
   if (dotIndex <= 0) return false;
   const ext = rawName.slice(dotIndex + 1);
   return TEXT_VIEWABLE_EXTENSION_SET.has(ext);
 }
-

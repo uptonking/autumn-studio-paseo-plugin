@@ -4,14 +4,10 @@ import {
   type AiTextLayoutBlock,
   type AiTextLayoutBlockType,
   type AiTextLayoutDocument,
-} from "../../../../shared/ai-text/layout.ts";
+} from '../../../../shared/ai-text/layout.ts';
 
 interface JsonRecord {
   [key: string]: unknown;
-}
-
-interface RefRecord {
-  $ref?: unknown;
 }
 
 export interface DoclingPictureRef {
@@ -28,40 +24,40 @@ export interface DoclingLayoutResult {
 }
 
 const LABEL_TO_TYPE: Record<string, AiTextLayoutBlockType> = {
-  title: "doc_title",
-  section_header: "paragraph_title",
-  paragraph: "text",
-  text: "text",
-  caption: "text",
-  list_item: "list",
-  formula: "equation",
-  code: "code",
-  reference: "ref_text",
-  footnote: "page_footnote",
-  page_header: "header",
-  page_footer: "footer",
-  document_index: "index",
-  table: "table",
-  picture: "image",
-  chart: "chart",
-  checkbox_selected: "text",
-  checkbox_unselected: "text",
-  form: "text",
-  key_value_region: "text",
-  handwritten_text: "text",
-  empty_value: "text",
+  title: 'doc_title',
+  section_header: 'paragraph_title',
+  paragraph: 'text',
+  text: 'text',
+  caption: 'text',
+  list_item: 'list',
+  formula: 'equation',
+  code: 'code',
+  reference: 'ref_text',
+  footnote: 'page_footnote',
+  page_header: 'header',
+  page_footer: 'footer',
+  document_index: 'index',
+  table: 'table',
+  picture: 'image',
+  chart: 'chart',
+  checkbox_selected: 'text',
+  checkbox_unselected: 'text',
+  form: 'text',
+  key_value_region: 'text',
+  handwritten_text: 'text',
+  empty_value: 'text',
 };
 
 function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  return typeof value === 'string' ? value : '';
 }
 
 function asFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function clampUnit(value: number): number {
@@ -71,13 +67,10 @@ function clampUnit(value: number): number {
 function refOf(value: unknown): string | null {
   if (!isRecord(value)) return null;
   const ref = value.$ref;
-  return typeof ref === "string" ? ref : null;
+  return typeof ref === 'string' ? ref : null;
 }
 
-function pageSize(
-  pages: JsonRecord,
-  pageNumber: number,
-): { width: number; height: number } | null {
+function pageSize(pages: JsonRecord, pageNumber: number): { width: number; height: number } | null {
   const page = pages[String(pageNumber)] ?? pages[pageNumber];
   if (!isRecord(page)) return null;
   const size = page.size;
@@ -111,7 +104,7 @@ function normalizeBbox(
     const origin = asString(bbox.coord_origin).toUpperCase();
     let y0: number;
     let y1: number;
-    if (origin === "BOTTOMLEFT") {
+    if (origin === 'BOTTOMLEFT') {
       y0 = 1 - Math.max(top, bottom) / size.height;
       y1 = 1 - Math.min(top, bottom) / size.height;
     } else {
@@ -132,19 +125,15 @@ function normalizeBbox(
 }
 
 function escapeMarkdownCell(raw: string): string {
-  return raw
-    .replace(/\\/g, "\\\\")
-    .replace(/\|/g, "\\|")
-    .replace(/\r?\n/g, "<br>")
-    .trim();
+  return raw.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>').trim();
 }
 
 function escapeHtml(raw: string): string {
   return raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 interface TableCell {
@@ -183,73 +172,65 @@ function tableCells(data: unknown): TableCell[] {
 }
 
 function buildTableMarkdown(cells: TableCell[]): string {
-  if (cells.length === 0) return "";
-  const rowCount =
-    Math.max(...cells.map((cell) => cell.row + cell.rowSpan), 1);
-  const colCount =
-    Math.max(...cells.map((cell) => cell.col + cell.colSpan), 1);
+  if (cells.length === 0) return '';
+  const rowCount = Math.max(...cells.map((cell) => cell.row + cell.rowSpan), 1);
+  const colCount = Math.max(...cells.map((cell) => cell.col + cell.colSpan), 1);
   const grid: string[][] = Array.from({ length: rowCount }, () =>
-    Array.from({ length: colCount }, () => ""),
+    Array.from({ length: colCount }, () => ''),
   );
   for (const cell of cells) {
     // Spanned cells stay in their start slot; the grid keeps Markdown valid.
-    grid[cell.row]![cell.col] = escapeMarkdownCell(cell.text);
+    grid[cell.row][cell.col] = escapeMarkdownCell(cell.text);
   }
   const headerRow = 0;
   const lines = [
-    `| ${grid[headerRow]!.join(" | ")} |`,
-    `| ${grid[headerRow]!.map(() => "---").join(" | ")} |`,
+    `| ${grid[headerRow].join(' | ')} |`,
+    `| ${grid[headerRow].map(() => '---').join(' | ')} |`,
   ];
   for (let row = 1; row < rowCount; row += 1) {
-    lines.push(`| ${grid[row]!.join(" | ")} |`);
+    lines.push(`| ${grid[row].join(' | ')} |`);
   }
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 function buildTableHtml(cells: TableCell[]): string {
-  if (cells.length === 0) return "";
-  const rowCount =
-    Math.max(...cells.map((cell) => cell.row + cell.rowSpan), 1);
+  if (cells.length === 0) return '';
   const rows: string[] = [];
   let currentRow = -1;
   let currentCells: string[] = [];
-  const ordered = [...cells].sort(
-    (a, b) => a.row - b.row || a.col - b.col,
-  );
+  const ordered = [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
   for (const cell of ordered) {
     if (cell.row !== currentRow) {
-      if (currentRow >= 0) rows.push(`<tr>${currentCells.join("")}</tr>`);
+      if (currentRow >= 0) rows.push(`<tr>${currentCells.join('')}</tr>`);
       currentRow = cell.row;
       currentCells = [];
     }
-    const tag = cell.columnHeader ? "th" : "td";
-    const rowspan = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : "";
-    const colspan = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : "";
-    currentCells.push(
-      `<${tag}${rowspan}${colspan}>${escapeHtml(cell.text)}</${tag}>`,
-    );
+    const tag = cell.columnHeader ? 'th' : 'td';
+    const rowspan = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : '';
+    const colspan = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : '';
+    currentCells.push(`<${tag}${rowspan}${colspan}>${escapeHtml(cell.text)}</${tag}>`);
   }
-  if (currentRow >= 0) rows.push(`<tr>${currentCells.join("")}</tr>`);
-  return `<table>${rows.join("")}</table>`;
+  if (currentRow >= 0) rows.push(`<tr>${currentCells.join('')}</tr>`);
+  return `<table>${rows.join('')}</table>`;
 }
 
 function pictureAssetPath(uri: string): string {
-  const leaf = uri.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+  const leaf = uri.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
   const safe = leaf
-    .replace(/[^A-Za-z0-9._-]/g, "_")
-    .replace(/^\.+/, "")
+    .replace(/[^A-Za-z0-9._-]/g, '_')
+    .replace(/^\.+/, '')
     .trim();
-  return `images/${safe || "image.png"}`;
+  return `images/${safe || 'image.png'}`;
 }
 
 function getImageUri(item: JsonRecord): string {
   const image = item.image;
-  if (!isRecord(image)) return "";
+  if (!isRecord(image)) return '';
   return asString(image.uri);
 }
 
 export function doclingLabelToBlockType(label: string): AiTextLayoutBlockType {
-  return LABEL_TO_TYPE[label] ?? "unknown";
+  return LABEL_TO_TYPE[label] ?? 'unknown';
 }
 
 /**
@@ -257,14 +238,11 @@ export function doclingLabelToBlockType(label: string): AiTextLayoutBlockType {
  * preserving Docling's reading order. Items without page provenance are kept
  * out of the layout (the Markdown still contains them).
  */
-export function normalizeDoclingDocument(
-  raw: unknown,
-  fileName: string,
-): DoclingLayoutResult {
+export function normalizeDoclingDocument(raw: unknown, fileName: string): DoclingLayoutResult {
   const empty = aiTextLayoutDocumentSchema.parse({
     schemaVersion: 1,
-    source: "docling",
-    parserId: "docling",
+    source: 'docling',
+    parserId: 'docling',
     producedAt: new Date().toISOString(),
     pageCount: 0,
     blockCount: 0,
@@ -274,14 +252,7 @@ export function normalizeDoclingDocument(
 
   const pages = isRecord(raw.pages) ? raw.pages : {};
   const items = new Map<string, JsonRecord>();
-  for (const key of [
-    "texts",
-    "tables",
-    "pictures",
-    "groups",
-    "key_value_items",
-    "form_items",
-  ]) {
+  for (const key of ['texts', 'tables', 'pictures', 'groups', 'key_value_items', 'form_items']) {
     const list = raw[key];
     if (!Array.isArray(list)) continue;
     for (const item of list) {
@@ -290,7 +261,7 @@ export function normalizeDoclingDocument(
       if (selfRef) items.set(selfRef, item);
     }
   }
-  for (const key of ["body", "furniture"]) {
+  for (const key of ['body', 'furniture']) {
     const start = raw[key];
     if (isRecord(start)) {
       const selfRef = asString(start.self_ref);
@@ -329,13 +300,7 @@ export function normalizeDoclingDocument(
   };
 
   visit(raw.body, 0);
-  for (const key of [
-    "texts",
-    "tables",
-    "pictures",
-    "key_value_items",
-    "form_items",
-  ]) {
+  for (const key of ['texts', 'tables', 'pictures', 'key_value_items', 'form_items']) {
     const list = raw[key];
     if (!Array.isArray(list)) continue;
     for (const item of list) {
@@ -353,14 +318,14 @@ export function normalizeDoclingDocument(
 
   for (const item of ordered) {
     const label = asString(item.label);
-    if (label === "table" || label === "picture" || label === "chart") {
+    if (label === 'table' || label === 'picture' || label === 'chart') {
       const location = normalizeBbox(item.prov, pages);
-      if (label === "picture" || label === "chart") {
+      if (label === 'picture' || label === 'chart') {
         const uri = getImageUri(item);
         if (uri && location) {
           let assetPath = pictureAssetPath(uri);
           if (usedAssetPaths.has(assetPath)) {
-            const dot = assetPath.lastIndexOf(".");
+            const dot = assetPath.lastIndexOf('.');
             assetPath = `${assetPath.slice(0, dot)}-${blockIndex}${assetPath.slice(dot)}`;
           }
           usedAssetPaths.add(assetPath);
@@ -373,9 +338,9 @@ export function normalizeDoclingDocument(
             aiTextLayoutBlockSchema.parse({
               id: `docling-${blockIndex++}`,
               pageNumber: location.pageNumber,
-              type: label === "chart" ? "chart" : "image",
+              type: label === 'chart' ? 'chart' : 'image',
               bbox: location.bbox,
-              text: "",
+              text: '',
               imagePath: assetPath,
             }),
           );
@@ -386,7 +351,7 @@ export function normalizeDoclingDocument(
           aiTextLayoutBlockSchema.parse({
             id: `docling-${blockIndex++}`,
             pageNumber: location.pageNumber,
-            type: "table",
+            type: 'table',
             bbox: location.bbox,
             text: buildTableMarkdown(cells),
             ...(cells.length > 0 ? { html: buildTableHtml(cells) } : {}),
@@ -401,8 +366,7 @@ export function normalizeDoclingDocument(
     const location = normalizeBbox(item.prov, pages);
     if (!location) continue;
     const type = doclingLabelToBlockType(label);
-    const level =
-      type === "paragraph_title" ? asFiniteNumber(item.level) : null;
+    const level = type === 'paragraph_title' ? asFiniteNumber(item.level) : null;
     blocks.push(
       aiTextLayoutBlockSchema.parse({
         id: `docling-${blockIndex++}`,
@@ -410,9 +374,7 @@ export function normalizeDoclingDocument(
         type,
         bbox: location.bbox,
         text,
-        ...(level !== null
-          ? { level: Math.min(6, Math.max(1, Math.round(level))) }
-          : {}),
+        ...(level !== null ? { level: Math.min(6, Math.max(1, Math.round(level))) } : {}),
       }),
     );
   }
@@ -426,8 +388,8 @@ export function normalizeDoclingDocument(
 
   const layout = aiTextLayoutDocumentSchema.parse({
     schemaVersion: 1,
-    source: "docling",
-    parserId: "docling",
+    source: 'docling',
+    parserId: 'docling',
     producedAt: new Date().toISOString(),
     pageCount,
     blockCount: blocks.length,

@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
-import { useRpc } from "@getpaseo/plugin/client";
-import { SettingsInput, SettingsSelect } from "@getpaseo/plugin/client/ui";
+import { useCallback, useState } from 'react';
+import { Text, View } from 'react-native';
+import { useRpc } from '@getpaseo/plugin/client';
+import { SettingsInput, SettingsSelect } from '@getpaseo/plugin/client/ui';
 import {
   isAiTextEngineOperationVisible,
   revealAiTextPath,
@@ -9,11 +9,8 @@ import {
   type AiTextEngineEnvironment,
   type AiTextEngineOperation,
   type AiTextProfile,
-} from "../../../../shared/contracts.js";
-import {
-  EngineOperationPanel,
-  type useEngineOperation,
-} from "./engine-operation-task.js";
+} from '../../../../shared/contracts.js';
+import { EngineOperationPanel, type useEngineOperation } from './engine-operation-task.js';
 import {
   AiTextAction,
   AiTextBadge,
@@ -23,47 +20,43 @@ import {
   formatAiTextBytes,
   type AiTextTheme,
   type AiTextTone,
-} from "./ui.js";
+} from './ui.js';
 
 export type EnvironmentState =
   /** `previous` keeps the card populated and its sort position stable while a
    *  refresh runs, instead of dropping to "loading" and jumping around. */
-  | { status: "loading"; previous?: AiTextEngineEnvironment }
-  | { status: "ready"; environment: AiTextEngineEnvironment }
-  | { status: "error"; message: string };
+  | { status: 'loading'; previous?: AiTextEngineEnvironment }
+  | { status: 'ready'; environment: AiTextEngineEnvironment }
+  | { status: 'error'; message: string };
 
 export type EngineOperationApi = ReturnType<typeof useEngineOperation>;
 
-export function environmentOf(
-  state: EnvironmentState | undefined,
-): AiTextEngineEnvironment | null {
+export function environmentOf(state: EnvironmentState | undefined): AiTextEngineEnvironment | null {
   if (!state) return null;
-  if (state.status === "ready") return state.environment;
-  if (state.status === "loading") return state.previous ?? null;
+  if (state.status === 'ready') return state.environment;
+  if (state.status === 'loading') return state.previous ?? null;
   return null;
 }
 
-function environmentTone(
-  environment: AiTextEngineEnvironment | null,
-): AiTextTone {
-  if (!environment) return "default";
-  if (environment.status === "ready") return "success";
-  if (environment.status === "needs-setup") return "warning";
-  if (environment.status === "unavailable") return "danger";
-  return "default";
+function environmentTone(environment: AiTextEngineEnvironment | null): AiTextTone {
+  if (!environment) return 'default';
+  if (environment.status === 'ready') return 'success';
+  if (environment.status === 'needs-setup') return 'warning';
+  if (environment.status === 'unavailable') return 'danger';
+  return 'default';
 }
 
 function environmentLabel(environment: AiTextEngineEnvironment | null): string {
-  if (!environment) return "Unknown";
+  if (!environment) return 'Unknown';
   switch (environment.status) {
-    case "ready":
-      return "Ready";
-    case "needs-setup":
-      return "Needs setup";
-    case "unavailable":
-      return "Unavailable";
+    case 'ready':
+      return 'Ready';
+    case 'needs-setup':
+      return 'Needs setup';
+    case 'unavailable':
+      return 'Unavailable';
     default:
-      return "Unknown";
+      return 'Unknown';
   }
 }
 
@@ -90,22 +83,17 @@ function StorageRow({
     <View
       testID={testID}
       style={{
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
         gap: 12,
       }}
     >
       <View style={{ flexShrink: 1, minWidth: 0, gap: 4 }}>
-        <AiTextRow
-          label={label}
-          detail={path}
-          value={formatAiTextBytes(bytes)}
-          theme={theme}
-        />
+        <AiTextRow label={label} detail={path} value={formatAiTextBytes(bytes)} theme={theme} />
       </View>
       <AiTextAction
-        label="Open"
+        label='Open'
         onPress={onOpen}
         disabled={disabled}
         theme={theme}
@@ -139,31 +127,23 @@ export function EngineCard({
   const reveal = useRpc(revealAiTextPath);
   const [revealMessage, setRevealMessage] = useState<string | null>(null);
   // Details start open; the toggle only remembers an explicit choice.
-  const [userToggledDetails, setUserToggledDetails] = useState<
-    boolean | null
-  >(null);
+  const [userToggledDetails, setUserToggledDetails] = useState<boolean | null>(null);
 
   const environment = environmentOf(state);
   const detailsOpen = userToggledDetails ?? true;
 
-  const relatedProfiles = profiles.filter(
-    (profile) => profile.engineId === descriptor.id,
-  );
+  const relatedProfiles = profiles.filter((profile) => profile.engineId === descriptor.id);
   const visibleOperations = descriptor.operations.filter((op) =>
     isAiTextEngineOperationVisible(op, environment),
   );
 
   const handleReveal = useCallback(
-    (kind: "engine-tool" | "engine-models") => {
+    (kind: 'engine-tool' | 'engine-models') => {
       setRevealMessage(null);
       reveal({ kind, engineId: descriptor.id }).then(
         (result) => setRevealMessage(result.message),
         (error: unknown) =>
-          setRevealMessage(
-            error instanceof Error
-              ? error.message
-              : "Could not open the folder.",
-          ),
+          setRevealMessage(error instanceof Error ? error.message : 'Could not open the folder.'),
       );
     },
     [descriptor.id, reveal],
@@ -171,8 +151,7 @@ export function EngineCard({
 
   const storage = environment?.storage ?? null;
   const activeRun =
-    operation.operationRun &&
-    operation.operationRun.engineId === descriptor.id
+    operation.operationRun && operation.operationRun.engineId === descriptor.id
       ? operation.operationRun
       : null;
   // An installed engine pins its version inputs to the installed release, so
@@ -192,15 +171,12 @@ export function EngineCard({
     fallback;
 
   return (
-    <AiTextPanel
-      theme={theme}
-      testID={`autumn-studio-ai-text-engine-${descriptor.id}`}
-    >
+    <AiTextPanel theme={theme} testID={`autumn-studio-ai-text-engine-${descriptor.id}`}>
       <View
         style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "center",
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
           gap: 6,
         }}
       >
@@ -208,7 +184,7 @@ export function EngineCard({
           style={{
             color: theme.colors.foreground,
             fontSize: 14,
-            fontWeight: "700",
+            fontWeight: '700',
           }}
         >
           {descriptor.label}
@@ -224,15 +200,15 @@ export function EngineCard({
         ) : null}
         {environment?.updateAvailable && environment.latestVersion ? (
           <AiTextBadge
-            label={`v${environment.version ?? "?"} → ${environment.latestVersion}`}
-            tone="warning"
+            label={`v${environment.version ?? '?'} → ${environment.latestVersion}`}
+            tone='warning'
             theme={theme}
             testID={`autumn-studio-ai-text-engine-update-${descriptor.id}`}
           />
         ) : null}
         <View style={{ flexGrow: 1 }} />
         <AiTextAction
-          label={detailsOpen ? "▾" : "▸"}
+          label={detailsOpen ? '▾' : '▸'}
           onPress={() => setUserToggledDetails(!detailsOpen)}
           theme={theme}
           testID={`autumn-studio-ai-text-engine-toggle-${descriptor.id}`}
@@ -240,11 +216,9 @@ export function EngineCard({
       </View>
       <AiTextHint theme={theme}>{descriptor.description}</AiTextHint>
 
-      {state?.status === "loading" ? (
-        <AiTextHint theme={theme}>Detecting…</AiTextHint>
-      ) : null}
-      {state?.status === "error" ? (
-        <AiTextHint theme={theme} tone="danger">
+      {state?.status === 'loading' ? <AiTextHint theme={theme}>Detecting…</AiTextHint> : null}
+      {state?.status === 'error' ? (
+        <AiTextHint theme={theme} tone='danger'>
           {state.message}
         </AiTextHint>
       ) : null}
@@ -256,17 +230,15 @@ export function EngineCard({
               key={component.id}
               label={component.label}
               detail={component.detail}
-              value={
-                component.version ?? component.status.replace("-", " ")
-              }
+              value={component.version ?? component.status.replace('-', ' ')}
               tone={
-                component.status === "ready"
-                  ? "success"
-                  : component.status === "outdated"
-                    ? "warning"
-                    : component.status === "missing"
-                      ? "danger"
-                      : "default"
+                component.status === 'ready'
+                  ? 'success'
+                  : component.status === 'outdated'
+                    ? 'warning'
+                    : component.status === 'missing'
+                      ? 'danger'
+                      : 'default'
               }
               theme={theme}
             />
@@ -276,15 +248,15 @@ export function EngineCard({
               key={route.id}
               label={route.label}
               detail={route.message}
-              value={route.status.replace("-", " ")}
+              value={route.status.replace('-', ' ')}
               tone={
-                route.status === "ready"
-                  ? "success"
-                  : route.status === "needs-setup"
-                    ? "warning"
-                    : route.status === "unavailable"
-                      ? "danger"
-                      : "default"
+                route.status === 'ready'
+                  ? 'success'
+                  : route.status === 'needs-setup'
+                    ? 'warning'
+                    : route.status === 'unavailable'
+                      ? 'danger'
+                      : 'default'
               }
               theme={theme}
             />
@@ -295,7 +267,7 @@ export function EngineCard({
           {environment.recommendations.length > 0 ? (
             <View style={{ gap: 2 }}>
               {environment.recommendations.map((recommendation, index) => (
-                <AiTextHint key={index} theme={theme} tone="warning">
+                <AiTextHint key={index} theme={theme} tone='warning'>
                   • {recommendation}
                 </AiTextHint>
               ))}
@@ -306,38 +278,36 @@ export function EngineCard({
 
       {storage?.enginePath ? (
         <StorageRow
-          label="Engine files"
+          label='Engine files'
           bytes={storage.engineBytes}
           path={storage.enginePath}
           disabled={disabled}
           theme={theme}
-          onOpen={() => handleReveal("engine-tool")}
+          onOpen={() => handleReveal('engine-tool')}
           testID={`autumn-studio-ai-text-engine-storage-engine-${descriptor.id}`}
           openTestID={`autumn-studio-ai-text-engine-open-engine-${descriptor.id}`}
         />
       ) : null}
       {storage?.modelPath ? (
         <StorageRow
-          label="Model cache"
+          label='Model cache'
           bytes={storage.modelBytes}
           path={storage.modelPath}
           disabled={disabled}
           theme={theme}
-          onOpen={() => handleReveal("engine-models")}
+          onOpen={() => handleReveal('engine-models')}
           testID={`autumn-studio-ai-text-engine-storage-models-${descriptor.id}`}
           openTestID={`autumn-studio-ai-text-engine-open-models-${descriptor.id}`}
         />
       ) : null}
-      {revealMessage ? (
-        <AiTextHint theme={theme}>{revealMessage}</AiTextHint>
-      ) : null}
+      {revealMessage ? <AiTextHint theme={theme}>{revealMessage}</AiTextHint> : null}
 
       {relatedProfiles.length > 0 ? (
         <View
           style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            alignItems: "center",
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
             gap: 6,
           }}
         >
@@ -345,11 +315,7 @@ export function EngineCard({
           {relatedProfiles.map((profile) => (
             <AiTextAction
               key={profile.id}
-              label={
-                profile.id === defaultProfileId
-                  ? `${profile.name} (default)`
-                  : profile.name
-              }
+              label={profile.id === defaultProfileId ? `${profile.name} (default)` : profile.name}
               onPress={() => onOpenProfile(profile.id)}
               disabled={disabled}
               theme={theme}
@@ -359,11 +325,11 @@ export function EngineCard({
         </View>
       ) : null}
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         <AiTextAction
-          label="Refresh"
+          label='Refresh'
           onPress={onRefresh}
-          disabled={disabled || state?.status === "loading"}
+          disabled={disabled || state?.status === 'loading'}
           theme={theme}
           testID={`autumn-studio-ai-text-engine-refresh-${descriptor.id}`}
         />
@@ -374,11 +340,9 @@ export function EngineCard({
             <AiTextAction
               key={op.id}
               label={isConfirming ? `Confirm: ${op.label}` : op.label}
-              onPress={() =>
-                operation.handleOperationPress(descriptor, op, optionDefaults)
-              }
+              onPress={() => operation.handleOperationPress(descriptor, op, optionDefaults)}
               disabled={disabled || operation.operationBusy}
-              tone={isConfirming ? "danger" : "default"}
+              tone={isConfirming ? 'danger' : 'default'}
               theme={theme}
               testID={`autumn-studio-ai-text-engine-op-${descriptor.id}-${op.id}`}
             />
@@ -391,21 +355,17 @@ export function EngineCard({
           <View key={`${op.id}:options`} style={{ gap: 6 }}>
             {op.options.map((option) => {
               const key = `${descriptor.id}:${op.id}:${option.key}`;
-              const value = effectiveOptionValue(
-                op,
-                option.key,
-                option.defaultValue,
-              );
-              if (option.kind === "text") {
+              const value = effectiveOptionValue(op, option.key, option.defaultValue);
+              if (option.kind === 'text') {
                 return (
                   <SettingsInput
                     // Remount when detection pins a version so the
                     // uncontrolled input adopts it; typing never changes this
                     // key, so focus is kept while editing.
-                    key={`${key}:${installedVersion ?? ""}`}
+                    key={`${key}:${installedVersion ?? ''}`}
                     label={`${op.label} · ${option.label}`}
                     initialValue={value}
-                    placeholder={value || "latest"}
+                    placeholder={value || 'latest'}
                     disabled={disabled || operation.operationBusy}
                     onChangeText={(next: string) =>
                       operation.setOperationOptions((current) => ({

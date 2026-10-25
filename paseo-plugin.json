@@ -5,19 +5,8 @@
     "paseo": ">=0.13.0"
   },
   "build": [
-    [
-      "npm",
-      "install"
-    ],
-    [
-      "npm",
-      "run",
-      "build:wasm"
-    ],
-    [
-      "npm",
-      "run",
-      "build:css"
-    ]
+    ["npm", "install"],
+    ["npm", "run", "build:wasm"],
+    ["npm", "run", "build:css"]
   ]
 }

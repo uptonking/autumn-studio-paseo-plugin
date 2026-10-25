@@ -1,15 +1,11 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   normalizeAiTextDocumentMetadata,
   type AiTextDocumentMetadata,
-} from "../../shared/contracts.ts";
-import { computeDirectorySize } from "./disk.ts";
-import {
-  METADATA_FILE_NAME,
-  resolveOutputBase,
-  type OutputBase,
-} from "./metadata-paths.ts";
+} from '../../shared/contracts.ts';
+import { computeDirectorySize } from './disk.ts';
+import { METADATA_FILE_NAME, resolveOutputBase, type OutputBase } from './metadata-paths.ts';
 
 const MAX_DOCS = 500;
 const PER_DOC_SIZE_ENTRY_CAP = 5_000;
@@ -70,14 +66,9 @@ export async function listAiTextStorageStats(input: {
       computeDirectorySize(docFolderAbsPath, {
         maxEntries: PER_DOC_SIZE_ENTRY_CAP,
       }),
+      Promise.resolve(metadata.versions.reduce((sum, version) => sum + version.size, 0)),
       Promise.resolve(
-        metadata.versions.reduce((sum, version) => sum + version.size, 0),
-      ),
-      Promise.resolve(
-        metadata.versions.reduce(
-          (sum, version) => sum + (version.assets?.totalBytes ?? 0),
-          0,
-        ),
+        metadata.versions.reduce((sum, version) => sum + (version.assets?.totalBytes ?? 0), 0),
       ),
     ]);
 
@@ -88,11 +79,7 @@ export async function listAiTextStorageStats(input: {
       }
     }
     const engines = [
-      ...new Set(
-        metadata.versions.map(
-          (version) => version.provenance.engineLabel,
-        ),
-      ),
+      ...new Set(metadata.versions.map((version) => version.provenance.engineLabel)),
     ];
 
     rows.push({
@@ -117,13 +104,9 @@ export async function listAiTextStorageStats(input: {
   };
 }
 
-async function readDocMetadata(
-  metadataAbsPath: string,
-): Promise<AiTextDocumentMetadata | null> {
+async function readDocMetadata(metadataAbsPath: string): Promise<AiTextDocumentMetadata | null> {
   try {
-    return normalizeAiTextDocumentMetadata(
-      JSON.parse(await readFile(metadataAbsPath, "utf8")),
-    );
+    return normalizeAiTextDocumentMetadata(JSON.parse(await readFile(metadataAbsPath, 'utf8')));
   } catch {
     return null;
   }

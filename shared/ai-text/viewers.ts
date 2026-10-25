@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const aiTextViewerCapabilitiesSchema = z.object({
   requiresContent: z.boolean().default(true),
@@ -9,8 +9,7 @@ const aiTextViewerCapabilitiesSchema = z.object({
 
 // zod applies a default value verbatim, so it must already carry the nested
 // field defaults; `.default({})` would leave every capability undefined.
-const DEFAULT_AI_TEXT_VIEWER_CAPABILITIES =
-  aiTextViewerCapabilitiesSchema.parse({});
+const DEFAULT_AI_TEXT_VIEWER_CAPABILITIES = aiTextViewerCapabilitiesSchema.parse({});
 
 /**
  * Metadata for an AI Text pane renderer. Renderers themselves live in the
@@ -20,30 +19,26 @@ export const aiTextViewerDescriptorSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   shortLabel: z.string().optional(),
-  description: z.string().default(""),
+  description: z.string().default(''),
   order: z.number().default(0),
   /** Only these appear in the default-viewer setting. */
   selectableAsDefault: z.boolean().default(false),
-  capabilities: aiTextViewerCapabilitiesSchema.default(
-    DEFAULT_AI_TEXT_VIEWER_CAPABILITIES,
-  ),
+  capabilities: aiTextViewerCapabilitiesSchema.default(DEFAULT_AI_TEXT_VIEWER_CAPABILITIES),
 });
-export type AiTextViewerDescriptor = z.infer<
-  typeof aiTextViewerDescriptorSchema
->;
+export type AiTextViewerDescriptor = z.infer<typeof aiTextViewerDescriptorSchema>;
 
-export const AI_TEXT_VIEWER_TEXT = "text";
-export const AI_TEXT_VIEWER_RAW = "raw";
-export const AI_TEXT_VIEWER_EDIT = "edit";
-export const AI_TEXT_VIEWER_LAYOUT_BLOCKS = "layout-blocks";
+export const AI_TEXT_VIEWER_TEXT = 'text';
+export const AI_TEXT_VIEWER_RAW = 'raw';
+export const AI_TEXT_VIEWER_EDIT = 'edit';
+export const AI_TEXT_VIEWER_LAYOUT_BLOCKS = 'layout-blocks';
 export const DEFAULT_AI_TEXT_VIEWER_ID = AI_TEXT_VIEWER_TEXT;
 
 export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
   {
     id: AI_TEXT_VIEWER_TEXT,
-    label: "Text",
-    shortLabel: "Text",
-    description: "Rendered Markdown with images and table formatting.",
+    label: 'Text',
+    shortLabel: 'Text',
+    description: 'Rendered Markdown with images and table formatting.',
     order: 0,
     selectableAsDefault: true,
     capabilities: {
@@ -55,10 +50,10 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
   },
   {
     id: AI_TEXT_VIEWER_LAYOUT_BLOCKS,
-    label: "Layout Blocks",
-    shortLabel: "Blocks",
+    label: 'Layout Blocks',
+    shortLabel: 'Blocks',
     description:
-      "Extracted blocks grouped by page. Selecting a block highlights it on the original PDF.",
+      'Extracted blocks grouped by page. Selecting a block highlights it on the original PDF.',
     order: 1,
     selectableAsDefault: true,
     capabilities: {
@@ -70,9 +65,9 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
   },
   {
     id: AI_TEXT_VIEWER_RAW,
-    label: "Markdown source",
-    shortLabel: "Source",
-    description: "The exact stored Markdown without rendering.",
+    label: 'Markdown source',
+    shortLabel: 'Source',
+    description: 'The exact stored Markdown without rendering.',
     order: 2,
     selectableAsDefault: false,
     capabilities: {
@@ -84,9 +79,9 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
   },
   {
     id: AI_TEXT_VIEWER_EDIT,
-    label: "Edit",
-    shortLabel: "Edit",
-    description: "Edit the stored Markdown version and save it in place.",
+    label: 'Edit',
+    shortLabel: 'Edit',
+    description: 'Edit the stored Markdown version and save it in place.',
     order: 3,
     selectableAsDefault: false,
     capabilities: {
@@ -98,12 +93,8 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
   },
 ];
 
-export function getBuiltinAiTextViewer(
-  viewerId: string,
-): AiTextViewerDescriptor | null {
-  return (
-    AI_TEXT_BUILTIN_VIEWERS.find((viewer) => viewer.id === viewerId) ?? null
-  );
+export function getBuiltinAiTextViewer(viewerId: string): AiTextViewerDescriptor | null {
+  return AI_TEXT_BUILTIN_VIEWERS.find((viewer) => viewer.id === viewerId) ?? null;
 }
 
 /**
@@ -111,14 +102,12 @@ export function getBuiltinAiTextViewer(
  * Descriptor mistakes are programmer errors, so registration fails loudly
  * instead of leaving a viewer that silently never appears.
  */
-export function parseAiTextViewerDescriptor(
-  input: unknown,
-): AiTextViewerDescriptor {
+export function parseAiTextViewerDescriptor(input: unknown): AiTextViewerDescriptor {
   const result = aiTextViewerDescriptorSchema.safeParse(input);
   if (result.success) return result.data;
   const issue = result.error.issues[0];
-  const where = issue?.path.length ? ` at ${issue.path.join(".")}` : "";
+  const where = issue?.path.length ? ` at ${issue.path.join('.')}` : '';
   throw new Error(
-    `Invalid AI Text viewer descriptor${where}: ${issue?.message ?? "invalid descriptor"}`,
+    `Invalid AI Text viewer descriptor${where}: ${issue?.message ?? 'invalid descriptor'}`,
   );
 }

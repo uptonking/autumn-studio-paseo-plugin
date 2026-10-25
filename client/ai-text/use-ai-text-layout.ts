@@ -1,18 +1,18 @@
-import * as React from "react";
+import * as React from 'react';
 import type {
   AiTextLayoutBlock,
   AiTextLayoutDocument,
   AiTextVersionRecord,
-} from "../../shared/contracts.js";
-import { layoutBlockToArea } from "../../shared/ai-text/layout.js";
-import type { PDFViewerHandle } from "../vendor/pdf-viewer/types.js";
-import type { AiTextBridge, AiTextLayoutStatus } from "./ai-text-types.js";
+} from '../../shared/contracts.js';
+import { layoutBlockToArea } from '../../shared/ai-text/layout.js';
+import type { PDFViewerHandle } from '../vendor/pdf-viewer/types.js';
+import type { AiTextBridge, AiTextLayoutStatus } from './ai-text-types.js';
 
 export interface UseAiTextLayoutInput {
   filePath?: string;
   activeVersion: AiTextVersionRecord | null;
-  getLayout: AiTextBridge["getLayout"] | undefined;
-  getAsset: AiTextBridge["getAsset"] | undefined;
+  getLayout: AiTextBridge['getLayout'] | undefined;
+  getAsset: AiTextBridge['getAsset'] | undefined;
   autoScrollToLayoutBlock: boolean;
   pdfHandleRef: React.RefObject<PDFViewerHandle | null>;
 }
@@ -31,8 +31,7 @@ export function useAiTextLayout({
   pdfHandleRef,
 }: UseAiTextLayoutInput) {
   const [layout, setLayout] = React.useState<AiTextLayoutDocument | null>(null);
-  const [layoutStatus, setLayoutStatus] =
-    React.useState<AiTextLayoutStatus>("idle");
+  const [layoutStatus, setLayoutStatus] = React.useState<AiTextLayoutStatus>('idle');
   const [layoutMessage, setLayoutMessage] = React.useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = React.useState<string | null>(null);
   const generationRef = React.useRef(0);
@@ -46,15 +45,15 @@ export function useAiTextLayout({
     setActiveBlockId(null);
     if (!activeVersion || !filePath || !getLayout) {
       setLayout(null);
-      setLayoutStatus("idle");
+      setLayoutStatus('idle');
       setLayoutMessage(null);
       return;
     }
     if (!versionLayoutRef) {
       setLayout(null);
-      setLayoutStatus("missing");
+      setLayoutStatus('missing');
       setLayoutMessage(
-        "This version has no layout metadata. Re-parse with MinerU Kit or the token API to enable Blocks.",
+        'This version has no layout metadata. Re-parse with MinerU Kit or the token API to enable Blocks.',
       );
       return;
     }
@@ -62,7 +61,7 @@ export function useAiTextLayout({
     const generation = generationRef.current;
     const targetPath = filePath;
     setLayout(null);
-    setLayoutStatus("loading");
+    setLayoutStatus('loading');
     setLayoutMessage(null);
     getLayout(targetPath, activeVersion.id)
       .then((result) => {
@@ -70,24 +69,20 @@ export function useAiTextLayout({
         if (currentFilePathRef.current !== targetPath) return;
         if (result.layout) {
           setLayout(result.layout);
-          setLayoutStatus("ready");
+          setLayoutStatus('ready');
           setLayoutMessage(null);
         } else {
           setLayout(null);
-          setLayoutStatus("missing");
-          setLayoutMessage(
-            result.message ?? "Layout metadata is unavailable.",
-          );
+          setLayoutStatus('missing');
+          setLayoutMessage(result.message ?? 'Layout metadata is unavailable.');
         }
       })
       .catch((error) => {
         if (generationRef.current !== generation) return;
         setLayout(null);
-        setLayoutStatus("missing");
+        setLayoutStatus('missing');
         setLayoutMessage(
-          error instanceof Error
-            ? error.message
-            : "Layout metadata could not be loaded.",
+          error instanceof Error ? error.message : 'Layout metadata could not be loaded.',
         );
       });
 
@@ -103,7 +98,7 @@ export function useAiTextLayout({
       const handle = pdfHandleRef.current;
       if (!handle) return;
       handle.scrollToPageArea(block.pageNumber, layoutBlockToArea(block), {
-        behavior: "smooth",
+        behavior: 'smooth',
       });
     },
     [autoScrollToLayoutBlock, pdfHandleRef],
@@ -121,7 +116,7 @@ export function useAiTextLayout({
   const loadAsset = React.useCallback(
     async (assetPath: string) => {
       if (!filePath || !activeVersion || !getAsset) {
-        throw new Error("No AI text version selected");
+        throw new Error('No AI text version selected');
       }
       return getAsset(filePath, activeVersion.id, assetPath);
     },

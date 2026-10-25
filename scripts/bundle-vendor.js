@@ -7,19 +7,19 @@
 // client/**/*.{ts,tsx} and index.client.tsx with TypeScript's AST parser, so
 // adding new lucide-react icons, @base-ui/react/* components, or @embedpdf/*
 // subpaths requires no manual edits to this script.
-import fs from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const pluginDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = path.join(pluginDir, "node_modules", ".paseo-vendor");
+const pluginDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const outDir = path.join(pluginDir, 'node_modules', '.paseo-vendor');
 
 function resolveTool(pkgName) {
   const candidates = [
-    path.join(pluginDir, "package.json"),
-    path.resolve(pluginDir, "../../paseo/package.json"),
-    path.resolve(pluginDir, "../../paseo/packages/server/package.json"),
+    path.join(pluginDir, 'package.json'),
+    path.resolve(pluginDir, '../../paseo/package.json'),
+    path.resolve(pluginDir, '../../paseo/packages/server/package.json'),
   ];
   for (const candidate of candidates) {
     if (!fs.existsSync(candidate)) continue;
@@ -33,8 +33,14 @@ function resolveTool(pkgName) {
   throw new Error(`Could not resolve ${pkgName} for scripts/bundle-vendor.js`);
 }
 
-const esbuild = resolveTool("esbuild");
-const ts = resolveTool("typescript");
+const esbuild = resolveTool('esbuild');
+const ts = resolveTool('typescript');
+
+// Stable ordering identical to the default Array#sort (code-unit comparison),
+// but with the comparator the linter requires to be explicit.
+function byCodeUnit(values) {
+  return values.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
 
 // react-dom is bundled into ui-vendor.js (the host app does not provide it to
 // plugin bundles) while react stays external and comes from the host app.
@@ -43,21 +49,21 @@ const ts = resolveTool("typescript");
 // together: when a paseo checkout sits next to this plugin, fail the build
 // instead of shipping a vendor bundle that breaks at runtime.
 function checkReactDomMatchesHost() {
-  const pluginRequire = createRequire(path.join(pluginDir, "package.json"));
+  const pluginRequire = createRequire(path.join(pluginDir, 'package.json'));
   const reactDomVersion = JSON.parse(
     fs.readFileSync(
-      path.join(path.dirname(pluginRequire.resolve("react-dom")), "package.json"),
-      "utf8",
+      path.join(path.dirname(pluginRequire.resolve('react-dom')), 'package.json'),
+      'utf8',
     ),
   ).version;
-  const hostAppPackagePath = path.resolve(pluginDir, "../../paseo/packages/app/package.json");
+  const hostAppPackagePath = path.resolve(pluginDir, '../../paseo/packages/app/package.json');
   if (!fs.existsSync(hostAppPackagePath)) {
     console.log(
       `⚠ No paseo checkout found next to this plugin; skipping the react-dom ↔ host react check (react-dom ${reactDomVersion}).`,
     );
     return;
   }
-  const hostReactVersion = JSON.parse(fs.readFileSync(hostAppPackagePath, "utf8")).dependencies
+  const hostReactVersion = JSON.parse(fs.readFileSync(hostAppPackagePath, 'utf8')).dependencies
     .react;
   if (reactDomVersion !== hostReactVersion) {
     throw new Error(
@@ -79,10 +85,7 @@ function walkSourceFiles(dir) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...walkSourceFiles(fullPath));
-    } else if (
-      /\.[cm]?[jt]sx?$/.test(entry.name) &&
-      !entry.name.endsWith(".d.ts")
-    ) {
+    } else if (/\.[cm]?[jt]sx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
       files.push(fullPath);
     }
   }
@@ -91,14 +94,14 @@ function walkSourceFiles(dir) {
 
 function collectClientThirdPartyImports() {
   const sourceFiles = [
-    ...walkSourceFiles(path.join(pluginDir, "client")),
-    path.join(pluginDir, "index.client.tsx"),
+    ...walkSourceFiles(path.join(pluginDir, 'client')),
+    path.join(pluginDir, 'index.client.tsx'),
   ];
   /** @type {Map<string, Set<string>>} */
   const bindingsBySpecifier = new Map();
 
   function recordBinding(specifier, binding) {
-    if (specifier.startsWith(".") || HOST_EXTERNAL_RE.test(specifier)) return;
+    if (specifier.startsWith('.') || HOST_EXTERNAL_RE.test(specifier)) return;
     let set = bindingsBySpecifier.get(specifier);
     if (!set) {
       set = new Set();
@@ -108,13 +111,8 @@ function collectClientThirdPartyImports() {
   }
 
   for (const file of sourceFiles) {
-    const sourceText = fs.readFileSync(file, "utf8");
-    const sf = ts.createSourceFile(
-      file,
-      sourceText,
-      ts.ScriptTarget.Latest,
-      true,
-    );
+    const sourceText = fs.readFileSync(file, 'utf8');
+    const sf = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true);
 
     function visit(node) {
       if (
@@ -126,7 +124,7 @@ function collectClientThirdPartyImports() {
         const clause = node.importClause;
         if (clause && !clause.isTypeOnly) {
           if (clause.name) {
-            recordBinding(spec, "default");
+            recordBinding(spec, 'default');
           }
           const named = clause.namedBindings;
           if (named && ts.isNamedImports(named)) {
@@ -136,7 +134,7 @@ function collectClientThirdPartyImports() {
               }
             }
           } else if (named && ts.isNamespaceImport(named)) {
-            recordBinding(spec, "*");
+            recordBinding(spec, '*');
           }
         }
       } else if (
@@ -147,7 +145,7 @@ function collectClientThirdPartyImports() {
       ) {
         const spec = node.moduleSpecifier.text;
         if (!node.exportClause) {
-          recordBinding(spec, "*");
+          recordBinding(spec, '*');
         } else if (ts.isNamedExports(node.exportClause)) {
           for (const el of node.exportClause.elements) {
             if (!el.isTypeOnly) {
@@ -164,7 +162,10 @@ function collectClientThirdPartyImports() {
         const spec = node.arguments[0].text;
         const parent = node.parent;
         const varDecl =
-          parent && ts.isAwaitExpression(parent) && parent.parent && ts.isVariableDeclaration(parent.parent)
+          parent &&
+          ts.isAwaitExpression(parent) &&
+          parent.parent &&
+          ts.isVariableDeclaration(parent.parent)
             ? parent.parent
             : null;
         if (
@@ -179,7 +180,7 @@ function collectClientThirdPartyImports() {
             }
           }
         } else {
-          recordBinding(spec, "*");
+          recordBinding(spec, '*');
         }
       }
       ts.forEachChild(node, visit);
@@ -203,28 +204,28 @@ function collectClientThirdPartyImports() {
 
 function classifyBundleGroup(specifier) {
   if (
-    specifier === "react-dom" ||
-    specifier.startsWith("react-dom/") ||
-    specifier.startsWith("@base-ui/react/") ||
-    specifier === "class-variance-authority" ||
-    specifier === "clsx" ||
-    specifier === "cmdk" ||
-    specifier === "tailwind-merge" ||
-    specifier === "lucide-react"
+    specifier === 'react-dom' ||
+    specifier.startsWith('react-dom/') ||
+    specifier.startsWith('@base-ui/react/') ||
+    specifier === 'class-variance-authority' ||
+    specifier === 'clsx' ||
+    specifier === 'cmdk' ||
+    specifier === 'tailwind-merge' ||
+    specifier === 'lucide-react'
   ) {
-    return "ui";
+    return 'ui';
   }
-  if (specifier.startsWith("@embedpdf/")) {
-    return "pdf";
+  if (specifier.startsWith('@embedpdf/')) {
+    return 'pdf';
   }
-  if (specifier === "pdf-lib") {
-    return "pdf-lib";
+  if (specifier === 'pdf-lib') {
+    return 'pdf-lib';
   }
-  if (specifier === "@extend-ai/react-xlsx") {
-    return "xlsx";
+  if (specifier === '@extend-ai/react-xlsx') {
+    return 'xlsx';
   }
-  if (specifier === "@pierre/trees" || specifier.startsWith("@pierre/trees/")) {
-    return "trees";
+  if (specifier === '@pierre/trees' || specifier.startsWith('@pierre/trees/')) {
+    return 'trees';
   }
   throw new Error(
     `Unclassified third-party client dependency "${specifier}". Add its mapping to scripts/bundle-vendor.js and tsconfig.json.`,
@@ -246,54 +247,47 @@ function buildBundleEntrySource(group, entries) {
   }
 
   for (const [specifier, bindings] of entries) {
-    if (specifier === "react-dom") {
+    if (specifier === 'react-dom') {
       lines.push(`import ReactDOM from "react-dom";`);
-      for (const name of [...bindings].sort()) {
-        if (name === "default" || name === "*") continue;
+      for (const name of byCodeUnit([...bindings])) {
+        if (name === 'default' || name === '*') continue;
         trackExport(name, specifier);
         lines.push(`export const ${name} = ReactDOM.${name};`);
       }
       continue;
     }
-    if (specifier === "react-dom/client") {
+    if (specifier === 'react-dom/client') {
       lines.push(`import ReactDOMClient from "react-dom/client";`);
-      for (const name of [...bindings].sort()) {
-        if (name === "default" || name === "*") continue;
+      for (const name of byCodeUnit([...bindings])) {
+        if (name === 'default' || name === '*') continue;
         trackExport(name, specifier);
         lines.push(`export const ${name} = ReactDOMClient.${name};`);
       }
       continue;
     }
 
-    const targetSpecifier =
-      specifier === "pdf-lib"
-        ? "pdf-lib/dist/pdf-lib.esm.min.js"
-        : specifier;
+    const targetSpecifier = specifier === 'pdf-lib' ? 'pdf-lib/dist/pdf-lib.esm.min.js' : specifier;
 
-    const namedBindings = [...bindings]
-      .filter((b) => b !== "*" && b !== "default")
-      .sort();
+    const namedBindings = byCodeUnit([...bindings].filter((b) => b !== '*' && b !== 'default'));
 
-    if (bindings.has("*")) {
+    if (bindings.has('*')) {
       lines.push(`export * from ${JSON.stringify(targetSpecifier)};`);
     } else if (namedBindings.length > 0) {
       for (const name of namedBindings) {
         trackExport(name, specifier);
       }
-      lines.push(
-        `export { ${namedBindings.join(", ")} } from ${JSON.stringify(targetSpecifier)};`,
-      );
+      lines.push(`export { ${namedBindings.join(', ')} } from ${JSON.stringify(targetSpecifier)};`);
     }
   }
 
-  return lines.join("\n") + "\n";
+  return lines.join('\n') + '\n';
 }
 
 const bindingsBySpecifier = collectClientThirdPartyImports();
 /** @type {Record<"ui" | "pdf" | "pdf-lib" | "xlsx" | "trees", Array<[string, Set<string>]>>} */
-const groups = { ui: [], pdf: [], "pdf-lib": [], xlsx: [], trees: [] };
+const groups = { ui: [], pdf: [], 'pdf-lib': [], xlsx: [], trees: [] };
 
-for (const [specifier, bindings] of [...bindingsBySpecifier.entries()].sort()) {
+for (const [specifier, bindings] of byCodeUnit([...bindingsBySpecifier.entries()])) {
   if (bindings.size === 0) continue;
   const group = classifyBundleGroup(specifier);
   groups[group].push([specifier, bindings]);
@@ -302,26 +296,26 @@ for (const [specifier, bindings] of [...bindingsBySpecifier.entries()].sort()) {
 fs.mkdirSync(outDir, { recursive: true });
 
 const EXTERNAL = [
-  "react",
-  "react/jsx-runtime",
-  "react-native",
-  "@tanstack/react-query",
-  "zod",
-  "@getpaseo/plugin",
-  "@getpaseo/plugin/*",
+  'react',
+  'react/jsx-runtime',
+  'react-native',
+  '@tanstack/react-query',
+  'zod',
+  '@getpaseo/plugin',
+  '@getpaseo/plugin/*',
 ];
 
 const COMMON_OPTIONS = {
   absWorkingDir: pluginDir,
-  tsconfig: path.join(pluginDir, "tsconfig.typecheck.json"),
+  tsconfig: path.join(pluginDir, 'tsconfig.typecheck.json'),
   bundle: true,
   minify: true,
-  format: "esm",
-  platform: "neutral",
-  target: "es2020",
-  mainFields: ["module", "main"],
+  format: 'esm',
+  platform: 'neutral',
+  target: 'es2020',
+  mainFields: ['module', 'main'],
   external: EXTERNAL,
-  logLevel: "warning",
+  logLevel: 'warning',
 };
 
 await Promise.all(
@@ -337,4 +331,4 @@ await Promise.all(
   ),
 );
 
-console.log("✓ Built .paseo-vendor bundles (ui, pdf, pdf-lib, xlsx, trees)");
+console.log('✓ Built .paseo-vendor bundles (ui, pdf, pdf-lib, xlsx, trees)');

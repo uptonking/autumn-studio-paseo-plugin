@@ -1,43 +1,43 @@
-import * as React from "react"
+import * as React from 'react';
 
-import { RecentFilesDropdownSection } from "../../file-viewer-tab-bar"
-import type { OpenedFileTab } from "../../opened-tabs-store"
+import { RecentFilesDropdownSection } from '../../file-viewer-tab-bar';
+import type { OpenedFileTab } from '../../opened-tabs-store';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu"
+} from '../components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { IconPlaceholder } from "../icon-placeholder"
-import { cn } from "../lib/utils"
+} from '../components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { IconPlaceholder } from '../icon-placeholder';
+import { cn } from '../lib/utils';
 import type {
   FileSystemDateFilterType,
   FileSystemFilter,
   FileSystemFilterOperator,
   FileTypeFilterOption,
-} from "./filter-types"
+} from './filter-types';
 import {
   ArrowDown01Glyph,
   ArrowUp01Glyph,
   FileTypeIcon,
   RefreshGlyph,
   VIEW_OPTIONS,
-} from "./icons"
+} from './icons';
 import {
   FileSystemFilterMenu,
   FileSystemFilterPill,
   FileSystemSearchField,
   FileSystemSortSelect,
-} from "./toolbar-controls"
+} from './toolbar-controls';
 import {
   pathName,
   pathParent,
@@ -48,12 +48,12 @@ import {
   type FileSystemSortKey,
   type FileSystemSortState,
   type FileSystemView,
-} from "./types"
+} from './types';
 
 function toFileEntry(file: OpenedFileTab, index?: FileSystemIndex): FileEntry {
   return (
     index?.files.get(file.path) ?? {
-      kind: "file",
+      kind: 'file',
       key: file.path,
       path: file.path,
       name: file.name || pathName(file.path),
@@ -62,7 +62,7 @@ function toFileEntry(file: OpenedFileTab, index?: FileSystemIndex): FileEntry {
       size: file.size,
       updatedAt: file.updatedAt,
     }
-  )
+  );
 }
 
 export function FileSystemListColumnHeader({
@@ -72,34 +72,34 @@ export function FileSystemListColumnHeader({
   sort,
   sortKey,
 }: {
-  className?: string
-  label: string
-  onClick: (key: FileSystemSortKey) => void
-  sort: FileSystemSortState
-  sortKey: FileSystemSortKey
+  className?: string;
+  label: string;
+  onClick: (key: FileSystemSortKey) => void;
+  sort: FileSystemSortState;
+  sortKey: FileSystemSortKey;
 }) {
-  const isActive = sort.key === sortKey
+  const isActive = sort.key === sortKey;
 
   return (
     <button
-      type="button"
+      type='button'
       onClick={() => onClick(sortKey)}
       className={cn(
-        "flex items-center gap-0.5 rounded-sm py-0.5 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-        isActive && "text-foreground",
-        className
+        'flex items-center gap-0.5 rounded-sm py-0.5 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+        isActive && 'text-foreground',
+        className,
       )}
     >
       {label}
       {isActive ? (
-        sort.direction === "asc" ? (
-          <ArrowUp01Glyph className="size-3 shrink-0" />
+        sort.direction === 'asc' ? (
+          <ArrowUp01Glyph className='size-3 shrink-0' />
         ) : (
-          <ArrowDown01Glyph className="size-3 shrink-0" />
+          <ArrowDown01Glyph className='size-3 shrink-0' />
         )
       ) : null}
     </button>
-  )
+  );
 }
 
 export function renderOpenModeMenuItems({
@@ -108,39 +108,33 @@ export function renderOpenModeMenuItems({
   openFileWithMode,
   targetFile,
 }: {
-  currentMode: "in-place" | "dialog" | "tree"
-  onOpenFileInNewTab?: (file: FileEntry, url: string) => void
-  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void
-  targetFile: FileEntry
+  currentMode: 'in-place' | 'dialog' | 'tree';
+  onOpenFileInNewTab?: (file: FileEntry, url: string) => void;
+  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void;
+  targetFile: FileEntry;
 }) {
   return (
     <>
-      {currentMode !== "in-place" ? (
-        <DropdownMenuItem
-          onClick={() => openFileWithMode(targetFile, "in-place")}
-        >
-          <IconPlaceholder lucide="PanelLeft" className="size-4" />
+      {currentMode !== 'in-place' ? (
+        <DropdownMenuItem onClick={() => openFileWithMode(targetFile, 'in-place')}>
+          <IconPlaceholder lucide='PanelLeft' className='size-4' />
           Open file in-place
         </DropdownMenuItem>
       ) : null}
-      {currentMode !== "dialog" ? (
-        <DropdownMenuItem
-          onClick={() => openFileWithMode(targetFile, "dialog")}
-        >
-          <IconPlaceholder lucide="Maximize2" className="size-4" />
+      {currentMode !== 'dialog' ? (
+        <DropdownMenuItem onClick={() => openFileWithMode(targetFile, 'dialog')}>
+          <IconPlaceholder lucide='Maximize2' className='size-4' />
           Open file in dialog
         </DropdownMenuItem>
       ) : null}
       {onOpenFileInNewTab ? (
-        <DropdownMenuItem
-          onClick={() => openFileWithMode(targetFile, "new-tab")}
-        >
-          <IconPlaceholder lucide="ExternalLink" className="size-4" />
+        <DropdownMenuItem onClick={() => openFileWithMode(targetFile, 'new-tab')}>
+          <IconPlaceholder lucide='ExternalLink' className='size-4' />
           Open file in new tab
         </DropdownMenuItem>
       ) : null}
     </>
-  )
+  );
 }
 
 export function FileSystemInPlaceHeader({
@@ -154,50 +148,50 @@ export function FileSystemInPlaceHeader({
   openFileWithMode,
   recentFiles,
 }: {
-  file: FileEntry
-  fileName: string
-  index?: FileSystemIndex
-  onBack: () => void
-  onClearRecentFiles?: () => void
-  onOpenFileInNewTab?: (file: FileEntry, url: string) => void
-  onOpenSettings?: () => void
-  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void
-  recentFiles?: readonly OpenedFileTab[]
+  file: FileEntry;
+  fileName: string;
+  index?: FileSystemIndex;
+  onBack: () => void;
+  onClearRecentFiles?: () => void;
+  onOpenFileInNewTab?: (file: FileEntry, url: string) => void;
+  onOpenSettings?: () => void;
+  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void;
+  recentFiles?: readonly OpenedFileTab[];
 }) {
-  const hasRecent = (recentFiles?.length ?? 0) > 0
+  const hasRecent = (recentFiles?.length ?? 0) > 0;
   return (
     <div
-      data-slot="file-system-inplace-header"
-      className="relative flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-2"
+      data-slot='file-system-inplace-header'
+      className='relative flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-2'
     >
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className='flex min-w-0 items-center gap-1.5'>
         <button
-          type="button"
-          aria-label="Back to file tree"
-          title="Back to file tree"
+          type='button'
+          aria-label='Back to file tree'
+          title='Back to file tree'
           onClick={onBack}
-          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className='flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
         >
-          <IconPlaceholder lucide="ArrowLeft" className="size-4" />
+          <IconPlaceholder lucide='ArrowLeft' className='size-4' />
         </button>
-        <FileTypeIcon fileName={fileName} className="size-4 shrink-0" />
-        <span className="truncate text-sm font-semibold">{fileName}</span>
+        <FileTypeIcon fileName={fileName} className='size-4 shrink-0' />
+        <span className='truncate text-sm font-semibold'>{fileName}</span>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className='flex shrink-0 items-center gap-1'>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              type="button"
-              aria-label="More actions"
-              title="More actions"
+              type='button'
+              aria-label='More actions'
+              title='More actions'
               className={TOOLBAR_ICON_BUTTON_CLASSNAME}
             >
-              <IconPlaceholder lucide="Ellipsis" className="size-4" />
+              <IconPlaceholder lucide='Ellipsis' className='size-4' />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align='end' className='w-56'>
             {renderOpenModeMenuItems({
-              currentMode: "in-place",
+              currentMode: 'in-place',
               onOpenFileInNewTab,
               openFileWithMode,
               targetFile: file,
@@ -206,7 +200,7 @@ export function FileSystemInPlaceHeader({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onOpenSettings}>
-                  <IconPlaceholder lucide="Settings" className="size-4" />
+                  <IconPlaceholder lucide='Settings' className='size-4' />
                   Autumn Studio settings
                 </DropdownMenuItem>
               </>
@@ -217,12 +211,10 @@ export function FileSystemInPlaceHeader({
                 <RecentFilesDropdownSection
                   recentFiles={recentFiles ?? []}
                   activePath={file.path}
-                  testId="file-system-recent-files"
-                  itemTestIdPrefix="file-system-recent-item-"
-                  clearTestId="file-system-clear-recent-files"
-                  onSelectFile={(item) =>
-                    openFileWithMode(toFileEntry(item, index))
-                  }
+                  testId='file-system-recent-files'
+                  itemTestIdPrefix='file-system-recent-item-'
+                  clearTestId='file-system-clear-recent-files'
+                  onSelectFile={(item) => openFileWithMode(toFileEntry(item, index))}
                   onClearRecentFiles={onClearRecentFiles}
                 />
               </>
@@ -231,7 +223,7 @@ export function FileSystemInPlaceHeader({
         </DropdownMenu>
       </div>
     </div>
-  )
+  );
 }
 
 export function FileSystemToolbarHeader({
@@ -269,111 +261,104 @@ export function FileSystemToolbarHeader({
   toggleFileTypeFilterValue,
   view,
 }: {
-  applySortKey: (key: FileSystemSortKey) => void
-  canGoBack: boolean
-  canGoForward: boolean
-  currentFolderName: string
-  fileTypeOptions: FileTypeFilterOption[]
-  filters: FileSystemFilter[]
-  goBack: () => void
-  goForward: () => void
-  hasActiveFilters: boolean
-  headerLayout: "full" | "compact" | "minimal"
-  index?: FileSystemIndex
-  isBelowIpadWidth: boolean
-  isSearchExpanded: boolean
-  onClearRecentFiles?: () => void
-  onOpenFileInNewTab?: (file: FileEntry, url: string) => void
-  onOpenSettings?: () => void
-  onPreloadDateRangeDialog?: () => void
-  onPreloadView?: (viewMode: FileSystemView) => void
-  onRefresh?: () => void
-  openDateRangeDialog: (type: FileSystemDateFilterType) => void
-  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void
-  recentFiles?: readonly OpenedFileTab[]
-  searchInput: string
-  searchInputRef: React.RefObject<HTMLInputElement | null>
-  selectedFileEntry: FileEntry | null
-  setDatePresetFilter: (type: FileSystemDateFilterType, preset: string) => void
-  setFilters: React.Dispatch<React.SetStateAction<FileSystemFilter[]>>
-  setIsSearchExpanded: (expanded: boolean) => void
-  setSearchInput: (value: string) => void
-  setView: (view: FileSystemView) => void
-  sort: FileSystemSortState
-  toggleFileTypeFilterValue: (mime: string, checked: boolean) => void
-  view: FileSystemView
+  applySortKey: (key: FileSystemSortKey) => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  currentFolderName: string;
+  fileTypeOptions: FileTypeFilterOption[];
+  filters: FileSystemFilter[];
+  goBack: () => void;
+  goForward: () => void;
+  hasActiveFilters: boolean;
+  headerLayout: 'full' | 'compact' | 'minimal';
+  index?: FileSystemIndex;
+  isBelowIpadWidth: boolean;
+  isSearchExpanded: boolean;
+  onClearRecentFiles?: () => void;
+  onOpenFileInNewTab?: (file: FileEntry, url: string) => void;
+  onOpenSettings?: () => void;
+  onPreloadDateRangeDialog?: () => void;
+  onPreloadView?: (viewMode: FileSystemView) => void;
+  onRefresh?: () => void;
+  openDateRangeDialog: (type: FileSystemDateFilterType) => void;
+  openFileWithMode: (file: FileEntry, mode?: FileSystemOpenMode) => void;
+  recentFiles?: readonly OpenedFileTab[];
+  searchInput: string;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  selectedFileEntry: FileEntry | null;
+  setDatePresetFilter: (type: FileSystemDateFilterType, preset: string) => void;
+  setFilters: React.Dispatch<React.SetStateAction<FileSystemFilter[]>>;
+  setIsSearchExpanded: (expanded: boolean) => void;
+  setSearchInput: (value: string) => void;
+  setView: (view: FileSystemView) => void;
+  sort: FileSystemSortState;
+  toggleFileTypeFilterValue: (mime: string, checked: boolean) => void;
+  view: FileSystemView;
 }) {
-  const activeViewOption = VIEW_OPTIONS.find((option) => option.value === view)
+  const activeViewOption = VIEW_OPTIONS.find((option) => option.value === view);
 
   return (
     <>
-      <div className="relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b bg-muted/40 px-2">
-        <div className="flex min-w-0 items-center gap-0.5">
+      <div className='relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b bg-muted/40 px-2'>
+        <div className='flex min-w-0 items-center gap-0.5'>
           <button
-            type="button"
-            aria-label="Back"
-            title="Back"
+            type='button'
+            aria-label='Back'
+            title='Back'
             disabled={!canGoBack}
             onClick={goBack}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
+            className='flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40'
           >
             <IconPlaceholder
-              lucide="ChevronLeft"
-              tabler="IconChevronLeft"
-              hugeicons="ArrowLeft01Icon"
-              phosphor="CaretLeftIcon"
-              remixicon="RiArrowLeftSLine"
-              className="size-4.5"
+              lucide='ChevronLeft'
+              tabler='IconChevronLeft'
+              hugeicons='ArrowLeft01Icon'
+              phosphor='CaretLeftIcon'
+              remixicon='RiArrowLeftSLine'
+              className='size-4.5'
             />
           </button>
           <button
-            type="button"
-            aria-label="Forward"
-            title="Forward"
+            type='button'
+            aria-label='Forward'
+            title='Forward'
             disabled={!canGoForward}
             onClick={goForward}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
+            className='flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40'
           >
             <IconPlaceholder
-              lucide="ArrowRight"
-              tabler="IconArrowRight"
-              hugeicons="ArrowRight01Icon"
-              phosphor="ArrowRightIcon"
-              remixicon="RiArrowRightLine"
-              className="size-4.5"
+              lucide='ArrowRight'
+              tabler='IconArrowRight'
+              hugeicons='ArrowRight01Icon'
+              phosphor='ArrowRightIcon'
+              remixicon='RiArrowRightLine'
+              className='size-4.5'
             />
           </button>
           {onRefresh ? (
             <button
-              type="button"
-              aria-label="Refresh"
-              title="Refresh"
+              type='button'
+              aria-label='Refresh'
+              title='Refresh'
               onClick={onRefresh}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className='flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
             >
-              <RefreshGlyph className="size-3.5" />
+              <RefreshGlyph className='size-3.5' />
             </button>
           ) : null}
-          {headerLayout !== "minimal" ? (
-            <span className="ml-1.5 truncate text-sm font-semibold">
-              {currentFolderName}
-            </span>
+          {headerLayout !== 'minimal' ? (
+            <span className='ml-1.5 truncate text-sm font-semibold'>{currentFolderName}</span>
           ) : null}
         </div>
-        {headerLayout !== "full" || isBelowIpadWidth ? (
-          <Select
-            value={view}
-            onValueChange={(value) => setView(value as FileSystemView)}
-          >
+        {headerLayout !== 'full' || isBelowIpadWidth ? (
+          <Select value={view} onValueChange={(value) => setView(value as FileSystemView)}>
             <SelectTrigger
-              size="sm"
-              aria-label="View"
-              className="h-7 min-h-7 w-auto min-w-0 [&_svg]:size-4"
+              size='sm'
+              aria-label='View'
+              className='h-7 min-h-7 w-auto min-w-0 [&_svg]:size-4'
             >
               <SelectValue>
-                {activeViewOption ? (
-                  <activeViewOption.icon className="size-4" />
-                ) : null}
+                {activeViewOption ? <activeViewOption.icon className='size-4' /> : null}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -384,8 +369,8 @@ export function FileSystemToolbarHeader({
                   onMouseEnter={() => onPreloadView?.(option.value)}
                   onFocus={() => onPreloadView?.(option.value)}
                 >
-                  <span className="flex items-center gap-2">
-                    <option.icon className="size-4" />
+                  <span className='flex items-center gap-2'>
+                    <option.icon className='size-4' />
                     {option.label}
                   </span>
                 </SelectItem>
@@ -396,9 +381,9 @@ export function FileSystemToolbarHeader({
           <Tabs
             value={view}
             onValueChange={(value) => setView(value as FileSystemView)}
-            className="gap-0"
+            className='gap-0'
           >
-            <TabsList className="h-8 p-0.5">
+            <TabsList className='h-8 p-0.5'>
               {VIEW_OPTIONS.map((option) => (
                 <TabsTrigger
                   key={option.value}
@@ -407,16 +392,16 @@ export function FileSystemToolbarHeader({
                   title={option.label}
                   onMouseEnter={() => onPreloadView?.(option.value)}
                   onFocus={() => onPreloadView?.(option.value)}
-                  className="h-7 grow-0 px-2.5 sm:h-7"
+                  className='h-7 grow-0 px-2.5 sm:h-7'
                 >
-                  <option.icon className="size-4" />
+                  <option.icon className='size-4' />
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
         )}
         <div
-          className="flex min-w-0 items-center justify-end gap-1"
+          className='flex min-w-0 items-center justify-end gap-1'
           onMouseEnter={() => onPreloadDateRangeDialog?.()}
         >
           <FileSystemSortSelect
@@ -444,45 +429,39 @@ export function FileSystemToolbarHeader({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  type="button"
-                  aria-label="More actions"
-                  title="More actions"
+                  type='button'
+                  aria-label='More actions'
+                  title='More actions'
                   className={TOOLBAR_ICON_BUTTON_CLASSNAME}
                 >
-                  <IconPlaceholder lucide="Ellipsis" className="size-4" />
+                  <IconPlaceholder lucide='Ellipsis' className='size-4' />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align='end' className='w-56'>
                 {selectedFileEntry
                   ? renderOpenModeMenuItems({
-                      currentMode: "tree",
+                      currentMode: 'tree',
                       onOpenFileInNewTab,
                       openFileWithMode,
                       targetFile: selectedFileEntry,
                     })
                   : null}
-                {selectedFileEntry && onOpenSettings ? (
-                  <DropdownMenuSeparator />
-                ) : null}
+                {selectedFileEntry && onOpenSettings ? <DropdownMenuSeparator /> : null}
                 {onOpenSettings ? (
                   <DropdownMenuItem onClick={onOpenSettings}>
-                    <IconPlaceholder lucide="Settings" className="size-4" />
+                    <IconPlaceholder lucide='Settings' className='size-4' />
                     Autumn Studio settings
                   </DropdownMenuItem>
                 ) : null}
                 {(recentFiles?.length ?? 0) > 0 ? (
                   <>
-                    {selectedFileEntry || onOpenSettings ? (
-                      <DropdownMenuSeparator />
-                    ) : null}
+                    {selectedFileEntry || onOpenSettings ? <DropdownMenuSeparator /> : null}
                     <RecentFilesDropdownSection
                       recentFiles={recentFiles ?? []}
-                      testId="file-system-recent-files"
-                      itemTestIdPrefix="file-system-recent-item-"
-                      clearTestId="file-system-clear-recent-files"
-                      onSelectFile={(item) =>
-                        openFileWithMode(toFileEntry(item, index))
-                      }
+                      testId='file-system-recent-files'
+                      itemTestIdPrefix='file-system-recent-item-'
+                      clearTestId='file-system-clear-recent-files'
+                      onSelectFile={(item) => openFileWithMode(toFileEntry(item, index))}
                       onClearRecentFiles={onClearRecentFiles}
                     />
                   </>
@@ -493,10 +472,9 @@ export function FileSystemToolbarHeader({
         </div>
       </div>
       {hasActiveFilters ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-1 border-b bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
+        <div className='flex shrink-0 flex-wrap items-center gap-1 border-b bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground'>
           {filters.map((filter) => {
-            const dateFilterType =
-              filter.type === "fileType" ? null : filter.type
+            const dateFilterType = filter.type === 'fileType' ? null : filter.type;
 
             return (
               <FileSystemFilterPill
@@ -504,21 +482,17 @@ export function FileSystemToolbarHeader({
                 fileTypeOptions={fileTypeOptions}
                 filter={filter}
                 onOpenCustomRange={
-                  dateFilterType
-                    ? () => openDateRangeDialog(dateFilterType)
-                    : undefined
+                  dateFilterType ? () => openDateRangeDialog(dateFilterType) : undefined
                 }
                 onOperatorChange={(operator: FileSystemFilterOperator) =>
                   setFilters((previous) =>
                     previous.map((entry) =>
-                      entry.id === filter.id ? { ...entry, operator } : entry
-                    )
+                      entry.id === filter.id ? { ...entry, operator } : entry,
+                    ),
                   )
                 }
                 onRemove={() =>
-                  setFilters((previous) =>
-                    previous.filter((entry) => entry.id !== filter.id)
-                  )
+                  setFilters((previous) => previous.filter((entry) => entry.id !== filter.id))
                 }
                 onSelectDatePreset={(preset) =>
                   setFilters((previous) =>
@@ -527,29 +501,28 @@ export function FileSystemToolbarHeader({
                         ? {
                             ...entry,
                             operator:
-                              entry.operator === "before" ||
-                              entry.operator === "after"
+                              entry.operator === 'before' || entry.operator === 'after'
                                 ? entry.operator
-                                : "after",
+                                : 'after',
                             value: [preset],
                           }
-                        : entry
-                    )
+                        : entry,
+                    ),
                   )
                 }
                 onToggleFileType={toggleFileTypeFilterValue}
               />
-            )
+            );
           })}
           <button
-            type="button"
+            type='button'
             onClick={() => setFilters([])}
-            className="rounded-md px-1.5 py-0.5 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className='rounded-md px-1.5 py-0.5 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
           >
             Clear
           </button>
         </div>
       ) : null}
     </>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import type { ReactNode } from "react";
-import { Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
-import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
+import type { ReactNode } from 'react';
+import { Pressable, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import type { PluginSurfaceProps } from '@getpaseo/plugin/client';
 
-export type AiTextTheme = PluginSurfaceProps["theme"];
+export type AiTextTheme = PluginSurfaceProps['theme'];
 
-export type AiTextSettingsTab = "general" | "profiles" | "engines" | "advanced";
+export type AiTextSettingsTab = 'general' | 'profiles' | 'engines' | 'advanced';
 
 const TABS: readonly { id: AiTextSettingsTab; label: string }[] = [
-  { id: "general", label: "General" },
-  { id: "profiles", label: "Profiles" },
-  { id: "engines", label: "Engines & Setup" },
-  { id: "advanced", label: "Advanced" },
+  { id: 'general', label: 'General' },
+  { id: 'profiles', label: 'Profiles' },
+  { id: 'engines', label: 'Engines & Setup' },
+  { id: 'advanced', label: 'Advanced' },
 ];
 
 const tabBarStyle: ViewStyle = {
-  flexDirection: "row",
-  flexWrap: "wrap",
+  flexDirection: 'row',
+  flexWrap: 'wrap',
   gap: 4,
   padding: 4,
   borderWidth: 1,
@@ -30,7 +30,7 @@ const tabButtonStyle: ViewStyle = {
 
 const tabTextStyle: TextStyle = {
   fontSize: 12,
-  fontWeight: "600",
+  fontWeight: '600',
 };
 
 export function AiTextSettingsTabs({
@@ -43,33 +43,23 @@ export function AiTextSettingsTabs({
   theme: AiTextTheme;
 }) {
   return (
-    <View
-      accessibilityRole="tablist"
-      style={[tabBarStyle, { borderColor: theme.colors.border }]}
-    >
+    <View accessibilityRole='tablist' style={[tabBarStyle, { borderColor: theme.colors.border }]}>
       {TABS.map((tab) => {
         const active = tab.id === activeTab;
         return (
           <Pressable
             key={tab.id}
-            accessibilityRole="tab"
+            accessibilityRole='tab'
             accessibilityState={{ selected: active }}
             testID={`autumn-studio-ai-text-tab-${tab.id}`}
             onPress={() => onChange(tab.id)}
-            style={[
-              tabButtonStyle,
-              active
-                ? { backgroundColor: theme.colors.surface2 }
-                : null,
-            ]}
+            style={[tabButtonStyle, active ? { backgroundColor: theme.colors.surface2 } : null]}
           >
             <Text
               style={[
                 tabTextStyle,
                 {
-                  color: active
-                    ? theme.colors.foreground
-                    : theme.colors.foregroundMuted,
+                  color: active ? theme.colors.foreground : theme.colors.foregroundMuted,
                 },
               ]}
             >
@@ -82,17 +72,17 @@ export function AiTextSettingsTabs({
   );
 }
 
-export type AiTextTone = "default" | "accent" | "danger" | "warning" | "success";
+export type AiTextTone = 'default' | 'accent' | 'danger' | 'warning' | 'success';
 
 export function toneColor(theme: AiTextTheme, tone: AiTextTone): string {
   switch (tone) {
-    case "accent":
+    case 'accent':
       return theme.colors.accent;
-    case "danger":
+    case 'danger':
       return theme.colors.statusDanger;
-    case "warning":
+    case 'warning':
       return theme.colors.statusWarning;
-    case "success":
+    case 'success':
       return theme.colors.statusSuccess;
     default:
       return theme.colors.foreground;
@@ -105,7 +95,7 @@ export function toneColor(theme: AiTextTheme, tone: AiTextTone): string {
  */
 export function AiTextBadge({
   label,
-  tone = "default",
+  tone = 'default',
   theme,
   testID,
 }: {
@@ -125,7 +115,7 @@ export function AiTextBadge({
         backgroundColor: theme.colors.surface2,
       }}
     >
-      <Text style={{ color, fontSize: 10, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color, fontSize: 10, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }
@@ -139,7 +129,7 @@ export function AiTextAction({
   label,
   onPress,
   disabled,
-  tone = "default",
+  tone = 'default',
   theme,
   testID,
   accessibilityLabel,
@@ -153,51 +143,44 @@ export function AiTextAction({
   /** Spoken hover/hint name, for icon-only labels like "↗". */
   accessibilityLabel?: string;
 }) {
-  const filled = tone === "accent";
-  const color = filled
-    ? theme.colors.accentForeground
-    : toneColor(theme, tone);
+  const filled = tone === 'accent';
+  const color = filled ? theme.colors.accentForeground : toneColor(theme, tone);
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole='button'
       accessibilityLabel={accessibilityLabel}
       testID={testID}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         {
-          alignSelf: "flex-start",
+          alignSelf: 'flex-start',
           borderRadius: 7,
           paddingHorizontal: 10,
           paddingVertical: 5,
-          backgroundColor: filled
-            ? theme.colors.accent
-            : theme.colors.surface2,
+          backgroundColor: filled ? theme.colors.accent : theme.colors.surface2,
           opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Text style={{ color, fontSize: 11, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color, fontSize: 11, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
 }
 
-export type AiTextHintTone = AiTextTone | "muted";
+export type AiTextHintTone = AiTextTone | 'muted';
 
 export function AiTextHint({
   children,
   theme,
-  tone = "muted",
+  tone = 'muted',
 }: {
   children: ReactNode;
   theme: AiTextTheme;
   tone?: AiTextHintTone;
 }) {
-  const color =
-    tone === "muted" ? theme.colors.foregroundMuted : toneColor(theme, tone);
-  return (
-    <Text style={{ color, fontSize: 12, lineHeight: 17 }}>{children}</Text>
-  );
+  const color = tone === 'muted' ? theme.colors.foregroundMuted : toneColor(theme, tone);
+  return <Text style={{ color, fontSize: 12, lineHeight: 17 }}>{children}</Text>;
 }
 
 const cardStyle: ViewStyle = {
@@ -236,7 +219,7 @@ export function AiTextRow({
   label,
   detail,
   value,
-  tone = "default",
+  tone = 'default',
   theme,
 }: {
   label: string;
@@ -249,14 +232,20 @@ export function AiTextRow({
   return (
     <View
       style={{
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
         gap: 12,
       }}
     >
       <View style={{ flexShrink: 1, minWidth: 0 }}>
-        <Text style={{ color: theme.colors.foreground, fontSize: 12, fontWeight: "600" }}>
+        <Text
+          style={{
+            color: theme.colors.foreground,
+            fontSize: 12,
+            fontWeight: '600',
+          }}
+        >
           {label}
         </Text>
         {detail ? (
@@ -276,9 +265,9 @@ export function AiTextRow({
         style={{
           color,
           fontSize: 12,
-          fontWeight: "600",
+          fontWeight: '600',
           flexShrink: 1,
-          textAlign: "right",
+          textAlign: 'right',
         }}
       >
         {value}
@@ -289,7 +278,7 @@ export function AiTextRow({
 
 /** Human byte size for storage rows ("1.2 GB", "840 KB", "—"). */
 export function formatAiTextBytes(bytes: number | null | undefined): string {
-  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return '—';
   if (bytes < 1024) return `${bytes} B`;
   const kb = bytes / 1024;
   if (kb < 1024) return `${kb >= 10 ? Math.round(kb) : kb.toFixed(1)} KB`;

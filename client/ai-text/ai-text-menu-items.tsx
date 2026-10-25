@@ -1,10 +1,7 @@
-import * as React from "react";
-import { PanelLeftClose } from "lucide-react";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "../vendor/components/ui/dropdown-menu.js";
-import { FileAiTextContext } from "./ai-text-context.js";
+import * as React from 'react';
+import { PanelLeftClose } from 'lucide-react';
+import { DropdownMenuItem, DropdownMenuSeparator } from '../vendor/components/ui/dropdown-menu.js';
+import { FileAiTextContext } from './ai-text-context.js';
 
 export interface AiTextMenuInjectorProps {
   extraMenuItems?: React.ReactNode;
@@ -31,10 +28,10 @@ export function AiTextMenuInjector({
   const aiText = React.useContext(FileAiTextContext);
   const canCloseOriginal = Boolean(
     allowHideOriginal &&
-      aiText?.enabled &&
-      aiText.supported &&
-      aiText.isSplitOpen &&
-      !aiText.isOriginalHidden,
+    aiText?.enabled &&
+    aiText.supported &&
+    aiText.isSplitOpen &&
+    !aiText.isOriginalHidden,
   );
 
   const menuItems = canCloseOriginal ? (
@@ -42,10 +39,10 @@ export function AiTextMenuInjector({
       {extraMenuItems}
       {extraMenuItems ? <DropdownMenuSeparator /> : null}
       <DropdownMenuItem
-        data-testid="ai-text-original-close-menu-item"
+        data-testid='ai-text-original-close-menu-item'
         onClick={() => aiText?.onHideOriginal()}
       >
-        <PanelLeftClose className="size-4" />
+        <PanelLeftClose className='size-4' />
         Close this viewer
       </DropdownMenuItem>
     </>

@@ -1,30 +1,26 @@
-"use client";
+'use client';
 
-import * as React from "react";
+import * as React from 'react';
 import {
   useXlsxViewerController,
   XlsxViewer,
   XlsxViewerProvider,
   type XlsxScrollerRenderProps,
-} from "@extend-ai/react-xlsx";
-import { Loader2 } from "lucide-react";
-import {
-  DEFAULT_XLSX_SETTINGS,
-  toXlsxViewerZoom,
-} from "../../../shared/settings";
-import type { FileEditSession } from "../../editing/use-file-edit-session";
-import type { FileSurfaceRole } from "../../viewers/provider-catalog";
-import { ScrollArea } from "../components/ui/scroll-area";
-import type { FileSystemXlsxSettings } from "../file-system/types";
-import { cn } from "../lib/utils";
-import { ensureXlsxWasmReady, fetchWorkbookArrayBuffer } from "./wasm-loader";
-import { XlsxFormulaBar } from "./xlsx-formula-bar";
-import { WorkbookTableHeaderMenu } from "./xlsx-search-popover";
-import { XlsxSheetTabs } from "./xlsx-sheet-tabs";
-import { XlsxToolbar } from "./xlsx-toolbar";
+} from '@extend-ai/react-xlsx';
+import { Loader2 } from 'lucide-react';
+import { DEFAULT_XLSX_SETTINGS, toXlsxViewerZoom } from '../../../shared/settings';
+import type { FileEditSession } from '../../editing/use-file-edit-session';
+import type { FileSurfaceRole } from '../../viewers/provider-catalog';
+import { ScrollArea } from '../components/ui/scroll-area';
+import type { FileSystemXlsxSettings } from '../file-system/types';
+import { cn } from '../lib/utils';
+import { ensureXlsxWasmReady, fetchWorkbookArrayBuffer } from './wasm-loader';
+import { XlsxFormulaBar } from './xlsx-formula-bar';
+import { WorkbookTableHeaderMenu } from './xlsx-search-popover';
+import { XlsxSheetTabs } from './xlsx-sheet-tabs';
+import { XlsxToolbar } from './xlsx-toolbar';
 
-const XLSX_MIME_TYPE =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export interface ResolvedXlsxRuntimeSettings {
   defaultZoom: number;
@@ -50,7 +46,7 @@ export interface ExtendXlsxSurfaceProps {
 
 export function ExtendXlsxSurface({
   src,
-  fileName = "Workbook.xlsx",
+  fileName = 'Workbook.xlsx',
   role,
   canSwitchRole = true,
   onRoleChange,
@@ -65,23 +61,18 @@ export function ExtendXlsxSurface({
   const resolvedSettings: ResolvedXlsxRuntimeSettings = React.useMemo(
     () => ({
       defaultZoom:
-        typeof xlsxSettings?.defaultZoom === "number"
+        typeof xlsxSettings?.defaultZoom === 'number'
           ? xlsxSettings.defaultZoom
           : toXlsxViewerZoom(DEFAULT_XLSX_SETTINGS.defaultZoom),
-      showFormulaBar:
-        xlsxSettings?.showFormulaBar ?? DEFAULT_XLSX_SETTINGS.showFormulaBar,
-      showHiddenSheets:
-        xlsxSettings?.showHiddenSheets ??
-        DEFAULT_XLSX_SETTINGS.showHiddenSheets,
+      showFormulaBar: xlsxSettings?.showFormulaBar ?? DEFAULT_XLSX_SETTINGS.showFormulaBar,
+      showHiddenSheets: xlsxSettings?.showHiddenSheets ?? DEFAULT_XLSX_SETTINGS.showHiddenSheets,
       showDownloadButton:
-        xlsxSettings?.showDownloadButton ??
-        DEFAULT_XLSX_SETTINGS.showDownloadButton,
+        xlsxSettings?.showDownloadButton ?? DEFAULT_XLSX_SETTINGS.showDownloadButton,
     }),
     [xlsxSettings],
   );
 
-  const [workbookBuffer, setWorkbookBuffer] =
-    React.useState<ArrayBuffer | null>(null);
+  const [workbookBuffer, setWorkbookBuffer] = React.useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [isPreparing, setIsPreparing] = React.useState<boolean>(Boolean(src));
 
@@ -109,9 +100,7 @@ export function ExtendXlsxSurface({
         if (cancelled) {
           return;
         }
-        setLoadError(
-          error instanceof Error ? error.message : "Failed to load Excel file",
-        );
+        setLoadError(error instanceof Error ? error.message : 'Failed to load Excel file');
         setIsPreparing(false);
       });
 
@@ -123,15 +112,15 @@ export function ExtendXlsxSurface({
   if (loadError) {
     return (
       <div
-        data-testid="xlsx-surface-error"
+        data-testid='xlsx-surface-error'
         className={cn(
-          "grid h-full min-h-0 w-full place-items-center bg-background p-6 text-sm text-destructive",
+          'grid h-full min-h-0 w-full place-items-center bg-background p-6 text-sm text-destructive',
           className,
         )}
       >
-        <div className="max-w-md rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center">
-          <p className="font-medium">Unable to open Excel workbook</p>
-          <p className="mt-1 text-xs text-muted-foreground">{loadError}</p>
+        <div className='max-w-md rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center'>
+          <p className='font-medium'>Unable to open Excel workbook</p>
+          <p className='mt-1 text-xs text-muted-foreground'>{loadError}</p>
         </div>
       </div>
     );
@@ -140,14 +129,14 @@ export function ExtendXlsxSurface({
   if (isPreparing || !workbookBuffer) {
     return (
       <div
-        data-testid="xlsx-surface-loading"
+        data-testid='xlsx-surface-loading'
         className={cn(
-          "grid h-full min-h-0 w-full place-items-center bg-background p-6 text-xs text-muted-foreground",
+          'grid h-full min-h-0 w-full place-items-center bg-background p-6 text-xs text-muted-foreground',
           className,
         )}
       >
-        <div className="inline-flex items-center gap-2">
-          <Loader2 className="size-4 animate-spin" />
+        <div className='inline-flex items-center gap-2'>
+          <Loader2 className='size-4 animate-spin' />
           <span>Loading Excel workbook…</span>
         </div>
       </div>
@@ -201,7 +190,7 @@ function LoadedWorkbookSurface({
   toolbarActions,
   className,
 }: LoadedWorkbookSurfaceProps) {
-  const isReadOnly = role !== "editor";
+  const isReadOnly = role !== 'editor';
   const targetDefaultZoom = settings.defaultZoom;
   const surfaceRootRef = React.useRef<HTMLDivElement | null>(null);
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
@@ -210,7 +199,7 @@ function LoadedWorkbookSurface({
   const renderSearchableScroller = React.useCallback(
     ({ children, viewportProps }: XlsxScrollerRenderProps) => (
       <ScrollArea
-        className="h-full min-h-0 w-full min-w-0 flex-1"
+        className='h-full min-h-0 w-full min-w-0 flex-1'
         viewportProps={viewportProps}
         viewportRef={viewportRef}
       >
@@ -240,16 +229,16 @@ function LoadedWorkbookSurface({
   const appliedZoomRef = React.useRef<number | null>(null);
 
   const reportWorkbookChange = React.useCallback(() => {
-    if (role !== "editor" || !editSession || !controller.workbook) {
+    if (role !== 'editor' || !editSession || !controller.workbook) {
       return;
     }
     editSession.reportChange(() => {
       const currentWorkbook = controller.workbook;
       if (!currentWorkbook) {
-        throw new Error("Workbook is not available for saving");
+        throw new Error('Workbook is not available for saving');
       }
       return {
-        encoding: "bytes",
+        encoding: 'bytes',
         bytes: currentWorkbook.saveXlsxBytes(),
         mimeType: XLSX_MIME_TYPE,
       };
@@ -260,9 +249,7 @@ function LoadedWorkbookSurface({
   // if the surface unmounts on the same interaction (e.g. clicking Go Back while
   // a cell <input> blurs and commits).
   const trackedController = React.useMemo(() => {
-    const wrapSync = <TArgs extends unknown[], TResult>(
-      fn: (...args: TArgs) => TResult,
-    ) => {
+    const wrapSync = <TArgs extends unknown[], TResult>(fn: (...args: TArgs) => TResult) => {
       return (...args: TArgs): TResult => {
         const result = fn(...args);
         reportWorkbookChange();
@@ -300,7 +287,7 @@ function LoadedWorkbookSurface({
   }, [controller, reportWorkbookChange]);
 
   const commitFocusedWorkbookInput = React.useCallback(() => {
-    if (typeof document === "undefined") {
+    if (typeof document === 'undefined') {
       return;
     }
     const root = surfaceRootRef.current;
@@ -309,19 +296,17 @@ function LoadedWorkbookSurface({
       root &&
       active instanceof HTMLElement &&
       root.contains(active) &&
-      (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+      (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
     ) {
       active.blur();
     }
   }, []);
 
   React.useEffect(() => {
-    if (role !== "editor") {
+    if (role !== 'editor') {
       return undefined;
     }
-    const unregister = editSession?.registerBeforeSaveFlush(
-      commitFocusedWorkbookInput,
-    );
+    const unregister = editSession?.registerBeforeSaveFlush(commitFocusedWorkbookInput);
     return () => {
       unregister?.();
       commitFocusedWorkbookInput();
@@ -356,11 +341,7 @@ function LoadedWorkbookSurface({
       lastReportedRevisionRef.current = revision;
       return;
     }
-    if (
-      role !== "editor" ||
-      !editSession ||
-      revision === lastReportedRevisionRef.current
-    ) {
+    if (role !== 'editor' || !editSession || revision === lastReportedRevisionRef.current) {
       return;
     }
     lastReportedRevisionRef.current = revision;
@@ -372,13 +353,13 @@ function LoadedWorkbookSurface({
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if ((event.metaKey || event.ctrlKey) && !event.altKey) {
         const key = event.key.toLowerCase();
-        if (role === "editor" && editSession && !event.shiftKey && key === "s") {
+        if (role === 'editor' && editSession && !event.shiftKey && key === 's') {
           event.preventDefault();
           commitFocusedWorkbookInput();
           void editSession.saveNow();
           return;
         }
-        if (showToolbar && !event.shiftKey && key === "f") {
+        if (showToolbar && !event.shiftKey && key === 'f') {
           event.preventDefault();
           event.stopPropagation();
           setSearchOpenRequest((count) => count + 1);
@@ -393,13 +374,11 @@ function LoadedWorkbookSurface({
       <div
         ref={surfaceRootRef}
         tabIndex={-1}
-        data-testid={
-          role === "editor" ? "extend-xlsx-editor" : "extend-xlsx-viewer"
-        }
+        data-testid={role === 'editor' ? 'extend-xlsx-editor' : 'extend-xlsx-viewer'}
         data-surface-role={role}
         onKeyDown={handleKeyDown}
         className={cn(
-          "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground outline-none",
+          'flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground outline-none',
           className,
         )}
       >
@@ -418,15 +397,13 @@ function LoadedWorkbookSurface({
           />
         ) : null}
 
-        {showToolbar && settings.showFormulaBar ? (
-          <XlsxFormulaBar readOnly={isReadOnly} />
-        ) : null}
+        {showToolbar && settings.showFormulaBar ? <XlsxFormulaBar readOnly={isReadOnly} /> : null}
 
-        <div className="min-h-0 flex-1 overflow-hidden bg-muted/15">
+        <div className='min-h-0 flex-1 overflow-hidden bg-muted/15'>
           <XlsxViewer
             allowResizeInReadOnly
-            className="h-full min-h-0 min-w-0"
-            height="100%"
+            className='h-full min-h-0 min-w-0'
+            height='100%'
             readOnly={isReadOnly}
             renderScroller={renderSearchableScroller}
             renderTableHeaderMenu={WorkbookTableHeaderMenu}
@@ -434,8 +411,8 @@ function LoadedWorkbookSurface({
             showDefaultToolbar={false}
             showImages
             errorState={
-              <div className="grid h-full w-full place-items-center p-6 text-sm text-destructive">
-                {error?.message ?? "Unable to render Excel workbook."}
+              <div className='grid h-full w-full place-items-center p-6 text-sm text-destructive'>
+                {error?.message ?? 'Unable to render Excel workbook.'}
               </div>
             }
           />
@@ -447,14 +424,10 @@ function LoadedWorkbookSurface({
   );
 }
 
-export function ExtendXlsxViewer(
-  props: Omit<ExtendXlsxSurfaceProps, "role">,
-) {
-  return <ExtendXlsxSurface {...props} role="viewer" />;
+export function ExtendXlsxViewer(props: Omit<ExtendXlsxSurfaceProps, 'role'>) {
+  return <ExtendXlsxSurface {...props} role='viewer' />;
 }
 
-export function ExtendXlsxEditor(
-  props: Omit<ExtendXlsxSurfaceProps, "role">,
-) {
-  return <ExtendXlsxSurface {...props} role="editor" />;
+export function ExtendXlsxEditor(props: Omit<ExtendXlsxSurfaceProps, 'role'>) {
+  return <ExtendXlsxSurface {...props} role='editor' />;
 }

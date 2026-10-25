@@ -1,18 +1,15 @@
-import { inflateRawSync } from "node:zlib";
+import { inflateRawSync } from 'node:zlib';
 
 function decodeXmlEntities(text: string): string {
   return text
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&");
+    .replace(/&amp;/g, '&');
 }
 
-function readZipEntryFromBuffer(
-  zipBuffer: Buffer,
-  targetEntryName: string,
-): Buffer | null {
+function readZipEntryFromBuffer(zipBuffer: Buffer, targetEntryName: string): Buffer | null {
   // Scan Central Directory headers (0x02014b50) first for reliable sizes
   let offset = 0;
   while (offset + 46 <= zipBuffer.length) {
@@ -24,13 +21,8 @@ function readZipEntryFromBuffer(
       const extraLen = zipBuffer.readUInt16LE(offset + 30);
       const commentLen = zipBuffer.readUInt16LE(offset + 32);
       const localHeaderOffset = zipBuffer.readUInt32LE(offset + 42);
-      const entryName = zipBuffer
-        .subarray(offset + 46, offset + 46 + nameLen)
-        .toString("utf8");
-      if (
-        entryName === targetEntryName &&
-        localHeaderOffset + 30 <= zipBuffer.length
-      ) {
+      const entryName = zipBuffer.subarray(offset + 46, offset + 46 + nameLen).toString('utf8');
+      if (entryName === targetEntryName && localHeaderOffset + 30 <= zipBuffer.length) {
         const localNameLen = zipBuffer.readUInt16LE(localHeaderOffset + 26);
         const localExtraLen = zipBuffer.readUInt16LE(localHeaderOffset + 28);
         const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
@@ -60,9 +52,7 @@ function readZipEntryFromBuffer(
     const nameLen = zipBuffer.readUInt16LE(offset + 26);
     const extraLen = zipBuffer.readUInt16LE(offset + 28);
     const dataStart = offset + 30 + nameLen + extraLen;
-    const entryName = zipBuffer
-      .subarray(offset + 30, offset + 30 + nameLen)
-      .toString("utf8");
+    const entryName = zipBuffer.subarray(offset + 30, offset + 30 + nameLen).toString('utf8');
     const dataEnd = dataStart + compressedSize;
     if (entryName === targetEntryName && dataEnd <= zipBuffer.length) {
       const slice = zipBuffer.subarray(dataStart, dataEnd);
@@ -78,12 +68,12 @@ function readZipEntryFromBuffer(
 function extractParagraphText(pXml: string): string {
   const runs: string[] = [];
   for (const rMatch of pXml.matchAll(/<w:r(?:\s[^>]*)?>([\s\S]*?)<\/w:r>/g)) {
-    const rBody = rMatch[1] ?? "";
+    const rBody = rMatch[1] ?? '';
     const texts: string[] = [];
     for (const tMatch of rBody.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)) {
       if (tMatch[1]) texts.push(decodeXmlEntities(tMatch[1]));
     }
-    const rawRun = texts.join("");
+    const rawRun = texts.join('');
     if (!rawRun) continue;
     const isCode = /<w:rFonts[^>]+(?:Consolas|Courier|Menlo|Monaco|Monospace)/i.test(rBody);
     const isBold = /<w:b(?:\s+w:val="(?:true|1)"|\s*\/)>/i.test(rBody);
@@ -93,8 +83,8 @@ function extractParagraphText(pXml: string): string {
       runs.push(rawRun);
       continue;
     }
-    const lead = rawRun.startsWith(" ") ? " " : "";
-    const trail = rawRun.endsWith(" ") ? " " : "";
+    const lead = rawRun.startsWith(' ') ? ' ' : '';
+    const trail = rawRun.endsWith(' ') ? ' ' : '';
     if (isCode) {
       runs.push(`${lead}\`${trimmed}\`${trail}`);
     } else if (isBold && isItalic) {
@@ -114,28 +104,28 @@ function extractParagraphText(pXml: string): string {
     }
   }
 
-  const text = runs.join("").replace(/\s+/g, " ").trim();
-  if (!text) return "";
+  const text = runs.join('').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
 
   const styleMatch = pXml.match(/<w:pStyle\s+[^>]*w:val="([^"]+)"/i);
-  const styleVal = (styleMatch?.[1] ?? "").toLowerCase();
-  const cleanHeadingText = text.replace(/^\*\*([\s\S]+)\*\*$/, "$1");
-  if (styleVal === "title" || styleVal === "heading1" || styleVal === "1") {
+  const styleVal = (styleMatch?.[1] ?? '').toLowerCase();
+  const cleanHeadingText = text.replace(/^\*\*([\s\S]+)\*\*$/, '$1');
+  if (styleVal === 'title' || styleVal === 'heading1' || styleVal === '1') {
     return `# ${cleanHeadingText}`;
   }
-  if (styleVal === "subtitle" || styleVal === "heading2" || styleVal === "2") {
+  if (styleVal === 'subtitle' || styleVal === 'heading2' || styleVal === '2') {
     return `## ${cleanHeadingText}`;
   }
-  if (styleVal === "heading3" || styleVal === "3") {
+  if (styleVal === 'heading3' || styleVal === '3') {
     return `### ${cleanHeadingText}`;
   }
-  if (styleVal === "heading4" || styleVal === "4") {
+  if (styleVal === 'heading4' || styleVal === '4') {
     return `#### ${cleanHeadingText}`;
   }
-  if (styleVal === "quote" || styleVal === "intensequote" || styleVal === "blockquote") {
+  if (styleVal === 'quote' || styleVal === 'intensequote' || styleVal === 'blockquote') {
     return `> ${text}`;
   }
-  if (/<w:numPr[\s>]/i.test(pXml) || styleVal.includes("list")) {
+  if (/<w:numPr[\s>]/i.test(pXml) || styleVal.includes('list')) {
     return `- ${text}`;
   }
   return text;
@@ -148,37 +138,34 @@ function extractTableMarkdown(tblXml: string): string {
     for (const tcMatch of trMatch[0].matchAll(/<w:tc[\s>][\s\S]*?<\/w:tc>/g)) {
       const cellParagraphs: string[] = [];
       for (const pMatch of tcMatch[0].matchAll(/<w:p[\s>][\s\S]*?<\/w:p>/g)) {
-        const text = extractParagraphText(pMatch[0]).replace(/^#+\s+/, "");
+        const text = extractParagraphText(pMatch[0]).replace(/^#+\s+/, '');
         if (text) cellParagraphs.push(text);
       }
-      cells.push(cellParagraphs.join(" ").replace(/\|/g, "\\|") || " ");
+      cells.push(cellParagraphs.join(' ').replace(/\|/g, '\\|') || ' ');
     }
     if (cells.length > 0) rows.push(cells);
   }
-  if (rows.length === 0) return "";
+  if (rows.length === 0) return '';
   const colCount = Math.max(...rows.map((r) => r.length));
   const normalized = rows.map((r) => {
     const padded = [...r];
-    while (padded.length < colCount) padded.push(" ");
+    while (padded.length < colCount) padded.push(' ');
     return padded;
   });
-  const header = `| ${normalized[0]!.join(" | ")} |`;
-  const divider = `| ${normalized[0]!.map(() => "---").join(" | ")} |`;
+  const header = `| ${normalized[0].join(' | ')} |`;
+  const divider = `| ${normalized[0].map(() => '---').join(' | ')} |`;
   const body = normalized
     .slice(1)
-    .map((row) => `| ${row.join(" | ")} |`)
-    .join("\n");
+    .map((row) => `| ${row.join(' | ')} |`)
+    .join('\n');
   return body ? `${header}\n${divider}\n${body}` : `${header}\n${divider}`;
 }
 
-export function extractDocxMarkdownFromBuffer(
-  buffer: Buffer,
-  fileName: string,
-): string | null {
+export function extractDocxMarkdownFromBuffer(buffer: Buffer, fileName: string): string | null {
   try {
-    const xmlBuf = readZipEntryFromBuffer(buffer, "word/document.xml");
+    const xmlBuf = readZipEntryFromBuffer(buffer, 'word/document.xml');
     if (!xmlBuf) return null;
-    const xml = xmlBuf.toString("utf8");
+    const xml = xmlBuf.toString('utf8');
     const blocks: string[] = [];
 
     // Tokenize top-level tables and paragraphs in document order
@@ -194,10 +181,8 @@ export function extractDocxMarkdownFromBuffer(
     }
 
     if (blocks.length === 0) return null;
-    const hasHeading = blocks.some((b) => b.startsWith("# "));
-    return hasHeading
-      ? `${blocks.join("\n\n")}\n`
-      : `# ${fileName}\n\n${blocks.join("\n\n")}\n`;
+    const hasHeading = blocks.some((b) => b.startsWith('# '));
+    return hasHeading ? `${blocks.join('\n\n')}\n` : `# ${fileName}\n\n${blocks.join('\n\n')}\n`;
   } catch {
     return null;
   }
@@ -206,13 +191,13 @@ export function extractDocxMarkdownFromBuffer(
 function stripInlineHtmlTags(raw: string): string {
   return decodeXmlEntities(
     raw
-      .replace(/<(?:strong|b)(?:\s[^>]*)?>([\s\S]*?)<\/(?:strong|b)>/gi, "**$1**")
-      .replace(/<(?:em|i)(?:\s[^>]*)?>([\s\S]*?)<\/(?:em|i)>/gi, "*$1*")
-      .replace(/<code(?:\s[^>]*)?>([\s\S]*?)<\/code>/gi, "`$1`")
-      .replace(/<br\s*\/?>/gi, " ")
-      .replace(/<[^>]+>/g, " "),
+      .replace(/<(?:strong|b)(?:\s[^>]*)?>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
+      .replace(/<(?:em|i)(?:\s[^>]*)?>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
+      .replace(/<code(?:\s[^>]*)?>([\s\S]*?)<\/code>/gi, '`$1`')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, ' '),
   )
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -220,67 +205,60 @@ function convertHtmlTableToMarkdown(tableHtml: string): string {
   const rows: string[][] = [];
   for (const trMatch of tableHtml.matchAll(/<tr(?:\s[^>]*)?>([\s\S]*?)<\/tr>/gi)) {
     const cells: string[] = [];
-    for (const cellMatch of trMatch[1]!.matchAll(/<t[hd](?:\s[^>]*)?>([\s\S]*?)<\/t[hd]>/gi)) {
-      cells.push(stripInlineHtmlTags(cellMatch[1] ?? "").replace(/\|/g, "\\|") || " ");
+    for (const cellMatch of trMatch[1].matchAll(/<t[hd](?:\s[^>]*)?>([\s\S]*?)<\/t[hd]>/gi)) {
+      cells.push(stripInlineHtmlTags(cellMatch[1] ?? '').replace(/\|/g, '\\|') || ' ');
     }
     if (cells.length > 0) rows.push(cells);
   }
-  if (rows.length === 0) return "";
+  if (rows.length === 0) return '';
   const colCount = Math.max(...rows.map((r) => r.length));
   const padded = rows.map((r) => {
     const copy = [...r];
-    while (copy.length < colCount) copy.push(" ");
+    while (copy.length < colCount) copy.push(' ');
     return copy;
   });
-  const header = `| ${padded[0]!.join(" | ")} |`;
-  const sep = `| ${padded[0]!.map(() => "---").join(" | ")} |`;
+  const header = `| ${padded[0].join(' | ')} |`;
+  const sep = `| ${padded[0].map(() => '---').join(' | ')} |`;
   const body = padded
     .slice(1)
-    .map((r) => `| ${r.join(" | ")} |`)
-    .join("\n");
+    .map((r) => `| ${r.join(' | ')} |`)
+    .join('\n');
   return body ? `\n${header}\n${sep}\n${body}\n` : `\n${header}\n${sep}\n`;
 }
 
-export function extractHtmlMarkdownFromBuffer(
-  buffer: Buffer,
-  fileName: string,
-): string {
-  const html = buffer.toString("utf8");
+export function extractHtmlMarkdownFromBuffer(buffer: Buffer, fileName: string): string {
+  const html = buffer.toString('utf8');
   const stripped = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<table(?:\s[^>]*)?>[\s\S]*?<\/table>/gi, (m) =>
-      convertHtmlTableToMarkdown(m),
-    )
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<table(?:\s[^>]*)?>[\s\S]*?<\/table>/gi, (m) => convertHtmlTableToMarkdown(m))
     .replace(/<pre(?:\s[^>]*)?>([\s\S]*?)<\/pre>/gi, (_, inner: string) => {
-      const cleanCode = decodeXmlEntities(inner.replace(/<[^>]+>/g, "")).trim();
-      return cleanCode ? `\n\`\`\`\n${cleanCode}\n\`\`\`\n` : "";
+      const cleanCode = decodeXmlEntities(inner.replace(/<[^>]+>/g, '')).trim();
+      return cleanCode ? `\n\`\`\`\n${cleanCode}\n\`\`\`\n` : '';
     })
     .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level: string, inner: string) => {
-      const hashes = "#".repeat(Number(level) || 2);
+      const hashes = '#'.repeat(Number(level) || 2);
       return `\n${hashes} ${stripInlineHtmlTags(inner)}\n`;
     })
     .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, inner: string) => {
       const text = stripInlineHtmlTags(inner);
-      return text ? `\n> ${text}\n` : "";
+      return text ? `\n> ${text}\n` : '';
     })
     .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, inner: string) => {
       const text = stripInlineHtmlTags(inner);
-      return text ? `\n- ${text}` : "";
+      return text ? `\n- ${text}` : '';
     })
     .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, inner: string) => {
       const text = stripInlineHtmlTags(inner);
-      return text ? `\n${text}\n` : "";
+      return text ? `\n${text}\n` : '';
     })
-    .replace(/<[^>]+>/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
   if (!stripped) {
     return `# ${fileName}\n\n_No text content found in HTML document._\n`;
   }
-  return stripped.startsWith("# ")
-    ? `${stripped}\n`
-    : `# ${fileName}\n\n${stripped}\n`;
+  return stripped.startsWith('# ') ? `${stripped}\n` : `# ${fileName}\n\n${stripped}\n`;
 }

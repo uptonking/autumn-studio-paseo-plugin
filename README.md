@@ -1,6 +1,6 @@
 # autumn-studio-paseo-plugin
 
-Agent powered file viewer/editor for Paseo — desktop/web only. 
+Agent powered file viewer/editor for Paseo — desktop/web only.
 
 Requires Paseo 0.13.0 or later on both the daemon and the app.
 
@@ -9,7 +9,7 @@ Requires Paseo 0.13.0 or later on both the daemon and the app.
 - **PDF**: support to get text with agent powered mineru/docling/...
 - **Code & Text**: support Markdown, JSON, YAML, TOML, SQL, shell scripts, and plain text files.
 - **Extensible Format Sections**: register additional format sections in
-`client/settings/registry.ts` backed by `settings.formats.<formatId>` .
+  `client/settings/registry.ts` backed by `settings.formats.<formatId>` .
 
 ## AI Text Mode (beta)
 
@@ -33,11 +33,11 @@ back to Text.
 
 ### Parsing profiles
 
-A profile is a named recipe: engine, route, engine config, extraction switches, 
+A profile is a named recipe: engine, route, engine config, extraction switches,
 and refinement. Exactly one profile ships ready to use: **MinerU · Cloud Free**
 — the plugin bundles no local engine, and the free MinerU API needs no token
 and no install — and it stays permanent so a valid default always exists.
-Create and edit profiles in **AI Text → Profiles**; presets cover every MinerU route (Auto, Cloud Free, 
+Create and edit profiles in **AI Text → Profiles**; presets cover every MinerU route (Auto, Cloud Free,
 Cloud token, Local mineru-kit, Local API), Docling Standard/VLM, and offline
 text extraction.
 
@@ -52,7 +52,7 @@ deleted.
 **AI Text → Engines & Setup** probes each engine, reports versions and route
 status, and runs engine lifecycle operations as cancellable tasks: install
 (pinned to the installed version by default, or a typed release), update
-(shown only when a newer release exists on the configured package index), 
+(shown only when a newer release exists on the configured package index),
 uninstall, model download, and model cache clearing. Engines render as tabs
 in fixed catalog order (MinerU, Docling, then others) with one panel at a
 time — a status dot per tab carries health without reshuffling the order.
@@ -60,16 +60,16 @@ The panel shows engine and model-cache disk usage with an
 open-in-file-manager action and lists the profiles using the engine.
 Operations are descriptor-driven; adding an engine does not add UI code.
 
-| Engine | Routes | Notes |
-| --- | --- | --- |
-| `mineru` | `auto` , `local-cli` , `local-api` , `cloud-token` , `cloud-free` | Layout-aware extraction with OCR, formulas, tables, and geometry. Install `mineru-kit` with `uv tool install mineru` . |
-| `docling` | `standard` , `vlm` | Docling 2.x layout/table pipeline or VLM pipeline. Install with `uv tool install docling` ; models download on first parse. |
-| `local-ocr` | `auto` | Built-in PDF text layer plus on-device OCR. No install, no layout geometry. Used as the automatic fallback. |
+| Engine      | Routes                                                            | Notes                                                                                                                       |
+| ----------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `mineru`    | `auto` , `local-cli` , `local-api` , `cloud-token` , `cloud-free` | Layout-aware extraction with OCR, formulas, tables, and geometry. Install `mineru-kit` with `uv tool install mineru` .      |
+| `docling`   | `standard` , `vlm`                                                | Docling 2.x layout/table pipeline or VLM pipeline. Install with `uv tool install docling` ; models download on first parse. |
+| `local-ocr` | `auto`                                                            | Built-in PDF text layer plus on-device OCR. No install, no layout geometry. Used as the automatic fallback.                 |
 
 MinerU `auto` prefers ready local models, then a local API daemon, then cloud.
 `cloud-free` returns Markdown only, so Blocks stays unavailable. `cloud-token`
 
-accepts an API token in the profile. Docling `standard` passes `--ocr` , 
+accepts an API token in the profile. Docling `standard` passes `--ocr` ,
 `--table-mode` , and `--enrich-formula` ; `vlm` passes `--vlm-model` . Docling has
 no page-range support; clear the page range or use a MinerU profile.
 
@@ -111,10 +111,10 @@ because the asset RPC could not serve them.
 **AI Text → Advanced** configures the output root and storage: the root can be
 a workspace folder (default `.autumn` , visible in the file tree) or an absolute
 path outside the workspace (namespaced per workspace id, hidden from the tree).
-The storage dashboard lists every document with version count, disk size, 
+The storage dashboard lists every document with version count, disk size,
 engines, and last-parsed time — sortable and filterable, with a Recalculate
 button that always re-walks the disk and a per-row reveal in the OS file
-manager. Advanced also selects the package index used by engine installs, 
+manager. Advanced also selects the package index used by engine installs,
 updates, and release checks: official PyPI by default, with common mirrors
 (Aliyun, Douban, Huawei Cloud, TUNA, USTC) or a custom simple-index URL.
 

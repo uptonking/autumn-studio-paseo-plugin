@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Per-tab view state persisted through Paseo's PluginTab.state — the native
@@ -14,10 +14,7 @@ export const DEFAULT_SPLIT_RATIO_PCT = 50;
 /** Clamps a dragged or persisted ratio into the split pane's legal range. */
 export function clampSplitRatioPct(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_SPLIT_RATIO_PCT;
-  return Math.min(
-    SPLIT_RATIO_MAX_PCT,
-    Math.max(SPLIT_RATIO_MIN_PCT, Math.round(value)),
-  );
+  return Math.min(SPLIT_RATIO_MAX_PCT, Math.max(SPLIT_RATIO_MIN_PCT, Math.round(value)));
 }
 
 export const aiTextSplitPersistenceSchema = z.object({
@@ -84,8 +81,7 @@ export function createSurfacePersistenceHandle({
     },
     updateAiText(changes) {
       const current = readState();
-      const base =
-        current.path === filePath ? current : DEFAULT_SURFACE_PERSISTENCE;
+      const base = current.path === filePath ? current : DEFAULT_SURFACE_PERSISTENCE;
       write({
         ...base,
         path: filePath,

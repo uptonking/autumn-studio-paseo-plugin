@@ -1,8 +1,8 @@
-export type PdfEditorTool = "select" | "text" | "highlight" | "rect" | "ink";
+export type PdfEditorTool = 'select' | 'text' | 'highlight' | 'rect' | 'ink';
 
 export interface PdfTextAnnotation {
   id: string;
-  kind: "text";
+  kind: 'text';
   pageNumber: number;
   /** Normalized 0..1 coordinates from top-left of the page */
   xRatio: number;
@@ -14,7 +14,7 @@ export interface PdfTextAnnotation {
 
 export interface PdfHighlightAnnotation {
   id: string;
-  kind: "highlight";
+  kind: 'highlight';
   pageNumber: number;
   xRatio: number;
   yRatio: number;
@@ -25,7 +25,7 @@ export interface PdfHighlightAnnotation {
 
 export interface PdfRectAnnotation {
   id: string;
-  kind: "rect";
+  kind: 'rect';
   pageNumber: number;
   xRatio: number;
   yRatio: number;
@@ -37,7 +37,7 @@ export interface PdfRectAnnotation {
 
 export interface PdfInkAnnotation {
   id: string;
-  kind: "ink";
+  kind: 'ink';
   pageNumber: number;
   points: Array<{ xRatio: number; yRatio: number }>;
   color: string;
@@ -69,13 +69,11 @@ export function hasPdfEdits(state: PdfEditState): boolean {
   if (state.annotations.length > 0 || state.deletedPages.length > 0) {
     return true;
   }
-  return Object.values(state.pageRotations).some(
-    (deg) => normalizeDegrees(deg) !== 0,
-  );
+  return Object.values(state.pageRotations).some((deg) => normalizeDegrees(deg) !== 0);
 }
 
 function parseHexToRgb(hex: string): { r: number; g: number; b: number } {
-  const clean = hex.replace(/^#/, "").trim();
+  const clean = hex.replace(/^#/, '').trim();
   if (clean.length === 6) {
     const r = Number.parseInt(clean.slice(0, 2), 16) / 255;
     const g = Number.parseInt(clean.slice(2, 4), 16) / 255;
@@ -92,32 +90,32 @@ function normalizeDegrees(value: number): number {
 }
 
 const UNICODE_ASCII_FALLBACKS: Record<string, string> = {
-  "\u2192": "->",
-  "\u2190": "<-",
-  "\u2194": "<->",
-  "\u21D2": "=>",
-  "\u2013": "-",
-  "\u2014": "--",
-  "\u2018": "'",
-  "\u2019": "'",
-  "\u201C": '"',
-  "\u201D": '"',
-  "\u2026": "...",
-  "\u00A0": " ",
+  '\u2192': '->',
+  '\u2190': '<-',
+  '\u2194': '<->',
+  '\u21D2': '=>',
+  '\u2013': '-',
+  '\u2014': '--',
+  '\u2018': "'",
+  '\u2019': "'",
+  '\u201C': '"',
+  '\u201D': '"',
+  '\u2026': '...',
+  '\u00A0': ' ',
 };
 
 export function sanitizePdfAnnotationText(
   text: string,
   canEncodeChar?: (char: string) => boolean,
 ): string {
-  let normalized = "";
+  let normalized = '';
   for (const ch of text) {
     normalized += UNICODE_ASCII_FALLBACKS[ch] ?? ch;
   }
-  let out = "";
+  let out = '';
   for (const ch of normalized) {
-    if (ch === "\r" || ch === "\n" || ch === "\t") {
-      out += " ";
+    if (ch === '\r' || ch === '\n' || ch === '\t') {
+      out += ' ';
       continue;
     }
     if (canEncodeChar) {
@@ -125,24 +123,24 @@ export function sanitizePdfAnnotationText(
         if (canEncodeChar(ch)) {
           out += ch;
         } else {
-          out += "?";
+          out += '?';
         }
       } catch {
-        out += "?";
+        out += '?';
       }
     } else {
       const code = ch.codePointAt(0) ?? 0;
-      out += code >= 0x20 && code <= 0xff ? ch : "?";
+      out += code >= 0x20 && code <= 0xff ? ch : '?';
     }
   }
   return out.trim();
 }
 
-let pdfLibPromise: Promise<typeof import("pdf-lib")> | null = null;
+let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
 
-export function preloadPdfLib(): Promise<typeof import("pdf-lib")> {
+export function preloadPdfLib(): Promise<typeof import('pdf-lib')> {
   if (!pdfLibPromise) {
-    pdfLibPromise = import("pdf-lib").catch((err) => {
+    pdfLibPromise = import('pdf-lib').catch((err) => {
       pdfLibPromise = null;
       throw err;
     });
@@ -152,10 +150,12 @@ export function preloadPdfLib(): Promise<typeof import("pdf-lib")> {
 
 export async function serializeEditedPdfBytes(
   src: string,
-  state: PdfEditState
+  state: PdfEditState,
 ): Promise<Uint8Array> {
-  const [{ degrees, PDFDocument, rgb, StandardFonts }, response] =
-    await Promise.all([preloadPdfLib(), fetch(src)]);
+  const [{ degrees, PDFDocument, rgb, StandardFonts }, response] = await Promise.all([
+    preloadPdfLib(),
+    fetch(src),
+  ]);
   if (!response.ok) {
     throw new Error(`Failed to read source PDF (${response.status})`);
   }
@@ -172,22 +172,18 @@ export async function serializeEditedPdfBytes(
     // 1. Apply rotation delta if any
     const rotationDelta = state.pageRotations[pageNumber] ?? 0;
     if (rotationDelta !== 0) {
-      const nextAngle = normalizeDegrees(
-        page.getRotation().angle + rotationDelta
-      );
+      const nextAngle = normalizeDegrees(page.getRotation().angle + rotationDelta);
       page.setRotation(degrees(nextAngle));
     }
 
     // 2. Render annotations for this page
-    const pageAnnotations = state.annotations.filter(
-      (item) => item.pageNumber === pageNumber
-    );
+    const pageAnnotations = state.annotations.filter((item) => item.pageNumber === pageNumber);
 
     for (const annotation of pageAnnotations) {
       const { r, g, b } = parseHexToRgb(annotation.color);
       const color = rgb(r, g, b);
 
-      if (annotation.kind === "highlight") {
+      if (annotation.kind === 'highlight') {
         const rectWidth = Math.max(4, annotation.widthRatio * width);
         const rectHeight = Math.max(4, annotation.heightRatio * height);
         const x = annotation.xRatio * width;
@@ -200,7 +196,7 @@ export async function serializeEditedPdfBytes(
           color,
           opacity: 0.32,
         });
-      } else if (annotation.kind === "rect") {
+      } else if (annotation.kind === 'rect') {
         const rectWidth = Math.max(4, annotation.widthRatio * width);
         const rectHeight = Math.max(4, annotation.heightRatio * height);
         const x = annotation.xRatio * width;
@@ -216,7 +212,7 @@ export async function serializeEditedPdfBytes(
           borderWidth: annotation.strokeWidth || 2,
           borderOpacity: 0.9,
         });
-      } else if (annotation.kind === "text") {
+      } else if (annotation.kind === 'text') {
         const safeText = sanitizePdfAnnotationText(annotation.text, (ch) => {
           helveticaFont.encodeText(ch);
           return true;
@@ -234,13 +230,13 @@ export async function serializeEditedPdfBytes(
           font: helveticaFont,
           color,
         });
-      } else if (annotation.kind === "ink") {
+      } else if (annotation.kind === 'ink') {
         if (annotation.points.length < 2) {
           continue;
         }
         for (let idx = 1; idx < annotation.points.length; idx += 1) {
-          const prev = annotation.points[idx - 1]!;
-          const curr = annotation.points[idx]!;
+          const prev = annotation.points[idx - 1];
+          const curr = annotation.points[idx];
           page.drawLine({
             start: {
               x: prev.xRatio * width,

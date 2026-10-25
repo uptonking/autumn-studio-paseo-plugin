@@ -1,12 +1,6 @@
-import * as React from "react";
-import type {
-  AiTextTaskKind,
-  AiTextTaskSnapshot,
-} from "../../shared/contracts.js";
-import type {
-  AiTextBridge,
-  AiTextTaskStartOptions,
-} from "./ai-text-types.js";
+import * as React from 'react';
+import type { AiTextTaskKind, AiTextTaskSnapshot } from '../../shared/contracts.js';
+import type { AiTextBridge, AiTextTaskStartOptions } from './ai-text-types.js';
 
 const TASK_POLL_INTERVAL_MS = 800;
 
@@ -23,7 +17,7 @@ export interface AiTextTaskRunInput {
 }
 
 export interface AiTextTaskRunCallbacks {
-  onParseResult?(result: NonNullable<AiTextTaskSnapshot["parseResult"]>): void;
+  onParseResult?(result: NonNullable<AiTextTaskSnapshot['parseResult']>): void;
   /** Fired for engine operations so the settings card can refresh its status. */
   onOperationSucceeded?(task: AiTextTaskSnapshot): void;
 }
@@ -79,15 +73,9 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
         const started = await startTask({
           kind: input.kind,
           ...(input.targetPath ? { relPath: input.targetPath } : {}),
-          ...(input.options.profileId
-            ? { profileId: input.options.profileId }
-            : {}),
-          ...(input.options.engineId
-            ? { engineId: input.options.engineId }
-            : {}),
-          ...(input.options.operationId
-            ? { operationId: input.options.operationId }
-            : {}),
+          ...(input.options.profileId ? { profileId: input.options.profileId } : {}),
+          ...(input.options.engineId ? { engineId: input.options.engineId } : {}),
+          ...(input.options.operationId ? { operationId: input.options.operationId } : {}),
           ...(input.options.config ? { config: input.options.config } : {}),
           ...(input.options.operationOptions
             ? { operationOptions: input.options.operationOptions }
@@ -100,37 +88,30 @@ export function useAiTextTask(bridge: AiTextBridge | undefined) {
           if (generationRef.current !== generation) return;
           setTask(snapshot.task);
 
-          if (
-            snapshot.task.status === "queued" ||
-            snapshot.task.status === "running"
-          ) {
+          if (snapshot.task.status === 'queued' || snapshot.task.status === 'running') {
             await delay(TASK_POLL_INTERVAL_MS);
             if (generationRef.current !== generation) return;
             continue;
           }
 
-          if (snapshot.task.status === "succeeded") {
-            if (input.kind === "parse") {
+          if (snapshot.task.status === 'succeeded') {
+            if (input.kind === 'parse') {
               if (snapshot.task.parseResult) {
                 callbacks?.onParseResult?.(snapshot.task.parseResult);
               } else {
-                setError(
-                  "The AI text task finished without a result. Try again.",
-                );
+                setError('The AI text task finished without a result. Try again.');
               }
             } else {
               callbacks?.onOperationSucceeded?.(snapshot.task);
             }
-          } else if (snapshot.task.status === "failed") {
-            setError(snapshot.task.error ?? "AI Text task failed");
+          } else if (snapshot.task.status === 'failed') {
+            setError(snapshot.task.error ?? 'AI Text task failed');
           }
           return;
         }
       } catch (err) {
         if (generationRef.current !== generation) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to run AI Text task",
-        );
+        setError(err instanceof Error ? err.message : 'Failed to run AI Text task');
       } finally {
         if (generationRef.current === generation) {
           activeTaskIdRef.current = null;

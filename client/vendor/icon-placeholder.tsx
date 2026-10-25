@@ -1,4 +1,4 @@
-import type { SVGProps } from "react"
+import type { SVGProps } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,7 +27,7 @@ import {
   Settings,
   Upload,
   X,
-} from "lucide-react"
+} from 'lucide-react';
 
 // Vendored extend-ui components reference icons through <IconPlaceholder /> with
 // one name per supported icon library. We only render the lucide variant and
@@ -61,18 +61,18 @@ const icons: Record<string, React.ComponentType<SVGProps<SVGSVGElement>>> = {
   Settings,
   Upload,
   X,
-}
+};
 
 export type IconPlaceholderProps = {
-  lucide: string
-  tabler?: string
-  hugeicons?: string
-  phosphor?: string
-  remixicon?: string
-} & SVGProps<SVGSVGElement>
+  lucide: string;
+  tabler?: string;
+  hugeicons?: string;
+  phosphor?: string;
+  remixicon?: string;
+} & SVGProps<SVGSVGElement>;
 
 export function IconPlaceholder(props: IconPlaceholderProps) {
-  const { lucide, tabler: _t, hugeicons: _h, phosphor: _p, remixicon: _r, ...rest } = props
-  const Icon = icons[lucide] ?? CircleMinus
-  return <Icon {...rest} />
+  const { lucide, tabler: _t, hugeicons: _h, phosphor: _p, remixicon: _r, ...rest } = props;
+  const Icon = icons[lucide] ?? CircleMinus;
+  return <Icon {...rest} />;
 }

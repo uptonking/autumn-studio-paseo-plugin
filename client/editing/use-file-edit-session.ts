@@ -1,41 +1,38 @@
-import * as React from "react";
-import {
-  replaceCachedFileBlobUrl,
-  trackWorkspaceFileSave,
-} from "../blob-url-cache.ts";
-import { updateFileTabMetadataInStore } from "../opened-tabs-store.ts";
+import * as React from 'react';
+import { replaceCachedFileBlobUrl, trackWorkspaceFileSave } from '../blob-url-cache.ts';
+import { updateFileTabMetadataInStore } from '../opened-tabs-store.ts';
 
 export type SerializedFilePayload =
   | {
-      encoding: "bytes";
+      encoding: 'bytes';
       bytes: Uint8Array;
       mimeType?: string;
     }
   | {
-      encoding: "base64";
+      encoding: 'base64';
       data: string;
       bytes?: Uint8Array;
       mimeType?: string;
     }
   | {
-      encoding: "utf8";
+      encoding: 'utf8';
       data: string;
       mimeType?: string;
     };
 
-export type FileSaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+export type FileSaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 /** Why a save failed: version conflict, deleted file, or anything else. */
-export type SaveErrorKind = "conflict" | "deleted" | "other" | null;
+export type SaveErrorKind = 'conflict' | 'deleted' | 'other' | null;
 
 /** Classifies a save failure by the PluginFile error names the SDK throws. */
 export function classifySaveError(err: unknown): SaveErrorKind {
-  if (err && typeof err === "object") {
+  if (err && typeof err === 'object') {
     const name = (err as { name?: unknown }).name;
-    if (name === "PluginFileConflictError") return "conflict";
-    if (name === "PluginFileDeletedError") return "deleted";
+    if (name === 'PluginFileConflictError') return 'conflict';
+    if (name === 'PluginFileDeletedError') return 'deleted';
   }
-  return "other";
+  return 'other';
 }
 
 export interface FileEditSession {
@@ -57,9 +54,7 @@ export interface FileEditSession {
    * Report a document mutation with a lazy serializer.
    * When `autoSave` is true (default), schedules a debounced write to the file system.
    */
-  reportChange: (
-    serialize: () => Promise<SerializedFilePayload> | SerializedFilePayload,
-  ) => void;
+  reportChange: (serialize: () => Promise<SerializedFilePayload> | SerializedFilePayload) => void;
   /** Immediately flush pending changes (or an explicit payload) to the file system */
   saveNow: (
     explicitPayload?:
@@ -84,10 +79,8 @@ export interface FileEditSession {
 }
 
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString(
-      "base64",
-    );
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64');
   }
   const chunkSize = 0x8000;
   const chunks: string[] = [];
@@ -95,12 +88,12 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
     const slice = bytes.subarray(i, i + chunkSize);
     chunks.push(String.fromCharCode(...slice));
   }
-  return btoa(chunks.join(""));
+  return btoa(chunks.join(''));
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
-  if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(base64, "base64"));
+  if (typeof Buffer !== 'undefined') {
+    return new Uint8Array(Buffer.from(base64, 'base64'));
   }
   const bin = atob(base64);
   const out = new Uint8Array(bin.length);
@@ -111,13 +104,11 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 /** Payload bytes for a save, regardless of how the surface serialized it. */
-export function serializedPayloadToBytes(
-  payload: SerializedFilePayload,
-): Uint8Array {
-  if (payload.encoding === "utf8") {
+export function serializedPayloadToBytes(payload: SerializedFilePayload): Uint8Array {
+  if (payload.encoding === 'utf8') {
     return new TextEncoder().encode(payload.data);
   }
-  if (payload.encoding === "bytes") {
+  if (payload.encoding === 'bytes') {
     return payload.bytes;
   }
   return payload.bytes ?? base64ToUint8Array(payload.data);
@@ -132,14 +123,9 @@ export interface PersistFileChangeOptions {
     workspaceId: string;
     relPath: string;
     content: string;
-    encoding: "base64" | "utf8";
+    encoding: 'base64' | 'utf8';
   }) => Promise<{ path: string; size: number; mtime: number }>;
-  onSaved?: (info: {
-    path: string;
-    size: number;
-    mtime: number;
-    blobUrl: string;
-  }) => void;
+  onSaved?: (info: { path: string; size: number; mtime: number; blobUrl: string }) => void;
 }
 
 export async function persistSerializedFile({
@@ -156,19 +142,18 @@ export async function persistSerializedFile({
   blobUrl: string;
 }> {
   return trackWorkspaceFileSave(workspaceId, relPath, async () => {
-    let rpcEncoding: "base64" | "utf8";
+    let rpcEncoding: 'base64' | 'utf8';
     let rpcContent: string;
-    const resolvedMime =
-      payload.mimeType ?? contentType ?? "application/octet-stream";
+    const resolvedMime = payload.mimeType ?? contentType ?? 'application/octet-stream';
 
-    if (payload.encoding === "utf8") {
-      rpcEncoding = "utf8";
+    if (payload.encoding === 'utf8') {
+      rpcEncoding = 'utf8';
       rpcContent = payload.data;
-    } else if (payload.encoding === "bytes") {
-      rpcEncoding = "base64";
+    } else if (payload.encoding === 'bytes') {
+      rpcEncoding = 'base64';
       rpcContent = uint8ArrayToBase64(payload.bytes);
     } else {
-      rpcEncoding = "base64";
+      rpcEncoding = 'base64';
       rpcContent = payload.data;
     }
     const nextBytes = serializedPayloadToBytes(payload);
@@ -211,25 +196,19 @@ export interface UseFileEditSessionOptions {
   path: string;
   autoSave?: boolean;
   debounceMs?: number;
-  onSavePayload?: (
-    payload: SerializedFilePayload,
-    options?: { force?: boolean },
-  ) => Promise<void>;
+  onSavePayload?: (payload: SerializedFilePayload, options?: { force?: boolean }) => Promise<void>;
 }
 
-const activeFlushersByPath = new Map<
-  string,
-  Set<() => Promise<boolean>>
->();
+const activeFlushersByPath = new Map<string, Set<() => Promise<boolean>>>();
 
-export async function flushActiveFileEditSession(
-  path: string,
-): Promise<boolean> {
+export async function flushActiveFileEditSession(path: string): Promise<boolean> {
   const flushers = activeFlushersByPath.get(path);
   if (!flushers || flushers.size === 0) {
     return false;
   }
   let didSave = false;
+  // Snapshot: a flush may unregister itself from the Set mid-iteration.
+  // eslint-disable-next-line unicorn/no-useless-spread
   for (const flush of [...flushers]) {
     try {
       if (await flush()) {
@@ -249,7 +228,7 @@ export function useFileEditSession({
   onSavePayload,
 }: UseFileEditSessionOptions): FileEditSession {
   const [isDirty, setIsDirty] = React.useState(false);
-  const [saveState, setSaveState] = React.useState<FileSaveState>("idle");
+  const [saveState, setSaveState] = React.useState<FileSaveState>('idle');
   const [lastSavedAt, setLastSavedAt] = React.useState<number | null>(null);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [saveErrorKind, setSaveErrorKind] = React.useState<SaveErrorKind>(null);
@@ -291,7 +270,7 @@ export function useFileEditSession({
     }
     saveGenerationRef.current += 1;
     setIsDirty(false);
-    setSaveState("idle");
+    setSaveState('idle');
     setSaveError(null);
     setSaveErrorKind(null);
   }, []);
@@ -321,7 +300,7 @@ export function useFileEditSession({
 
   React.useEffect(() => {
     setIsDirty(false);
-    setSaveState("idle");
+    setSaveState('idle');
     setLastSavedAt(null);
     setSaveError(null);
     setSaveErrorKind(null);
@@ -352,7 +331,7 @@ export function useFileEditSession({
 
       const saveHandler = onSavePayloadRef.current;
       const serializer =
-        typeof explicitPayload === "function"
+        typeof explicitPayload === 'function'
           ? explicitPayload
           : explicitPayload
             ? () => explicitPayload
@@ -363,7 +342,7 @@ export function useFileEditSession({
       }
 
       const currentGen = ++saveGenerationRef.current;
-      setSaveState("saving");
+      setSaveState('saving');
       setSaveError(null);
       setSaveErrorKind(null);
 
@@ -371,21 +350,19 @@ export function useFileEditSession({
         const payloadOrPromise = serializer();
         const saveTask =
           payloadOrPromise instanceof Promise
-            ? payloadOrPromise.then((payload) =>
-                saveHandler(payload, { force: options?.force }),
-              )
+            ? payloadOrPromise.then((payload) => saveHandler(payload, { force: options?.force }))
             : saveHandler(payloadOrPromise, { force: options?.force });
         await saveTask;
         if (currentGen === saveGenerationRef.current) {
           pendingSerializerRef.current = null;
           setIsDirty(false);
-          setSaveState("saved");
+          setSaveState('saved');
           setLastSavedAt(Date.now());
         }
         return true;
       } catch (err) {
         if (currentGen === saveGenerationRef.current) {
-          setSaveState("error");
+          setSaveState('error');
           setSaveError(err instanceof Error ? err.message : String(err));
           setSaveErrorKind(classifySaveError(err));
         }
@@ -396,13 +373,11 @@ export function useFileEditSession({
   );
 
   const reportChange = React.useCallback(
-    (
-      serialize: () => Promise<SerializedFilePayload> | SerializedFilePayload,
-    ) => {
+    (serialize: () => Promise<SerializedFilePayload> | SerializedFilePayload) => {
       pendingSerializerRef.current = serialize;
       saveGenerationRef.current += 1;
       setIsDirty(true);
-      setSaveState("dirty");
+      setSaveState('dirty');
       setSaveError(null);
       setSaveErrorKind(null);
 

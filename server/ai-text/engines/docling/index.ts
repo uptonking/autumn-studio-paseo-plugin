@@ -1,16 +1,13 @@
-import { doclingConfigSchema } from "../../../../shared/ai-text/engine-configs.ts";
-import { getAiTextEngineDescriptor } from "../../../../shared/ai-text/engine-catalog.ts";
-import {
-  registerAiTextEngine,
-  type AiTextEngine,
-} from "../../engine-registry.ts";
-import { parseWithDocling } from "./adapter.ts";
-import { getDoclingEnvironment } from "./environment.ts";
-import { runDoclingOperation } from "./operations.ts";
+import { doclingConfigSchema } from '../../../../shared/ai-text/engine-configs.ts';
+import { getAiTextEngineDescriptor } from '../../../../shared/ai-text/engine-catalog.ts';
+import { registerAiTextEngine, type AiTextEngine } from '../../engine-registry.ts';
+import { parseWithDocling } from './adapter.ts';
+import { getDoclingEnvironment } from './environment.ts';
+import { runDoclingOperation } from './operations.ts';
 
 export function createDoclingEngine(): AiTextEngine {
-  const descriptor = getAiTextEngineDescriptor("docling");
-  if (!descriptor) throw new Error("Docling engine descriptor is missing");
+  const descriptor = getAiTextEngineDescriptor('docling');
+  if (!descriptor) throw new Error('Docling engine descriptor is missing');
 
   return {
     descriptor,

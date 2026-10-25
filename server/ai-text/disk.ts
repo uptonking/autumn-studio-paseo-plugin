@@ -1,6 +1,6 @@
-import { homedir } from "node:os";
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { homedir } from 'node:os';
+import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 
 const MAX_DEPTH = 24;
 
@@ -44,7 +44,7 @@ export async function computeDirectorySize(
 }
 
 function normalizedSegments(path: string): string[] {
-  return path.replace(/\\/g, "/").split("/").filter(Boolean);
+  return path.replace(/\\/g, '/').split('/').filter(Boolean);
 }
 
 /**
@@ -55,13 +55,13 @@ function normalizedSegments(path: string): string[] {
  * something broad like `~/Library/Caches` or `/data`.
  */
 export function assertClearableCacheDir(dir: string): void {
-  const normalized = dir.replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalized = dir.replace(/\\/g, '/').replace(/\/+$/, '');
   const segments = normalizedSegments(normalized);
-  if (!normalized.startsWith("/") || segments.length < 2) {
+  if (!normalized.startsWith('/') || segments.length < 2) {
     throw new Error(`"${dir}" is not an absolute cache directory.`);
   }
-  const home = homedir().replace(/\\/g, "/").replace(/\/+$/, "");
-  if (normalized === home || normalized === "/" || normalized === `${home}/.cache`) {
+  const home = homedir().replace(/\\/g, '/').replace(/\/+$/, '');
+  if (normalized === home || normalized === '/' || normalized === `${home}/.cache`) {
     throw new Error(`Refusing to clear "${dir}" — it does not look like a model cache.`);
   }
   const mentionsModel = /model/i.test(normalized);

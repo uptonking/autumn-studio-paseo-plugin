@@ -1,5 +1,5 @@
-import { Text, View } from "react-native";
-import type { PluginTheme } from "@getpaseo/plugin";
+import { Text, View } from 'react-native';
+import type { PluginTheme } from '@getpaseo/plugin';
 
 /**
  * States the platform contract in the General settings section: the viewer
@@ -11,12 +11,12 @@ export function PlatformSupportNotice({
   platform,
 }: {
   theme: PluginTheme;
-  platform?: "ios" | "android" | "web";
+  platform?: 'ios' | 'android' | 'web';
 }) {
-  const isWeb = platform !== "ios" && platform !== "android";
+  const isWeb = platform !== 'ios' && platform !== 'android';
   return (
     <View
-      testID="autumn-studio-platform-support-notice"
+      testID='autumn-studio-platform-support-notice'
       style={{
         marginBottom: 16,
         padding: 12,
@@ -28,16 +28,14 @@ export function PlatformSupportNotice({
     >
       <Text
         style={{
-          color: isWeb
-            ? theme.colors.foregroundMuted
-            : theme.colors.statusWarning,
+          color: isWeb ? theme.colors.foregroundMuted : theme.colors.statusWarning,
           fontSize: 13,
-          fontWeight: isWeb ? "400" : "600",
+          fontWeight: isWeb ? '400' : '600',
         }}
       >
         {isWeb
-          ? "Autumn Studio viewer runs on desktop and web."
-          : "Desktop/web only — the file tree and viewers do not render on mobile. These settings apply to desktop and web sessions."}
+          ? 'Autumn Studio viewer runs on desktop and web.'
+          : 'Desktop/web only — the file tree and viewers do not render on mobile. These settings apply to desktop and web sessions.'}
       </Text>
     </View>
   );

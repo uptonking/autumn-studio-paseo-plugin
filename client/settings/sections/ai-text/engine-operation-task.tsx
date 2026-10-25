@@ -2,9 +2,9 @@
  * Lifecycle for engine setup operations (install, model download): start,
  * poll, cancel, and the inline progress panel each engine card renders.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
-import { useRpc } from "@getpaseo/plugin/client";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
+import { useRpc } from '@getpaseo/plugin/client';
 import {
   cancelAiTextTask,
   getAiTextTask,
@@ -12,13 +12,8 @@ import {
   type AiTextEngineDescriptor,
   type AiTextEngineOperation,
   type AiTextTaskSnapshot,
-} from "../../../../shared/contracts.js";
-import {
-  AiTextAction,
-  AiTextHint,
-  AiTextPanel,
-  type AiTextTheme,
-} from "./ui.js";
+} from '../../../../shared/contracts.js';
+import { AiTextAction, AiTextHint, AiTextPanel, type AiTextTheme } from './ui.js';
 
 export interface AiTextOperationRun {
   engineId: string;
@@ -43,21 +38,14 @@ interface UseEngineOperationInput {
   onFinished(engineId: string): void;
 }
 
-export function useEngineOperation({
-  configForEngine,
-  onFinished,
-}: UseEngineOperationInput) {
+export function useEngineOperation({ configForEngine, onFinished }: UseEngineOperationInput) {
   const startTask = useRpc(startAiTextTask);
   const getTask = useRpc(getAiTextTask);
   const cancelTask = useRpc(cancelAiTextTask);
 
-  const [operationRun, setOperationRun] = useState<AiTextOperationRun | null>(
-    null,
-  );
+  const [operationRun, setOperationRun] = useState<AiTextOperationRun | null>(null);
   const [confirmOperation, setConfirmOperation] = useState<string | null>(null);
-  const [operationOptions, setOperationOptions] = useState<
-    Record<string, string>
-  >({});
+  const [operationOptions, setOperationOptions] = useState<Record<string, string>>({});
 
   const getTaskRef = useRef(getTask);
   getTaskRef.current = getTask;
@@ -77,35 +65,28 @@ export function useEngineOperation({
         const snapshot = await getTaskRef.current({ taskId });
         if (generationRef.current !== generation) return;
         setOperationRun((current) =>
-          current && current.taskId === taskId
-            ? { ...current, task: snapshot.task }
-            : current,
+          current && current.taskId === taskId ? { ...current, task: snapshot.task } : current,
         );
-        if (
-          snapshot.task.status === "queued" ||
-          snapshot.task.status === "running"
-        ) {
+        if (snapshot.task.status === 'queued' || snapshot.task.status === 'running') {
           await delay(800);
           if (generationRef.current !== generation) return;
           continue;
         }
-        if (snapshot.task.status === "succeeded") {
+        if (snapshot.task.status === 'succeeded') {
           setOperationRun((current) =>
-            current && current.taskId === taskId
-              ? { ...current, done: true }
-              : current,
+            current && current.taskId === taskId ? { ...current, done: true } : current,
           );
           onFinished(engineId);
-        } else if (snapshot.task.status === "failed") {
+        } else if (snapshot.task.status === 'failed') {
           setOperationRun((current) =>
             current && current.taskId === taskId
               ? {
                   ...current,
-                  error: snapshot.task.error ?? "Engine operation failed.",
+                  error: snapshot.task.error ?? 'Engine operation failed.',
                 }
               : current,
           );
-        } else if (snapshot.task.status === "cancelled") {
+        } else if (snapshot.task.status === 'cancelled') {
           setOperationRun((current) =>
             current && current.taskId === taskId
               ? { ...current, done: true, cancelled: true }
@@ -145,7 +126,7 @@ export function useEngineOperation({
       }
       try {
         const started = await startTask({
-          kind: "engine.operation",
+          kind: 'engine.operation',
           engineId: descriptor.id,
           operationId: operation.id,
           config: configForEngine(descriptor.id),
@@ -165,9 +146,7 @@ export function useEngineOperation({
             ? {
                 ...current,
                 error:
-                  error instanceof Error
-                    ? error.message
-                    : "Could not start the engine operation.",
+                  error instanceof Error ? error.message : 'Could not start the engine operation.',
               }
             : current,
         );
@@ -198,9 +177,7 @@ export function useEngineOperation({
     void cancelTask({ taskId }).catch(() => undefined);
   }, [cancelTask, operationRun?.taskId]);
 
-  const operationBusy = Boolean(
-    operationRun && !operationRun.done && operationRun.error === null,
-  );
+  const operationBusy = Boolean(operationRun && !operationRun.done && operationRun.error === null);
 
   return {
     operationRun,
@@ -226,39 +203,30 @@ export function EngineOperationPanel({
 }) {
   return (
     <AiTextPanel theme={theme}>
-      <AiTextHint theme={theme} tone="default">
-        {descriptor.operations.find(
-          (operation) => operation.id === run.operationId,
-        )?.label ?? run.operationId}
+      <AiTextHint theme={theme} tone='default'>
+        {descriptor.operations.find((operation) => operation.id === run.operationId)?.label ??
+          run.operationId}
       </AiTextHint>
       {run.error ? (
-        <AiTextHint theme={theme} tone="danger">
+        <AiTextHint theme={theme} tone='danger'>
           {run.error}
         </AiTextHint>
       ) : run.done ? (
-        <AiTextHint
-          theme={theme}
-          tone={run.cancelled ? "warning" : "success"}
-        >
-          {run.cancelled
-            ? "Operation cancelled."
-            : "Finished. Detection refreshed."}
+        <AiTextHint theme={theme} tone={run.cancelled ? 'warning' : 'success'}>
+          {run.cancelled ? 'Operation cancelled.' : 'Finished. Detection refreshed.'}
         </AiTextHint>
       ) : (
         <>
           <AiTextHint theme={theme}>
-            {run.task
-              ? `${run.task.phase} — ${run.task.message}`
-              : "Starting…"}
+            {run.task ? `${run.task.phase} — ${run.task.message}` : 'Starting…'}
           </AiTextHint>
-          {run.task?.progressPercent !== null &&
-          run.task?.progressPercent !== undefined ? (
+          {run.task?.progressPercent !== null && run.task?.progressPercent !== undefined ? (
             <View
               style={{
                 height: 4,
                 borderRadius: 2,
                 backgroundColor: theme.colors.surface2,
-                overflow: "hidden",
+                overflow: 'hidden',
               }}
             >
               <View
@@ -271,15 +239,13 @@ export function EngineOperationPanel({
             </View>
           ) : null}
           {run.task?.logTail.length ? (
-            <AiTextHint theme={theme}>
-              {run.task.logTail.slice(-3).join("\n")}
-            </AiTextHint>
+            <AiTextHint theme={theme}>{run.task.logTail.slice(-3).join('\n')}</AiTextHint>
           ) : null}
           <AiTextAction
-            label="Cancel operation"
+            label='Cancel operation'
             onPress={onCancel}
             disabled={!run.taskId}
-            tone="danger"
+            tone='danger'
             theme={theme}
             testID={`autumn-studio-ai-text-engine-op-cancel-${descriptor.id}`}
           />

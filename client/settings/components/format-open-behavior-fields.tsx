@@ -1,23 +1,23 @@
-import { useCallback, useMemo } from "react";
-import { SettingsSelect } from "@getpaseo/plugin/client/ui";
+import { useCallback, useMemo } from 'react';
+import { SettingsSelect } from '@getpaseo/plugin/client/ui';
 import {
   getFormatBehaviorConfig,
   withFormatBehaviorConfig,
   type AutumnStudioSettingsValues,
   type FileFormatOpenBehavior,
-} from "../../../shared/settings.js";
-import type { FileSystemViewerKind } from "../../vendor/file-system/types.js";
+} from '../../../shared/settings.js';
+import type { FileSystemViewerKind } from '../../vendor/file-system/types.js';
 import {
   getFormatSurfaceProviders,
   resolveSurfaceProviderMeta,
-} from "../../viewers/provider-catalog.js";
+} from '../../viewers/provider-catalog.js';
 
 const OPEN_BEHAVIOR_OPTIONS: readonly {
   label: string;
   value: FileFormatOpenBehavior;
 }[] = [
-  { label: "Open with default viewer (Default)", value: "viewer" },
-  { label: "Open with default editor", value: "editor" },
+  { label: 'Open with default viewer (Default)', value: 'viewer' },
+  { label: 'Open with default editor', value: 'editor' },
 ];
 
 export interface FormatOpenBehaviorFieldsProps {
@@ -26,7 +26,7 @@ export interface FormatOpenBehaviorFieldsProps {
   values: AutumnStudioSettingsValues;
   disabled: boolean;
   updateValues: (
-    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues
+    updater: (current: AutumnStudioSettingsValues) => AutumnStudioSettingsValues,
   ) => void;
 }
 
@@ -37,19 +37,10 @@ export function FormatOpenBehaviorFields({
   disabled,
   updateValues,
 }: FormatOpenBehaviorFieldsProps) {
-  const behaviorConfig = useMemo(
-    () => getFormatBehaviorConfig(values, kind),
-    [kind, values]
-  );
+  const behaviorConfig = useMemo(() => getFormatBehaviorConfig(values, kind), [kind, values]);
 
-  const viewerProviders = useMemo(
-    () => getFormatSurfaceProviders(kind, "viewer"),
-    [kind]
-  );
-  const editorProviders = useMemo(
-    () => getFormatSurfaceProviders(kind, "editor"),
-    [kind]
-  );
+  const viewerProviders = useMemo(() => getFormatSurfaceProviders(kind, 'viewer'), [kind]);
+  const editorProviders = useMemo(() => getFormatSurfaceProviders(kind, 'editor'), [kind]);
 
   const viewerOptions = useMemo(
     () =>
@@ -57,7 +48,7 @@ export function FormatOpenBehaviorFields({
         label: provider.label,
         value: provider.id,
       })),
-    [viewerProviders]
+    [viewerProviders],
   );
 
   const editorOptions = useMemo(
@@ -66,51 +57,43 @@ export function FormatOpenBehaviorFields({
         label: provider.label,
         value: provider.id,
       })),
-    [editorProviders]
+    [editorProviders],
   );
 
   const resolvedViewerId =
-    resolveSurfaceProviderMeta(kind, "viewer", behaviorConfig.defaultViewer)
-      ?.id ??
+    resolveSurfaceProviderMeta(kind, 'viewer', behaviorConfig.defaultViewer)?.id ??
     viewerOptions[0]?.value ??
-    "";
+    '';
   const resolvedEditorId =
-    resolveSurfaceProviderMeta(kind, "editor", behaviorConfig.defaultEditor)
-      ?.id ??
+    resolveSurfaceProviderMeta(kind, 'editor', behaviorConfig.defaultEditor)?.id ??
     editorOptions[0]?.value ??
-    "";
+    '';
 
   const handleOpenBehaviorChange = useCallback(
     (defaultOpenBehavior: FileFormatOpenBehavior) => {
-      updateValues((current) =>
-        withFormatBehaviorConfig(current, kind, { defaultOpenBehavior })
-      );
+      updateValues((current) => withFormatBehaviorConfig(current, kind, { defaultOpenBehavior }));
     },
-    [kind, updateValues]
+    [kind, updateValues],
   );
 
   const handleDefaultViewerChange = useCallback(
     (defaultViewer: string) => {
-      updateValues((current) =>
-        withFormatBehaviorConfig(current, kind, { defaultViewer })
-      );
+      updateValues((current) => withFormatBehaviorConfig(current, kind, { defaultViewer }));
     },
-    [kind, updateValues]
+    [kind, updateValues],
   );
 
   const handleDefaultEditorChange = useCallback(
     (defaultEditor: string) => {
-      updateValues((current) =>
-        withFormatBehaviorConfig(current, kind, { defaultEditor })
-      );
+      updateValues((current) => withFormatBehaviorConfig(current, kind, { defaultEditor }));
     },
-    [kind, updateValues]
+    [kind, updateValues],
   );
 
   return (
     <>
       <SettingsSelect
-        label="Default open behavior"
+        label='Default open behavior'
         hint={`Choose whether ${formatLabel} files open in the viewer or editor UX by default when clicked.`}
         value={behaviorConfig.defaultOpenBehavior}
         options={OPEN_BEHAVIOR_OPTIONS}

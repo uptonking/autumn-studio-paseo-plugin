@@ -1,13 +1,19 @@
-import {
-  SettingsInput,
-  SettingsSelect,
-  SettingsSwitch,
-} from "@getpaseo/plugin/client/ui";
+import { SettingsInput, SettingsSelect, SettingsSwitch } from '@getpaseo/plugin/client/ui';
 import {
   getAiTextEngineDescriptor,
   visibleEngineFields,
   type AiTextProfile,
-} from "../../../../shared/contracts.js";
+} from '../../../../shared/contracts.js';
+
+// Config values come from a Record<string, unknown>; only primitives are
+// meaningful as a field's display text.
+function fieldDisplayValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '';
+}
 
 export function EngineFields({
   profile,
@@ -38,7 +44,7 @@ export function EngineFields({
         const value = profile.config[field.key];
         const description = field.description;
 
-        if (field.kind === "switch") {
+        if (field.kind === 'switch') {
           return (
             <SettingsSwitch
               key={inputKey}
@@ -52,13 +58,13 @@ export function EngineFields({
           );
         }
 
-        if (field.kind === "select") {
+        if (field.kind === 'select') {
           return (
             <SettingsSelect
               key={inputKey}
               label={field.label}
               hint={description}
-              value={String(value ?? "")}
+              value={fieldDisplayValue(value)}
               options={field.options ?? []}
               disabled={disabled}
               onValueChange={(next) => setValue(field.key, next)}
@@ -67,13 +73,13 @@ export function EngineFields({
           );
         }
 
-        if (field.kind === "number") {
+        if (field.kind === 'number') {
           return (
             <SettingsInput
               key={inputKey}
               label={field.label}
               hint={description}
-              initialValue={value === undefined ? "" : String(value)}
+              initialValue={fieldDisplayValue(value)}
               placeholder={field.placeholder}
               disabled={disabled}
               onChangeText={(text) => {
@@ -94,9 +100,9 @@ export function EngineFields({
             key={inputKey}
             label={field.label}
             hint={description}
-            initialValue={value === undefined ? "" : String(value)}
+            initialValue={fieldDisplayValue(value)}
             placeholder={field.placeholder}
-            secureTextEntry={field.kind === "password"}
+            secureTextEntry={field.kind === 'password'}
             disabled={disabled}
             onChangeText={(text) => setValue(field.key, text)}
             testID={`autumn-studio-setting-engine-field-${profile.engineId}-${field.key}`}

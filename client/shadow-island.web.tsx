@@ -1,9 +1,9 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import type { PluginTheme } from "@getpaseo/plugin";
-import { tailwindCss } from "./generated/tailwind-styles.js";
-import { PortalContainerProvider } from "./vendor/lib/portal-container.js";
-import { isDarkTheme, themeVars } from "./theme-vars.js";
+import { useEffect, useRef, type ReactNode } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import type { PluginTheme } from '@getpaseo/plugin';
+import { tailwindCss } from './generated/tailwind-styles.js';
+import { PortalContainerProvider } from './vendor/lib/portal-container.js';
+import { isDarkTheme, themeVars } from './theme-vars.js';
 
 /**
  * Shared Shadow DOM island host: renders a plain `<div>` in the host tree,
@@ -11,13 +11,7 @@ import { isDarkTheme, themeVars } from "./theme-vars.js";
  * mounts a separate `react-dom/client` root inside it with host theme CSS
  * variables and `PortalContainerProvider`.
  */
-export function ShadowIsland({
-  theme,
-  children,
-}: {
-  theme: PluginTheme;
-  children: ReactNode;
-}) {
+export function ShadowIsland({ theme, children }: { theme: PluginTheme; children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<Root | null>(null);
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -25,19 +19,18 @@ export function ShadowIsland({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const shadow =
-      container.shadowRoot ?? container.attachShadow({ mode: "open" });
+    const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' });
     shadow.replaceChildren();
 
-    const style = document.createElement("style");
-    style.setAttribute("data-slot", "island-style");
+    const style = document.createElement('style');
+    style.setAttribute('data-slot', 'island-style');
     style.textContent = tailwindCss;
     shadow.appendChild(style);
 
-    const mount = document.createElement("div");
-    mount.setAttribute("data-slot", "island-mount");
-    mount.style.width = "100%";
-    mount.style.height = "100%";
+    const mount = document.createElement('div');
+    mount.setAttribute('data-slot', 'island-mount');
+    mount.style.width = '100%';
+    mount.style.height = '100%';
     shadow.appendChild(mount);
     mountRef.current = mount;
 
@@ -57,16 +50,14 @@ export function ShadowIsland({
     const mount = mountRef.current;
     if (!root || !mount) return;
 
-    mount.classList.toggle("dark", isDarkTheme(theme));
+    mount.classList.toggle('dark', isDarkTheme(theme));
     for (const [name, value] of Object.entries(themeVars(theme))) {
       mount.style.setProperty(name, value);
     }
 
     root.render(
       <PortalContainerProvider container={mount}>
-        <div className="h-full w-full bg-background text-foreground">
-          {children}
-        </div>
+        <div className='h-full w-full bg-background text-foreground'>{children}</div>
       </PortalContainerProvider>,
     );
   });
@@ -75,13 +66,13 @@ export function ShadowIsland({
     <div
       ref={containerRef}
       style={{
-        display: "block",
-        flex: "1 1 0%",
-        width: "100%",
-        height: "100%",
+        display: 'block',
+        flex: '1 1 0%',
+        width: '100%',
+        height: '100%',
         minHeight: 0,
-        overflow: "hidden",
-        position: "relative",
+        overflow: 'hidden',
+        position: 'relative',
       }}
     />
   );

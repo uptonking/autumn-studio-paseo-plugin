@@ -1,7 +1,8 @@
-import * as React from "react";
+import * as React from 'react';
 
-export interface PreloadableLazyComponent<T extends React.ComponentType<any>>
-  extends React.LazyExoticComponent<T> {
+export interface PreloadableLazyComponent<
+  T extends React.ComponentType<any>,
+> extends React.LazyExoticComponent<T> {
   preload: () => Promise<void>;
 }
 
@@ -44,12 +45,11 @@ export function lazyWithPreload<T extends React.ComponentType<any>>(
     if (resolved) {
       const current = resolved;
       return {
+        // Intentional thenable: React.lazy resolves its factory result via
+        // .then(); this mirrors the resolved module without a real Promise.
+        // eslint-disable-next-line unicorn/no-thenable
         then<TResult1 = { default: T }, TResult2 = never>(
-          onFulfilled?:
-            | ((
-                value: { default: T },
-              ) => TResult1 | PromiseLike<TResult1>)
-            | null,
+          onFulfilled?: ((value: { default: T }) => TResult1 | PromiseLike<TResult1>) | null,
         ): Promise<TResult1 | TResult2> {
           if (onFulfilled) {
             try {
@@ -65,9 +65,7 @@ export function lazyWithPreload<T extends React.ComponentType<any>>(
     return ensureLoaded();
   };
 
-  const LazyComponent = React.lazy(
-    loadForReactLazy,
-  ) as PreloadableLazyComponent<T>;
+  const LazyComponent = React.lazy(loadForReactLazy) as PreloadableLazyComponent<T>;
   LazyComponent.preload = async () => {
     await ensureLoaded();
   };

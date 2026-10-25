@@ -1,17 +1,9 @@
-import type {
-  AiTextEngineEnvironment,
-} from "../../shared/ai-text/task.ts";
-import type {
-  AiTextEngineDescriptor,
-} from "../../shared/ai-text/engines.ts";
-import { engineSupportsFormat } from "../../shared/ai-text/engines.ts";
-import type {
-  AiTextExtractionSettings,
-} from "../../shared/ai-text/profiles.ts";
-import { parseEngineConfig } from "../../shared/ai-text/engine-configs.ts";
-import type {
-  AiTextLayoutDocument,
-} from "../../shared/ai-text/layout.ts";
+import type { AiTextEngineEnvironment } from '../../shared/ai-text/task.ts';
+import type { AiTextEngineDescriptor } from '../../shared/ai-text/engines.ts';
+import { engineSupportsFormat } from '../../shared/ai-text/engines.ts';
+import type { AiTextExtractionSettings } from '../../shared/ai-text/profiles.ts';
+import { parseEngineConfig } from '../../shared/ai-text/engine-configs.ts';
+import type { AiTextLayoutDocument } from '../../shared/ai-text/layout.ts';
 
 export interface AiTextAsset {
   /** Version-relative POSIX path such as `images/abc.jpg`. */
@@ -67,10 +59,7 @@ export interface AiTextEngine {
     indexUrl?: string;
     refresh?: boolean;
   }): Promise<AiTextEngineEnvironment>;
-  runOperation?(
-    operationId: string,
-    ctx: AiTextEngineOperationContext,
-  ): Promise<void>;
+  runOperation?(operationId: string, ctx: AiTextEngineOperationContext): Promise<void>;
 }
 
 const engines = new Map<string, AiTextEngine>();
@@ -91,10 +80,7 @@ export function listAiTextEngineDescriptors(): AiTextEngineDescriptor[] {
   return listAiTextEngines().map((engine) => engine.descriptor);
 }
 
-export function assertEngineSupportsFormat(
-  engine: AiTextEngine,
-  formatKind: string,
-): void {
+export function assertEngineSupportsFormat(engine: AiTextEngine, formatKind: string): void {
   if (!engineSupportsFormat(engine.descriptor, formatKind)) {
     throw new Error(
       `${engine.descriptor.label} does not support ${formatKind} files. Pick another profile.`,
@@ -102,10 +88,7 @@ export function assertEngineSupportsFormat(
   }
 }
 
-export function resolveEngineConfig(
-  engineId: string,
-  raw: unknown,
-): Record<string, unknown> {
+export function resolveEngineConfig(engineId: string, raw: unknown): Record<string, unknown> {
   return parseEngineConfig(engineId, raw);
 }
 
@@ -119,7 +102,7 @@ export async function detectEngineEnvironment(input: {
   if (!engine) throw new Error(`Unknown extraction engine "${input.engineId}".`);
   return await engine.detect({
     config: resolveEngineConfig(input.engineId, input.config),
-    indexUrl: input.indexUrl?.trim() ?? "",
+    indexUrl: input.indexUrl?.trim() ?? '',
     refresh: input.refresh,
   });
 }
@@ -135,13 +118,9 @@ export async function runEngineOperation(input: {
 }): Promise<void> {
   const engine = getAiTextEngine(input.engineId);
   if (!engine) throw new Error(`Unknown extraction engine "${input.engineId}".`);
-  const operation = engine.descriptor.operations.find(
-    (item) => item.id === input.operationId,
-  );
+  const operation = engine.descriptor.operations.find((item) => item.id === input.operationId);
   if (!operation) {
-    throw new Error(
-      `${engine.descriptor.label} has no operation "${input.operationId}".`,
-    );
+    throw new Error(`${engine.descriptor.label} has no operation "${input.operationId}".`);
   }
   if (!engine.runOperation) {
     throw new Error(`${engine.descriptor.label} cannot run operations.`);
@@ -149,7 +128,7 @@ export async function runEngineOperation(input: {
   await engine.runOperation(input.operationId, {
     config: resolveEngineConfig(input.engineId, input.config),
     options: input.options,
-    indexUrl: input.indexUrl?.trim() ?? "",
+    indexUrl: input.indexUrl?.trim() ?? '',
     signal: input.signal,
     onLog: input.onLog,
   });

@@ -1,19 +1,18 @@
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { inflateSync } from "node:zlib";
-import { execCommand } from "@getpaseo/plugin/server";
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { inflateSync } from 'node:zlib';
+import { execCommand } from '@getpaseo/plugin/server';
+import { formatVisionOcrLinesToMarkdown, type VisionOcrLine } from './pdf-vision-layout.ts';
 import {
-  formatVisionOcrLinesToMarkdown,
-  type VisionOcrLine,
-} from "./pdf-vision-layout.ts";
-import {
-  extractCleanCodeBlocksFromPdfText,
   formatLayoutPdfTextToMarkdown,
   formatTwoColumnLayoutPageToMarkdown,
+} from './pdf-two-column-layout.ts';
+import {
+  extractCleanCodeBlocksFromPdfText,
   isDefectiveEmbeddedPdfText,
   isGarbledPdfText,
-} from "./pdf-two-column-layout.ts";
+} from './pdf-text-quality.ts';
 
 export {
   extractCleanCodeBlocksFromPdfText,
@@ -31,10 +30,10 @@ export interface LocalPdfExtractionResult {
 }
 
 const PDFTOTEXT_CANDIDATES = [
-  "/opt/homebrew/bin/pdftotext",
-  "/usr/local/bin/pdftotext",
-  "/usr/bin/pdftotext",
-  "pdftotext",
+  '/opt/homebrew/bin/pdftotext',
+  '/usr/local/bin/pdftotext',
+  '/usr/bin/pdftotext',
+  'pdftotext',
 ];
 
 /**
@@ -47,12 +46,12 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
   throw signal.reason instanceof Error
     ? signal.reason
-    : new Error("Local text extraction was cancelled");
+    : new Error('Local text extraction was cancelled');
 }
 
 async function findExecutable(candidates: readonly string[]): Promise<string | null> {
   for (const candidate of candidates) {
-    if (!candidate.startsWith("/")) return candidate;
+    if (!candidate.startsWith('/')) return candidate;
     try {
       await access(candidate);
       return candidate;
@@ -179,10 +178,10 @@ if let data = try? JSONSerialization.data(withJSONObject: output), let s = Strin
 let cachedVisionBinPromise: Promise<string | null> | null = null;
 
 async function ensureMacosVisionBinary(): Promise<string | null> {
-  if (process.platform !== "darwin") return null;
+  if (process.platform !== 'darwin') return null;
   if (cachedVisionBinPromise) return cachedVisionBinPromise;
   cachedVisionBinPromise = (async () => {
-    const binPath = join(tmpdir(), "paseo-vision-ocr-bin-v5");
+    const binPath = join(tmpdir(), 'paseo-vision-ocr-bin-v5');
     try {
       await access(binPath);
       return binPath;
@@ -191,8 +190,10 @@ async function ensureMacosVisionBinary(): Promise<string | null> {
     }
     const srcPath = join(tmpdir(), `paseo-vision-ocr-v5-${process.pid}.swift`);
     try {
-      await writeFile(srcPath, MACOS_VISION_SWIFT_SOURCE, "utf8");
-      await execCommand("/usr/bin/swiftc", ["-O", srcPath, "-o", binPath], { timeout: 45_000 });
+      await writeFile(srcPath, MACOS_VISION_SWIFT_SOURCE, 'utf8');
+      await execCommand('/usr/bin/swiftc', ['-O', srcPath, '-o', binPath], {
+        timeout: 45_000,
+      });
       return binPath;
     } catch {
       cachedVisionBinPromise = null;
@@ -219,7 +220,7 @@ async function runMacosVisionOcr(
       signal,
     });
     const stdout = res.stdout.trim();
-    if (!stdout.startsWith("[")) return null;
+    if (!stdout.startsWith('[')) return null;
     const parsed = JSON.parse(stdout) as VisionOcrLine[];
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
     return formatVisionOcrLinesToMarkdown(parsed, fileName, cleanCodeBlocks);
@@ -230,21 +231,40 @@ async function runMacosVisionOcr(
 }
 
 const MAC_ROMAN_HIGH_BYTES: Record<number, string> = {
-  0x80: "Ä", 0x81: "Å", 0x82: "Ç", 0x83: "É", 0x84: "Ñ", 0x85: "Ö", 0x86: "Ü",
-  0x8e: "é", 0x92: "’", 0x93: "“", 0x94: "”", 0x96: "–", 0x97: "—", 0xa5: "•",
-  0xa8: "®", 0xa9: "©", 0xd0: "–", 0xd1: "—", 0xd2: "“", 0xd3: "”", 0xd4: "‘", 0xd5: "’",
+  0x80: 'Ä',
+  0x81: 'Å',
+  0x82: 'Ç',
+  0x83: 'É',
+  0x84: 'Ñ',
+  0x85: 'Ö',
+  0x86: 'Ü',
+  0x8e: 'é',
+  0x92: '’',
+  0x93: '“',
+  0x94: '”',
+  0x96: '–',
+  0x97: '—',
+  0xa5: '•',
+  0xa8: '®',
+  0xa9: '©',
+  0xd0: '–',
+  0xd1: '—',
+  0xd2: '“',
+  0xd3: '”',
+  0xd4: '‘',
+  0xd5: '’',
 };
 
 export function decodePdfLiteralString(raw: string): string {
   const unescaped = raw
     .replace(/\\(\d{1,3})/g, (_, oct) => String.fromCharCode(Number.parseInt(oct, 8)))
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "\r")
-    .replace(/\\t/g, "\t")
-    .replace(/\\\(/g, "(")
-    .replace(/\\\)/g, ")")
-    .replace(/\\\\/g, "\\");
-  let decoded = "";
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
+    .replace(/\\\\/g, '\\');
+  let decoded = '';
   for (let i = 0; i < unescaped.length; i++) {
     decoded += MAC_ROMAN_HIGH_BYTES[unescaped.charCodeAt(i)] ?? unescaped[i];
   }
@@ -253,25 +273,25 @@ export function decodePdfLiteralString(raw: string): string {
 
 export function extractPdfStreamsPureJs(buffer: Buffer, fileName: string): string | null {
   if (buffer.byteLength > 512 * 1024) return null;
-  const rawLatin1 = buffer.toString("latin1");
+  const rawLatin1 = buffer.toString('latin1');
   const extractStream = (streamText: string): string[] => {
     const fragments: string[] = [];
     for (const match of streamText.matchAll(/\((?:\\.|[^\\()]){1,1000}\)\s*Tj/g)) {
       const token = match[0];
-      const openIdx = token.indexOf("(");
-      const closeIdx = token.lastIndexOf(")");
+      const openIdx = token.indexOf('(');
+      const closeIdx = token.lastIndexOf(')');
       if (openIdx >= 0 && closeIdx > openIdx) {
         const text = decodePdfLiteralString(token.slice(openIdx + 1, closeIdx)).trim();
         if (text) fragments.push(text);
       }
     }
     for (const match of streamText.matchAll(/\[((?:\\.|[^\\\]]){1,2000})\]\s*TJ/g)) {
-      const inner = match[1] ?? "";
+      const inner = match[1] ?? '';
       const parts: string[] = [];
       for (const sub of inner.matchAll(/\((?:\\.|[^\\()]){1,500}\)/g)) {
         parts.push(decodePdfLiteralString(sub[0].slice(1, -1)));
       }
-      const joined = parts.join("").trim();
+      const joined = parts.join('').trim();
       if (joined) fragments.push(joined);
     }
     return fragments;
@@ -282,15 +302,15 @@ export function extractPdfStreamsPureJs(buffer: Buffer, fileName: string): strin
     const body = match[1];
     if (!body) continue;
     try {
-      const inflated = inflateSync(Buffer.from(body, "latin1")).toString("latin1");
+      const inflated = inflateSync(Buffer.from(body, 'latin1')).toString('latin1');
       collected.push(...extractStream(inflated));
     } catch {
       // Non-zlib stream
     }
   }
-  const lines = collected.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
-  if (lines.length === 0 || isDefectiveEmbeddedPdfText(lines.join("\n"), fileName)) return null;
-  return [`# ${fileName}`, "", ...lines.map((line) => `${line}\n`)].join("\n");
+  const lines = collected.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  if (lines.length === 0 || isDefectiveEmbeddedPdfText(lines.join('\n'), fileName)) return null;
+  return [`# ${fileName}`, '', ...lines.map((line) => `${line}\n`)].join('\n');
 }
 
 export async function extractPdfWithPopplerAndVision(input: {
@@ -313,8 +333,8 @@ export async function extractPdfWithPopplerAndVision(input: {
       }
     }
     if (!pdfPath) {
-      tempDir = await mkdtemp(join(tmpdir(), "paseo-pdf-local-"));
-      pdfPath = join(tempDir, input.fileName || "document.pdf");
+      tempDir = await mkdtemp(join(tmpdir(), 'paseo-pdf-local-'));
+      pdfPath = join(tempDir, input.fileName || 'document.pdf');
       await writeFile(pdfPath, input.buffer);
     }
     throwIfAborted(input.signal);
@@ -323,13 +343,12 @@ export async function extractPdfWithPopplerAndVision(input: {
     const pdftotextBin = await findExecutable(PDFTOTEXT_CANDIDATES);
     if (pdftotextBin) {
       try {
-        const res = await execCommand(
-          pdftotextBin,
-          ["-layout", "-enc", "UTF-8", pdfPath, "-"],
-          { timeout: 15_000, signal: input.signal },
-        );
-        const rawText = res.stdout ?? "";
-        if (rawText.replace(/\f/g, "").trim().length >= 20) {
+        const res = await execCommand(pdftotextBin, ['-layout', '-enc', 'UTF-8', pdfPath, '-'], {
+          timeout: 15_000,
+          signal: input.signal,
+        });
+        const rawText = res.stdout ?? '';
+        if (rawText.replace(/\f/g, '').trim().length >= 20) {
           if (isDefectiveEmbeddedPdfText(rawText, input.fileName)) {
             salvagedCodeBlocks = extractCleanCodeBlocksFromPdfText(rawText);
           } else {
@@ -339,7 +358,7 @@ export async function extractPdfWithPopplerAndVision(input: {
                 input.fileName,
                 input.enableTable !== false,
               ),
-              modeUsed: "local-pdftotext",
+              modeUsed: 'local-pdftotext',
             };
           }
         }
@@ -352,7 +371,7 @@ export async function extractPdfWithPopplerAndVision(input: {
     throwIfAborted(input.signal);
     const pureJsText = extractPdfStreamsPureJs(input.buffer, input.fileName);
     if (pureJsText) {
-      return { markdown: pureJsText, modeUsed: "local-pdf-stream" };
+      return { markdown: pureJsText, modeUsed: 'local-pdf-stream' };
     }
 
     if (input.enableOcr !== false) {
@@ -364,7 +383,7 @@ export async function extractPdfWithPopplerAndVision(input: {
         input.signal,
       );
       if (visionMd) {
-        return { markdown: visionMd, modeUsed: "local-vision-ocr" };
+        return { markdown: visionMd, modeUsed: 'local-vision-ocr' };
       }
     }
     return null;

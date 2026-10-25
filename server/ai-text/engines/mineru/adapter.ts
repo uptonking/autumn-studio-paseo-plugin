@@ -1,24 +1,20 @@
-import dns from "node:dns";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import dns from 'node:dns';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import type {
   AiTextExtractionSettings,
   AiTextLayoutDocument,
-} from "../../../../shared/contracts.ts";
-import type { MineruConfig } from "../../../../shared/ai-text/engine-configs.ts";
-import { buildProcessError, runProcess } from "../../command-runner.ts";
-import { resolveExecutable } from "../../executable.ts";
-import { getMineruEnvironment, probeCli } from "./environment.ts";
-import { normalizeMineruMiddleJson } from "./layout-normalizer.ts";
-import {
-  parseMineruZipBuffer,
-  runMineruCloudFree,
-  runMineruCloudToken,
-} from "./cloud.ts";
+} from '../../../../shared/contracts.ts';
+import type { MineruConfig } from '../../../../shared/ai-text/engine-configs.ts';
+import { buildProcessError, runProcess } from '../../command-runner.ts';
+import { resolveExecutable } from '../../executable.ts';
+import { getMineruEnvironment, probeCli } from './environment.ts';
+import { normalizeMineruMiddleJson } from './layout-normalizer.ts';
+import { parseMineruZipBuffer, runMineruCloudFree, runMineruCloudToken } from './cloud.ts';
 
 try {
-  dns.setDefaultResultOrder("ipv4first");
+  dns.setDefaultResultOrder('ipv4first');
 } catch {
   // Ignore if unsupported by runtime.
 }
@@ -61,7 +57,7 @@ export interface MineruParseInput {
 
 export function tokenizeArgs(raw: string): string[] {
   const args: string[] = [];
-  let current = "";
+  let current = '';
   let quote: '"' | "'" | null = null;
   let escaped = false;
   let hasToken = false;
@@ -73,7 +69,7 @@ export function tokenizeArgs(raw: string): string[] {
       hasToken = true;
       continue;
     }
-    if (char === "\\" && quote !== "'") {
+    if (char === '\\' && quote !== "'") {
       escaped = true;
       continue;
     }
@@ -94,7 +90,7 @@ export function tokenizeArgs(raw: string): string[] {
     if (/\s/.test(char)) {
       if (hasToken) {
         args.push(current);
-        current = "";
+        current = '';
         hasToken = false;
       }
       continue;
@@ -103,7 +99,7 @@ export function tokenizeArgs(raw: string): string[] {
     hasToken = true;
   }
 
-  if (escaped) current += "\\";
+  if (escaped) current += '\\';
   if (hasToken) args.push(current);
   return args;
 }
@@ -111,35 +107,26 @@ export function tokenizeArgs(raw: string): string[] {
 export function buildMineruKitArgs(input: {
   filePath: string;
   outputPath: string;
-  format: "markdown" | "zip";
+  format: 'markdown' | 'zip';
   config: MineruConfig;
   extraction: AiTextExtractionSettings;
   useLocalApi: boolean;
 }): string[] {
   const { config, extraction } = input;
-  const args = [
-    "parse",
-    input.filePath,
-    "-o",
-    input.outputPath,
-    "-f",
-    input.format,
-  ];
+  const args = ['parse', input.filePath, '-o', input.outputPath, '-f', input.format];
 
-  if (config.tier) args.push("--tier", config.tier);
+  if (config.tier) args.push('--tier', config.tier);
   // OCR off means "use the text layer"; forcing `txt` is what the CLI does
   // when `--ocr-mode auto` would otherwise choose OCR.
-  const ocrMode = extraction.ocr ? config.ocrMode : "txt";
-  if (ocrMode) args.push("--ocr-mode", ocrMode);
-  if (extraction.pages.trim()) args.push("--pages", extraction.pages.trim());
-  if (!extraction.imageAnalysis) args.push("--disable-image-analysis");
+  const ocrMode = extraction.ocr ? config.ocrMode : 'txt';
+  if (ocrMode) args.push('--ocr-mode', ocrMode);
+  if (extraction.pages.trim()) args.push('--pages', extraction.pages.trim());
+  if (!extraction.imageAnalysis) args.push('--disable-image-analysis');
 
-  const remoteUrl = input.useLocalApi
-    ? config.localApiUrl.trim()
-    : config.remoteUrl.trim();
-  if (remoteUrl) args.push("--remote-url", remoteUrl);
+  const remoteUrl = input.useLocalApi ? config.localApiUrl.trim() : config.remoteUrl.trim();
+  if (remoteUrl) args.push('--remote-url', remoteUrl);
   if (remoteUrl && !input.useLocalApi && config.remoteApiKey.trim()) {
-    args.push("--api-key", config.remoteApiKey.trim());
+    args.push('--api-key', config.remoteApiKey.trim());
   }
   args.push(...tokenizeArgs(config.extraArgs));
   return args;
@@ -174,7 +161,7 @@ async function runMineruKit(
   engineVersion: string | null,
 ): Promise<MineruParseResult> {
   const { config, extraction } = input;
-  const requestedCommand = config.kitCommand.trim() || "mineru-kit";
+  const requestedCommand = config.kitCommand.trim() || 'mineru-kit';
   const command = await resolveExecutable(requestedCommand);
   if (!command) {
     throw new Error(
@@ -182,20 +169,20 @@ async function runMineruKit(
     );
   }
 
-  const tempDir = await mkdtemp(join(tmpdir(), "paseo-mineru-"));
+  const tempDir = await mkdtemp(join(tmpdir(), 'paseo-mineru-'));
   const wantsLayout = extraction.layout;
-  const outputPath = join(tempDir, wantsLayout ? "result.zip" : "result.md");
+  const outputPath = join(tempDir, wantsLayout ? 'result.zip' : 'result.md');
   try {
     input.onProgress?.({
-      phase: "Preparing",
-      message: `Starting ${useLocalApi ? "MinerU local API" : "MinerU Kit"}`,
+      phase: 'Preparing',
+      message: `Starting ${useLocalApi ? 'MinerU local API' : 'MinerU Kit'}`,
     });
     const result = await runProcess({
       command,
       args: buildMineruKitArgs({
         filePath: input.filePath,
         outputPath,
-        format: wantsLayout ? "zip" : "markdown",
+        format: wantsLayout ? 'zip' : 'markdown',
         config,
         extraction,
         useLocalApi,
@@ -204,57 +191,57 @@ async function runMineruKit(
       signal: input.signal,
       onLog: input.onLog,
     });
-    if (result.aborted) throw new Error("MinerU parsing was cancelled");
+    if (result.aborted) throw new Error('MinerU parsing was cancelled');
     if (result.code !== 0) {
-      throw new Error(buildProcessError("mineru-kit parse", result));
+      throw new Error(buildProcessError('mineru-kit parse', result));
     }
 
     if (!wantsLayout) {
       const info = await stat(outputPath);
       if (info.size > MAX_LOCAL_MARKDOWN_BYTES) {
-        throw new Error("MinerU Markdown output exceeds the 32MB limit");
+        throw new Error('MinerU Markdown output exceeds the 32MB limit');
       }
       return {
-        markdown: await readFile(outputPath, "utf8"),
+        markdown: await readFile(outputPath, 'utf8'),
         layout: null,
         assets: [],
-        routeUsed: useLocalApi ? "local-api" : "local-cli",
+        routeUsed: useLocalApi ? 'local-api' : 'local-cli',
         engineVersion,
         warnings: [],
       };
     }
 
     input.onProgress?.({
-      phase: "Extracting layout",
-      message: "Reading MinerU layout blocks and images",
+      phase: 'Extracting layout',
+      message: 'Reading MinerU layout blocks and images',
     });
     const outputInfo = await stat(outputPath);
     if (outputInfo.size > MAX_LOCAL_ZIP_BYTES) {
-      throw new Error("MinerU archive exceeds the 512MB limit");
+      throw new Error('MinerU archive exceeds the 512MB limit');
     }
     const zipBytes = new Uint8Array(await readFile(outputPath));
     const parsedZip = parseMineruZipBuffer(zipBytes);
     if (!parsedZip) {
-      throw new Error("MinerU produced an archive without a readable markdown.md");
+      throw new Error('MinerU produced an archive without a readable markdown.md');
     }
     const warnings = [...parsedZip.warnings];
     const layout = parsedZip.middleJson
       ? normalizeMineruMiddleJson({
           middleJson: parsedZip.middleJson,
-          source: useLocalApi ? "mineru-local-api" : "mineru-kit",
-          parserId: "mineru",
+          source: useLocalApi ? 'mineru-local-api' : 'mineru-kit',
+          parserId: 'mineru',
         })
       : null;
     if (!layout) {
       warnings.push(
-        "MinerU archive had no usable layout geometry; Blocks view is unavailable for this version",
+        'MinerU archive had no usable layout geometry; Blocks view is unavailable for this version',
       );
     }
     return {
       markdown: parsedZip.markdown,
       layout,
       assets: parsedZip.assets,
-      routeUsed: useLocalApi ? "local-api" : "local-cli",
+      routeUsed: useLocalApi ? 'local-api' : 'local-cli',
       engineVersion,
       warnings,
     };
@@ -271,22 +258,18 @@ async function resolveAutoRoutes(
     refresh: false,
   });
   const routes: string[] = [];
-  const localCli = environment.routes.find(
-    (route) => route.id === "local-cli",
-  );
-  if (localCli?.status === "ready") routes.push("local-cli");
-  const localApi = environment.routes.find(
-    (route) => route.id === "local-api",
-  );
-  if (localApi?.status === "ready") routes.push("local-api");
-  if (input.config.apiToken.trim()) routes.push("cloud-token");
-  routes.push("cloud-free");
+  const localCli = environment.routes.find((route) => route.id === 'local-cli');
+  if (localCli?.status === 'ready') routes.push('local-cli');
+  const localApi = environment.routes.find((route) => route.id === 'local-api');
+  if (localApi?.status === 'ready') routes.push('local-api');
+  if (input.config.apiToken.trim()) routes.push('cloud-token');
+  routes.push('cloud-free');
   return { routes, engineVersion: environment.version };
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
-  throw signal.reason ?? new Error("AI text extraction was cancelled");
+  throw signal.reason ?? new Error('AI text extraction was cancelled');
 }
 
 async function runCloudFree(
@@ -294,7 +277,7 @@ async function runCloudFree(
   engineVersion: string | null,
 ): Promise<MineruParseResult> {
   if (!input.config.apiBaseUrl.trim()) {
-    throw new Error("MinerU cloud endpoint is empty.");
+    throw new Error('MinerU cloud endpoint is empty.');
   }
   const fileName = input.fileName || basename(input.filePath);
   const markdown = await runMineruCloudFree(
@@ -308,10 +291,10 @@ async function runCloudFree(
     markdown,
     layout: null,
     assets: [],
-    routeUsed: "cloud-free",
+    routeUsed: 'cloud-free',
     engineVersion,
     warnings: [
-      "The free MinerU API returns Markdown without layout geometry. Use MinerU Kit or the token API to enable Blocks.",
+      'The free MinerU API returns Markdown without layout geometry. Use MinerU Kit or the token API to enable Blocks.',
     ],
   };
 }
@@ -321,7 +304,7 @@ async function runCloudToken(
   engineVersion: string | null,
 ): Promise<MineruParseResult> {
   if (!input.config.apiBaseUrl.trim()) {
-    throw new Error("MinerU cloud endpoint is empty.");
+    throw new Error('MinerU cloud endpoint is empty.');
   }
   const fileName = input.fileName || basename(input.filePath);
   const wantsLayout = input.extraction.layout;
@@ -338,39 +321,37 @@ async function runCloudToken(
         wantsLayout && parsedZip.middleJson
           ? normalizeMineruMiddleJson({
               middleJson: parsedZip.middleJson,
-              source: "mineru-cloud",
-              parserId: "mineru",
+              source: 'mineru-cloud',
+              parserId: 'mineru',
             })
           : null;
       return {
         markdown: parsedZip.markdown,
         layout,
         assets: parsedZip.assets,
-        routeUsed: "cloud-token",
+        routeUsed: 'cloud-token',
         engineVersion,
         warnings: [
           ...cloud.warnings,
           ...parsedZip.warnings,
           ...(wantsLayout && !layout
             ? [
-                "MinerU archive had no usable layout geometry; Blocks view is unavailable for this version",
+                'MinerU archive had no usable layout geometry; Blocks view is unavailable for this version',
               ]
             : []),
         ],
       };
     }
-    cloud.warnings.push("MinerU archive could not be read; using Markdown only");
+    cloud.warnings.push('MinerU archive could not be read; using Markdown only');
   }
   if (!cloud.markdown.trim()) {
-    throw new Error(
-      "MinerU returned an unreadable archive and no Markdown fallback",
-    );
+    throw new Error('MinerU returned an unreadable archive and no Markdown fallback');
   }
   return {
     markdown: cloud.markdown,
     layout: null,
     assets: [],
-    routeUsed: "cloud-token",
+    routeUsed: 'cloud-token',
     engineVersion,
     warnings: cloud.warnings,
   };
@@ -383,38 +364,34 @@ async function runRoute(
 ): Promise<MineruParseResult> {
   throwIfAborted(input.signal);
   switch (route) {
-    case "local-cli":
+    case 'local-cli':
       return await runMineruKit(input, false, engineVersion);
-    case "local-api":
+    case 'local-api':
       if (!input.config.localApiUrl.trim()) {
-        throw new Error(
-          'Local MinerU API route needs a URL such as "http://127.0.0.1:8000".',
-        );
+        throw new Error('Local MinerU API route needs a URL such as "http://127.0.0.1:8000".');
       }
       return await runMineruKit(input, true, engineVersion);
-    case "cloud-token":
+    case 'cloud-token':
       return await runCloudToken(input, engineVersion);
-    case "cloud-free":
+    case 'cloud-free':
       return await runCloudFree(input, engineVersion);
     default:
       throw new Error(`Unknown MinerU route "${route}".`);
   }
 }
 
-export async function parseWithMineru(
-  input: MineruParseInput,
-): Promise<MineruParseResult> {
+export async function parseWithMineru(input: MineruParseInput): Promise<MineruParseResult> {
   throwIfAborted(input.signal);
-  const requestedRoute = input.route || "auto";
+  const requestedRoute = input.route || 'auto';
 
-  if (requestedRoute !== "auto") {
+  if (requestedRoute !== 'auto') {
     let engineVersion: string | null = null;
-    if (requestedRoute === "local-cli" || requestedRoute === "local-api") {
+    if (requestedRoute === 'local-cli' || requestedRoute === 'local-api') {
       try {
         const info = await probeCli({
-          command: input.config.kitCommand.trim() || "mineru-kit",
-          kind: "mineru-kit",
-          versionArgs: ["version", "--json"],
+          command: input.config.kitCommand.trim() || 'mineru-kit',
+          kind: 'mineru-kit',
+          versionArgs: ['version', '--json'],
         });
         engineVersion = info.version;
       } catch {
@@ -433,15 +410,13 @@ export async function parseWithMineru(
     engineVersion = detected.engineVersion;
   } catch (error) {
     warnings.push(
-      `Local MinerU detection failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `Local MinerU detection failed: ${error instanceof Error ? error.message : String(error)}`,
     );
     routes = [
-      "local-cli",
-      ...(input.config.localApiUrl.trim() ? ["local-api"] : []),
-      ...(input.config.apiToken.trim() ? ["cloud-token"] : []),
-      "cloud-free",
+      'local-cli',
+      ...(input.config.localApiUrl.trim() ? ['local-api'] : []),
+      ...(input.config.apiToken.trim() ? ['cloud-token'] : []),
+      'cloud-free',
     ].filter((route, index, list) => list.indexOf(route) === index);
   }
 
@@ -449,7 +424,7 @@ export async function parseWithMineru(
     throwIfAborted(input.signal);
     try {
       input.onProgress?.({
-        phase: "Preparing",
+        phase: 'Preparing',
         message: `Trying MinerU ${route}`,
       });
       const result = await runRoute(input, route, engineVersion);
@@ -459,11 +434,9 @@ export async function parseWithMineru(
       };
     } catch (error) {
       throwIfAborted(input.signal);
-      warnings.push(
-        `${route} failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      warnings.push(`${route} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  throw new Error(`Every MinerU route failed. ${warnings.join(" | ")}`);
+  throw new Error(`Every MinerU route failed. ${warnings.join(' | ')}`);
 }

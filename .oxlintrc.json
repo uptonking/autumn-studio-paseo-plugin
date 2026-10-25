@@ -1,0 +1,65 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "options": {
+    "typeAware": true
+  },
+  "ignorePatterns": ["package-lock.json", "dist", "client/generated", "server/generated"],
+  "plugins": ["react", "unicorn", "typescript", "oxc", "import", "promise"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "env": {
+    "builtin": true
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+
+    "no-await-in-loop": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+
+    "typescript/unbound-method": "off",
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/no-unsafe-type-assertion": "warn",
+    "typescript/no-explicit-any": "warn",
+    "typescript/consistent-return": "warn",
+    "no-nested-ternary": "warn",
+    "promise/always-return": "warn",
+
+    "react/refs": "warn",
+    "react/set-state-in-effect": "warn",
+    "react/exhaustive-effect-dependencies": "warn",
+    "react/memo-dependencies": "warn",
+
+    "typescript/prefer-as-const": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/consistent-type-definitions": ["error", "interface"],
+    "import/no-unassigned-import": "error",
+    "no-unneeded-ternary": "error",
+    "eqeqeq": ["error", "smart"]
+  },
+  "overrides": [
+    {
+      "files": ["client/**/*.{ts,tsx}", "index.client.tsx"],
+      "env": {
+        "browser": true
+      }
+    },
+    {
+      "files": ["server/**/*.{ts,mjs}", "index.server.ts", "scripts/**/*.{js,mjs}", "test/**/*.ts"],
+      "env": {
+        "node": true
+      }
+    },
+    {
+      "files": ["scripts/**/*.{js,mjs}"],
+      "rules": {
+        "no-eval": "off"
+      }
+    }
+  ]
+}
