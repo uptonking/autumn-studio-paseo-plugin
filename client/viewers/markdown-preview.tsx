@@ -1,69 +1,14 @@
 import * as React from 'react';
 import { cn } from '../vendor/lib/utils.js';
 import { isMarkdownFileName } from '../view-props.js';
+import {
+  isMarkdownTableSeparator,
+  parseHtmlTableRows,
+  parseMarkdownTableCells,
+  tokenizeInlineMarkdown,
+} from './markdown-blocks.js';
 
 export { isMarkdownFileName };
-
-function parseMarkdownTableCells(rowLine: string): string[] {
-  const trimmed = rowLine.trim();
-  const inner =
-    trimmed.startsWith('|') && trimmed.endsWith('|')
-      ? trimmed.slice(1, -1)
-      : trimmed.startsWith('|')
-        ? trimmed.slice(1)
-        : trimmed;
-  return inner.split(/(?<!\\)\|/).map((cell) => cell.replace(/\\\|/g, '|').trim());
-}
-
-function isMarkdownTableSeparator(line: string): boolean {
-  const trimmed = line.trim();
-  if (!trimmed.includes('|') || !trimmed.includes('-')) return false;
-  const cells = parseMarkdownTableCells(trimmed);
-  return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
-}
-
-function parseHtmlTableRows(tableHtml: string): {
-  headers: string[];
-  rows: string[][];
-} | null {
-  const trMatches = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
-  if (trMatches.length === 0) return null;
-  const allRows: { isHeader: boolean; cells: string[] }[] = [];
-  for (const tr of trMatches) {
-    const trBody = tr[1] ?? '';
-    const thMatches = [...trBody.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)];
-    if (thMatches.length > 0) {
-      allRows.push({
-        isHeader: true,
-        cells: thMatches.map((m) =>
-          (m[1] ?? '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim(),
-        ),
-      });
-      continue;
-    }
-    const tdMatches = [...trBody.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
-    if (tdMatches.length > 0) {
-      allRows.push({
-        isHeader: false,
-        cells: tdMatches.map((m) =>
-          (m[1] ?? '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim(),
-        ),
-      });
-    }
-  }
-  if (allRows.length === 0) return null;
-  const first = allRows[0];
-  return {
-    headers: first.cells,
-    rows: allRows.slice(1).map((r) => r.cells),
-  };
-}
 
 export type MarkdownImageRenderer = (src: string, alt: string) => React.ReactNode | null;
 
@@ -72,79 +17,60 @@ function renderInlineMarkdown(
   renderImage?: MarkdownImageRenderer,
 ): React.ReactNode[] {
   const tokens: React.ReactNode[] = [];
-  const pattern =
-    /(!\[[^\]]*\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
   let key = 0;
 
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      tokens.push(text.slice(lastIndex, match.index));
-    }
-    const raw = match[0];
-    if (raw.startsWith('![')) {
-      const closeBracket = raw.indexOf('](');
-      const alt = raw.slice(2, closeBracket);
-      const src = raw.slice(closeBracket + 2, -1);
-      const rendered = renderImage?.(src, alt);
-      tokens.push(rendered ?? alt);
-    } else if (raw.startsWith('`') && raw.endsWith('`')) {
+  for (const token of tokenizeInlineMarkdown(text)) {
+    if (token.kind === 'image') {
+      const rendered = renderImage?.(token.src, token.alt);
+      tokens.push(rendered ?? token.alt);
+    } else if (token.style === 'code') {
       tokens.push(
         <code
           key={key++}
           className='rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground'
         >
-          {raw.slice(1, -1)}
+          {token.text}
         </code>,
       );
-    } else if (
-      (raw.startsWith('**') && raw.endsWith('**')) ||
-      (raw.startsWith('__') && raw.endsWith('__'))
-    ) {
+    } else if (token.style === 'bold-italic') {
       tokens.push(
         <strong key={key++} className='font-semibold text-foreground'>
-          {raw.slice(2, -2)}
+          <em className='italic'>{token.text}</em>
         </strong>,
       );
-    } else if (raw.startsWith('~~') && raw.endsWith('~~')) {
+    } else if (token.style === 'bold') {
+      tokens.push(
+        <strong key={key++} className='font-semibold text-foreground'>
+          {token.text}
+        </strong>,
+      );
+    } else if (token.style === 'strike') {
       tokens.push(
         <del key={key++} className='text-muted-foreground line-through'>
-          {raw.slice(2, -2)}
+          {token.text}
         </del>,
       );
-    } else if (
-      (raw.startsWith('*') && raw.endsWith('*')) ||
-      (raw.startsWith('_') && raw.endsWith('_'))
-    ) {
+    } else if (token.style === 'italic') {
       tokens.push(
         <em key={key++} className='italic'>
-          {raw.slice(1, -1)}
+          {token.text}
         </em>,
       );
-    } else if (raw.startsWith('[')) {
-      const closeBracket = raw.indexOf('](');
-      const label = raw.slice(1, closeBracket);
-      const href = raw.slice(closeBracket + 2, -1);
+    } else if (token.style === 'link' && token.href) {
       tokens.push(
         <a
           key={key++}
-          href={href}
+          href={token.href}
           target='_blank'
           rel='noopener noreferrer'
           className='font-medium text-primary underline underline-offset-2'
         >
-          {label}
+          {token.text}
         </a>,
       );
     } else {
-      tokens.push(raw);
+      tokens.push(token.raw);
     }
-    lastIndex = pattern.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    tokens.push(text.slice(lastIndex));
   }
   return tokens;
 }
@@ -237,6 +163,13 @@ export function MarkdownPreview({
       }
 
       if (!line.trim()) {
+        i += 1;
+        continue;
+      }
+
+      // Standalone HTML comments are invisible in rendered Markdown; the
+      // Paginated Text Doc viewer uses one to persist page breaks.
+      if (/^\s*<!--.*-->\s*$/.test(line)) {
         i += 1;
         continue;
       }

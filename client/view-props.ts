@@ -84,8 +84,8 @@ export interface ExplorerViewProps {
   onRemoveRecentFile?(path: string): void;
   /** Clears the workspace's recent files list. */
   onClearRecentFiles?(): void;
-  /** Opens the Autumn Studio settings page. */
-  onOpenSettings?(): void;
+  /** Opens the Autumn Studio settings page, optionally at a section id. */
+  onOpenSettings?(section?: string): void;
   /** True once the user dismissed the tree deprecation banner. */
   treeDeprecationDismissed?: boolean;
   /** Persists the tree deprecation banner dismissal in host settings. */
@@ -122,7 +122,8 @@ export interface FileViewerViewProps {
   onRemoveRecentFile?(path: string): void;
   onClearRecentFiles?(): void;
   onOpenExplorer?(): void;
-  onOpenSettings?(): void;
+  /** Opens the Autumn Studio settings page, optionally at a section id. */
+  onOpenSettings?(section?: string): void;
 }
 
 export interface FileSystemItemView {

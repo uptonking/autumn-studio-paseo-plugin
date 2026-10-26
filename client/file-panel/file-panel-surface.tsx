@@ -166,7 +166,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
       onSelectTab: () => {},
       onCloseTab: () => {},
       onTabDirtyChange: handleDirtyChange,
-      onOpenSettings: () => openAutumnStudioSettingsScreen(),
+      onOpenSettings: (section?: string) => openAutumnStudioSettingsScreen(section),
     }),
     [
       activeTab,

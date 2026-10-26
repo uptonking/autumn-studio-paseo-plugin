@@ -70,7 +70,7 @@ export const xlsxSettingsSchema = z.object({
 export type XlsxSettings = z.infer<typeof xlsxSettingsSchema>;
 
 export const docxSettingsSchema = z.object({
-  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('editor'),
+  defaultOpenBehavior: fileFormatOpenBehaviorSchema.default('viewer'),
   defaultViewer: z.string().default('begonia-docx-viewer'),
   defaultEditor: z.string().default('begonia-docx-editor'),
   defaultFlowMode: docxFlowModeSchema.default('paginated'),
@@ -117,7 +117,7 @@ export const DEFAULT_XLSX_SETTINGS: XlsxSettings = {
 };
 
 export const DEFAULT_DOCX_SETTINGS: DocxSettings = {
-  defaultOpenBehavior: 'editor',
+  defaultOpenBehavior: 'viewer',
   defaultViewer: 'begonia-docx-viewer',
   defaultEditor: 'begonia-docx-editor',
   defaultFlowMode: 'paginated',

@@ -8,6 +8,8 @@ import {
 
 import { handleAiTextRpc, simulatedAutumnDocs } from './runtime-test-ai-text-mocks.mjs';
 
+import { verifyAiTextPaginatedDocViewer } from './runtime-test-ai-text-paginated.mjs';
+
 export { handleAiTextRpc, simulatedAutumnDocs };
 
 function assertIncludes(list, value, label) {
@@ -251,7 +253,12 @@ export async function verifyAiTextSettingsSection(settingsHost) {
   await waitFor(() => getSection('AI Text Mode'), 'the General tab');
 }
 
-export async function verifyAiTextSplitViewAndMultiVersion({ shadow, dom, _simulatedDiskFiles }) {
+export async function verifyAiTextSplitViewAndMultiVersion({
+  shadow,
+  dom,
+  rpcInputs,
+  _simulatedDiskFiles,
+}) {
   // Return to file tree if currently in an in-place file
   const existingBackBtn = shadow.querySelector(
     '[data-slot="file-system-inplace-header"] [aria-label="Back to file tree"]',
@@ -451,6 +458,8 @@ export async function verifyAiTextSplitViewAndMultiVersion({ shadow, dom, _simul
   }
 
   await verifyAiTextSplitPaneToggles({ shadow, dom });
+
+  await verifyAiTextPaginatedDocViewer({ shadow, dom, rpcInputs });
 
   // Close split pane and verify button reverts to "AI Text Mode" with badge "2"
   const closeSplitBtn = shadow.querySelector(

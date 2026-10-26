@@ -1,5 +1,13 @@
 @import 'tailwindcss' source(none);
 
+/*
+ * Begonia Word editor surface styles, shipped by the package since 0.2.0
+ * (base editor chrome, pagination markers, revision/collaboration marks).
+ * The `--ald-*` mapping in :host below retints them with the island's theme
+ * tokens. Imported first so plain @import rules precede other statements.
+ */
+@import '@datalking/begonia-react/editor-surface.css';
+
 /* The island toggles `.dark` on its wrapper div; the host theme decides. */
 @custom-variant dark (&:is(.dark *));
 
@@ -108,59 +116,19 @@
   --info-foreground: #ffffff;
 }
 
-/*
- * Begonia Word editor base styles (adapted from the begonia playground
- * reference stylesheet to the island's theme tokens). The npm packages ship
- * no CSS of their own: `.editor-frame` / `.editor-host` wrap the editor and
- * `.ald-editor.ProseMirror` is the document surface.
- */
-.editor-frame {
-  min-height: 420px;
-  border-radius: calc(var(--radius) * 1.8);
-  border: 1px solid var(--border);
-  background: var(--muted);
-  padding: 0.75rem;
-}
-
-.editor-host {
-  min-height: 384px;
-  overflow: auto;
-  border-radius: calc(var(--radius) * 1.25);
-  border: 1px solid var(--border);
-  background: var(--background);
-}
-
-.ald-editor.ProseMirror {
-  min-height: 384px;
-  padding: 2rem 2.25rem 3rem;
-  outline: none;
-  color: var(--foreground);
-  font-family:
-    'Iowan Old Style', 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', 'STSong', 'SimSun',
-    'Baskerville', 'Times New Roman', serif;
-  font-size: 17px;
-  line-height: 1.72;
-  word-break: break-word;
-}
-
-.ald-editor.ProseMirror ::selection {
-  background: color-mix(in oklab, var(--selection) 22%, transparent);
-}
-
-.ald-editor p {
-  margin: 0 0 1em;
-}
-
-.ald-editor strong {
-  font-weight: 700;
-}
-
-.ald-editor em {
-  font-style: italic;
-}
-
-.ald-editor u {
-  text-decoration-thickness: 2px;
+:host {
+  /* Begonia editor surface tokens (consumed by editor-surface.css). */
+  --ald-border: var(--border);
+  --ald-surface: var(--background);
+  --ald-surface-muted: var(--muted);
+  --ald-doc-text: var(--foreground);
+  --ald-doc-heading: var(--foreground);
+  --ald-link: var(--primary);
+  --ald-accent-muted: color-mix(in oklab, var(--selection) 22%, transparent);
+  --ald-radius: calc(var(--radius) * 1.8);
+  --ald-page-radius: calc(var(--radius) * 1.25);
+  --ald-table-border: 1px solid var(--border);
+  --ald-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
 /* Begonia hardcodes light card colors (bg-white / border-slate-200) around the
@@ -169,4 +137,25 @@
 .dark div:has(> .editor-frame) {
   background-color: var(--card);
   border-color: var(--border);
+}
+
+/*
+ * Docx read-only mode: the paginated projection is the visible document. The
+ * editable column must stay mounted (the projection measures its layout), so
+ * it moves offscreen instead of unmounting — visibility (not display) keeps
+ * real geometry for measurement. The projection card then fills the pane.
+ * Structure: .docx-preview-only (Begonia root) > content grid > [editor card,
+ * preview card].
+ */
+.docx-preview-only > div {
+  display: block !important;
+}
+
+.docx-preview-only > div > div:first-child {
+  position: fixed !important;
+  top: 0 !important;
+  left: -20000px !important;
+  width: 840px !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }

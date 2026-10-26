@@ -123,6 +123,12 @@ export function AiTextSplitPane({
   const savingRef = React.useRef(false);
   const savedFeedbackTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Async-sync viewers (Paginated Text Doc) register a flush here so Save and
+  // Copy can pull the up-to-the-keystroke draft instead of the debounced one.
+  const draftSyncRef = React.useRef<{ flush(): string | null } | null>(null);
+  const handleRegisterDraftSync = React.useCallback((sync: { flush(): string | null } | null) => {
+    draftSyncRef.current = sync;
+  }, []);
 
   React.useEffect(
     () => () => {
@@ -182,17 +188,24 @@ export function AiTextSplitPane({
     savingRef.current = true;
     setIsSaving(true);
     setSaveError(null);
+    // Pull the freshest draft from an async-sync viewer before saving; the
+    // debounced draftText can lag the last keystrokes by a few hundred ms.
+    const flushedDraft = draftSyncRef.current?.flush();
+    const draftToSave = flushedDraft ?? draftText;
+    if (flushedDraft && flushedDraft !== draftText) {
+      setDraftText(flushedDraft);
+    }
     try {
       await onSaveFile({
         relPath: activeVersion.relPath,
         contentType: 'text/markdown',
         payload: {
           encoding: 'utf8',
-          data: draftText,
+          data: draftToSave,
           mimeType: 'text/markdown;charset=utf-8',
         },
       });
-      onUpdateActiveContent(draftText);
+      onUpdateActiveContent(draftToSave);
       setIsDirty(false);
       setSavedFeedback(true);
       if (savedFeedbackTimerRef.current !== null) {
@@ -211,8 +224,9 @@ export function AiTextSplitPane({
   }, [activeVersion, draftText, onSaveFile, onUpdateActiveContent]);
 
   const handleCopy = React.useCallback(() => {
+    const flushedDraft = draftSyncRef.current?.flush();
     const textToCopy = activeViewer?.descriptor.capabilities.editable
-      ? draftText
+      ? (flushedDraft ?? draftText)
       : (activeContent ?? '');
     if (!textToCopy) return;
     copyTextToClipboard(textToCopy).then(
@@ -239,6 +253,19 @@ export function AiTextSplitPane({
 
   const showSaveAction = Boolean(
     activeViewer?.descriptor.capabilities.usesSaveAction && onSaveFile && activeVersion,
+  );
+
+  const paginatedDocOptions = React.useMemo(
+    () => ({
+      fitWidth: settings.paginatedDocFitWidth,
+      includeImages: settings.paginatedDocIncludeImages,
+      followPdfPage: settings.autoScrollToLayoutBlock,
+    }),
+    [
+      settings.paginatedDocFitWidth,
+      settings.paginatedDocIncludeImages,
+      settings.autoScrollToLayoutBlock,
+    ],
   );
 
   return (
@@ -457,6 +484,8 @@ export function AiTextSplitPane({
             onFocusBlock={onFocusLayoutBlock}
             onRequestParse={handleReparse}
             loadAsset={getAsset}
+            paginatedDocOptions={paginatedDocOptions}
+            onRegisterDraftSync={handleRegisterDraftSync}
           />
         ) : (
           <div className='flex size-full flex-col items-center justify-center gap-3 p-6 text-center'>

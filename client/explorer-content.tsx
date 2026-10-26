@@ -39,7 +39,7 @@ export function ExplorerContent({ view }: { view: ExplorerViewProps }) {
         {view.onOpenSettings ? (
           <button
             type='button'
-            onClick={view.onOpenSettings}
+            onClick={() => view.onOpenSettings?.()}
             className='rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent'
           >
             Open explorer Settings

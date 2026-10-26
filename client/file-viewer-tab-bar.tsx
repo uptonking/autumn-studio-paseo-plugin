@@ -400,7 +400,7 @@ export function FileViewerTabBar({
               </DropdownMenuItem>
             ) : null}
             {view.onOpenSettings ? (
-              <DropdownMenuItem onClick={view.onOpenSettings}>
+              <DropdownMenuItem onClick={() => view.onOpenSettings?.()}>
                 <IconPlaceholder lucide='Settings' className='size-4' />
                 Autumn Studio settings
               </DropdownMenuItem>

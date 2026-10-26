@@ -28,7 +28,7 @@ const FileViewerIsland = lazy(() =>
 export function FileViewerPanel(
   props: PluginWorkspacePanelProps & {
     onOpenExplorer?: (workspaceId: string) => void;
-    onOpenSettings?: (workspaceId: string) => void;
+    onOpenSettings?: (workspaceId: string, section?: string) => void;
   },
 ) {
   const isWeb = Platform.OS === 'web';
@@ -120,9 +120,12 @@ export function FileViewerPanel(
     props.onOpenExplorer?.(props.workspaceId);
   }, [props.onOpenExplorer, props.workspaceId]);
 
-  const handleOpenSettings = useCallback(() => {
-    props.onOpenSettings?.(props.workspaceId);
-  }, [props.onOpenSettings, props.workspaceId]);
+  const handleOpenSettings = useCallback(
+    (section?: string) => {
+      props.onOpenSettings?.(props.workspaceId, section);
+    },
+    [props.onOpenSettings, props.workspaceId],
+  );
 
   const view: FileViewerViewProps = useMemo(
     () => ({

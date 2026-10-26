@@ -9,6 +9,7 @@ import type { FileSurfaceRole } from '../../viewers/provider-catalog';
 import { Button } from '../components/ui/button';
 import type { FileSystemDocxSettings } from '../file-system/types';
 import { cn } from '../lib/utils';
+import { BEGONIA_EDITOR_THEME } from './begonia-theme';
 import {
   DOCX_MIME_TYPE,
   fetchDocxArrayBuffer,
@@ -43,6 +44,8 @@ export interface BegoniaDocxSurfaceProps {
   editSession?: FileEditSession;
   docxSettings?: FileSystemDocxSettings;
   showToolbar?: boolean;
+  /** Opens the host settings page at the Docx/Doc format section. */
+  onOpenEditorSettings?: () => void;
   extraMenuItems?: React.ReactNode;
   toolbarActions?: React.ReactNode;
   className?: string;
@@ -58,6 +61,7 @@ export function BegoniaDocxSurface({
   editSession,
   docxSettings,
   showToolbar = true,
+  onOpenEditorSettings,
   extraMenuItems,
   toolbarActions,
   className,
@@ -154,6 +158,7 @@ export function BegoniaDocxSurface({
       editSession={editSession}
       settings={settings}
       showToolbar={showToolbar}
+      onOpenEditorSettings={onOpenEditorSettings}
       extraMenuItems={extraMenuItems}
       toolbarActions={toolbarActions}
       className={className}
@@ -178,6 +183,7 @@ interface LoadedDocxSurfaceProps {
   editSession?: FileEditSession;
   settings: ResolvedDocxRuntimeSettings;
   showToolbar: boolean;
+  onOpenEditorSettings?: () => void;
   extraMenuItems?: React.ReactNode;
   toolbarActions?: React.ReactNode;
   className?: string;
@@ -194,6 +200,7 @@ function LoadedDocxSurface({
   editSession,
   settings,
   showToolbar,
+  onOpenEditorSettings,
   extraMenuItems,
   toolbarActions,
   className,
@@ -203,6 +210,26 @@ function LoadedDocxSurface({
   const [isImporting, setIsImporting] = React.useState(true);
   const [importError, setImportError] = React.useState<string | null>(null);
   const [retryNonce, setRetryNonce] = React.useState(0);
+  // Viewer mode's paginated preview fills the pane, so its virtualization
+  // height tracks the measured scroll host.
+  const scrollHostRef = React.useRef<HTMLDivElement | null>(null);
+  const [previewHeight, setPreviewHeight] = React.useState(480);
+  React.useEffect(() => {
+    const element = scrollHostRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const height = Math.round(entries[0]?.contentRect.height ?? element.clientHeight);
+      if (height > 0) {
+        setPreviewHeight((prev) => (prev === height ? prev : height));
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  // Settings can resolve after the surface mounts (host settings load
+  // asynchronously); only a flow mode the user actually picked may override
+  // the stored default once it arrives.
+  const userPickedFlowModeRef = React.useRef(false);
 
   // Only transactions that mutate the document mark the file dirty; selection
   // and viewport transactions must not. The import's own replaceDocument does
@@ -240,13 +267,33 @@ function LoadedDocxSurface({
   }, []);
 
   // Begonia's built-in view controls also switch flow mode on the controller;
-  // mirror controller state back so the toolbar toggle never goes stale. Setting
-  // the same value is a React no-op, and a matching flowMode prop is skipped by
-  // the mount controller, so this cannot loop.
+  // mirror controller state back so the toolbar toggle never goes stale. A
+  // mirrored value that differs from the React state means the change came
+  // from Begonia's own controls (not our prop sync), i.e. the user picked it;
+  // matching values are React no-ops and are skipped by the mount controller,
+  // so this cannot loop.
+  const flowModeRef = React.useRef(flowMode);
+  flowModeRef.current = flowMode;
   const handleEditorStateChange = React.useCallback((state: { flowMode?: DocxFlowMode } | null) => {
     if (state?.flowMode === 'paginated' || state?.flowMode === 'web') {
-      setFlowMode(state.flowMode);
+      if (state.flowMode !== flowModeRef.current) {
+        userPickedFlowModeRef.current = true;
+        setFlowMode(state.flowMode);
+      }
     }
+  }, []);
+
+  // Apply a late-arriving settings default unless the user already switched
+  // flow mode through the toolbar or Begonia's own view controls.
+  React.useEffect(() => {
+    if (!userPickedFlowModeRef.current) {
+      setFlowMode(settings.defaultFlowMode);
+    }
+  }, [settings.defaultFlowMode]);
+
+  const handleFlowModeChange = React.useCallback((nextFlowMode: DocxFlowMode) => {
+    userPickedFlowModeRef.current = true;
+    setFlowMode(nextFlowMode);
   }, []);
 
   // Import the file bytes once the controller exists. Re-runs when the surface
@@ -338,22 +385,40 @@ function LoadedDocxSurface({
           onPreloadRole={onPreloadRole}
           editSession={editSession}
           flowMode={flowMode}
-          onFlowModeChange={setFlowMode}
+          onFlowModeChange={handleFlowModeChange}
           showDownloadButton={settings.showDownloadButton}
           src={src}
+          onOpenEditorSettings={onOpenEditorSettings}
           extraMenuItems={extraMenuItems}
           toolbarActions={toolbarActions}
         />
       ) : null}
 
-      <div className='relative min-h-0 flex-1 overflow-y-auto'>
+      <div ref={scrollHostRef} className='relative min-h-0 flex-1 overflow-y-auto'>
         <BegoniaBrowserEditor
-          className='min-h-full w-full'
+          className={cn(
+            'min-h-full w-full',
+            // Viewer mode promotes the paginated projection to the visible
+            // document; the CSS keeps the editable column mounted offscreen
+            // because the projection is measured from it.
+            role === 'viewer' && 'docx-preview-only',
+          )}
           participant={DOCX_PARTICIPANT}
           documentMode={role === 'editor' ? 'editing' : 'viewing'}
           flowMode={flowMode}
+          theme={BEGONIA_EDITOR_THEME}
           trackingEnabled={false}
-          showToolbar={showToolbar}
+          // Only the read-only Viewer shows the paginated projection: editing
+          // stays a single continuous surface, and reading gets the Word
+          // print-layout look — real page boxes with gaps and explicit page
+          // breaks rendered as page boundaries.
+          paginatedPreview={role === 'viewer' ? { height: previewHeight, virtualize: true } : false}
+          // Begonia's formatting toolbar only belongs to editing; read-only
+          // viewing keeps a clean document surface. The Web/Paged view
+          // controls stay hidden in both modes — the toolbar's Viewer /
+          // Paginated / Web switch owns that state.
+          showToolbar={showToolbar && role === 'editor'}
+          showViewControls={false}
           showReviewControls={false}
           showComments={false}
           showReview={false}

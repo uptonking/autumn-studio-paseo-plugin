@@ -81,7 +81,7 @@ export default function contribute(client: PluginClientContext) {
     <ExplorerPanel
       {...props}
       onOpenFileInNewTab={handleOpenFileInNewTab}
-      onOpenSettings={() => openAutumnStudioSettingsScreen()}
+      onOpenSettings={(_workspaceId, section) => openAutumnStudioSettingsScreen(section)}
     />
   );
 
@@ -91,7 +91,7 @@ export default function contribute(client: PluginClientContext) {
       onOpenExplorer={(workspaceId) =>
         client.openPanel('explorer', { workspaceId, location: 'explorer' })
       }
-      onOpenSettings={() => openAutumnStudioSettingsScreen()}
+      onOpenSettings={(_workspaceId, section) => openAutumnStudioSettingsScreen(section)}
     />
   );
 

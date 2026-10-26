@@ -1,4 +1,5 @@
-import { Code2, Eye, FileText, LayoutGrid, Pencil, type LucideIcon } from 'lucide-react';
+import * as React from 'react';
+import { BookOpen, Code2, Eye, FileText, LayoutGrid, type LucideIcon } from 'lucide-react';
 import type { AiTextViewerRegistration } from './viewers/index.js';
 import { listAiTextViewers } from './viewers/index.js';
 import { cn } from '../vendor/lib/utils.js';
@@ -9,9 +10,9 @@ const BASE_MODE_CLASS =
 
 const VIEWER_ICONS: Record<string, LucideIcon> = {
   text: Eye,
-  raw: Code2,
-  edit: Pencil,
   'layout-blocks': LayoutGrid,
+  'paginated-doc': BookOpen,
+  source: Code2,
 };
 
 function modeClass(isActive: boolean): string {
@@ -45,29 +46,37 @@ export function AiTextViewModeToggle({
       aria-label='AI text view mode'
       className='inline-flex items-center rounded-md border border-border/80 bg-muted/50 p-0.5 text-[11px]'
     >
-      {viewers.map((viewer) => {
+      {viewers.map((viewer, index) => {
         const Icon = viewerIcon(viewer);
         const unavailable = viewer.descriptor.capabilities.requiresLayout && !canShowLayout;
+        // A subtle divider splits the read-only views (Text, Blocks) from the
+        // editing views (Pages, Source).
+        const showDivider =
+          index > 0 &&
+          viewer.descriptor.capabilities.editable !==
+            viewers[index - 1]?.descriptor.capabilities.editable;
         return (
-          <button
-            key={viewer.descriptor.id}
-            type='button'
-            data-testid={`ai-text-mode-${viewer.descriptor.id}`}
-            aria-pressed={displayMode === viewer.descriptor.id}
-            disabled={unavailable}
-            title={
-              unavailable
-                ? layoutStatus === 'loading'
-                  ? 'Layout blocks are loading'
-                  : 'This version has no layout blocks'
-                : viewer.descriptor.description
-            }
-            onClick={() => onChoose(viewer.descriptor.id)}
-            className={modeClass(displayMode === viewer.descriptor.id)}
-          >
-            <Icon className='size-3' />
-            <span>{viewer.descriptor.shortLabel ?? viewer.descriptor.label}</span>
-          </button>
+          <React.Fragment key={viewer.descriptor.id}>
+            {showDivider ? <span aria-hidden className='mx-0.5 h-4 w-px bg-border' /> : null}
+            <button
+              type='button'
+              data-testid={`ai-text-mode-${viewer.descriptor.id}`}
+              aria-pressed={displayMode === viewer.descriptor.id}
+              disabled={unavailable}
+              title={
+                unavailable
+                  ? layoutStatus === 'loading'
+                    ? 'Layout blocks are loading'
+                    : 'This version has no layout blocks'
+                  : viewer.descriptor.description
+              }
+              onClick={() => onChoose(viewer.descriptor.id)}
+              className={modeClass(displayMode === viewer.descriptor.id)}
+            >
+              <Icon className='size-3' />
+              <span>{viewer.descriptor.shortLabel ?? viewer.descriptor.label}</span>
+            </button>
+          </React.Fragment>
         );
       })}
     </div>

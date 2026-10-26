@@ -453,6 +453,7 @@ export function registerBuiltinSurfaceProviders(
       canSwitchRole,
       onRoleChange,
       docxSettings,
+      onOpenSettings,
       extraMenuItems,
       toolbarActions,
       className,
@@ -470,6 +471,7 @@ export function registerBuiltinSurfaceProviders(
             onRoleChange={onRoleChange}
             docxSettings={docxSettings}
             showToolbar
+            onOpenEditorSettings={onOpenSettings ? () => onOpenSettings('docx') : undefined}
             extraMenuItems={extraMenuItems}
             toolbarActions={toolbarActions}
             className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}
@@ -496,6 +498,7 @@ export function registerBuiltinSurfaceProviders(
       onRoleChange,
       editSession,
       docxSettings,
+      onOpenSettings,
       extraMenuItems,
       toolbarActions,
       className,
@@ -514,6 +517,7 @@ export function registerBuiltinSurfaceProviders(
             editSession={editSession}
             docxSettings={docxSettings}
             showToolbar
+            onOpenEditorSettings={onOpenSettings ? () => onOpenSettings('docx') : undefined}
             extraMenuItems={extraMenuItems}
             toolbarActions={toolbarActions}
             className={cn('h-full min-h-0 overflow-hidden', isDialog && 'rounded-2xl', className)}

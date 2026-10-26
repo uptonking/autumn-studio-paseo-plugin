@@ -235,7 +235,9 @@ function classifyBundleGroup(specifier) {
     specifier === '@datalking/begonia-browser' ||
     specifier.startsWith('@datalking/begonia-browser/') ||
     specifier === '@datalking/begonia-docx-bridge' ||
-    specifier.startsWith('@datalking/begonia-docx-bridge/')
+    specifier.startsWith('@datalking/begonia-docx-bridge/') ||
+    specifier === '@datalking/begonia-document-model' ||
+    specifier.startsWith('@datalking/begonia-document-model/')
   ) {
     return 'docx';
   }

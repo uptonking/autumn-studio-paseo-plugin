@@ -94,12 +94,28 @@ export function GeneralTab({ aiText, disabled, update }: AiTextTabProps) {
             testID='autumn-studio-setting-ai-text-layout-outlines'
           />
           <SettingsSwitch
-            label='Auto-scroll PDF to the selected block'
-            hint='Scroll the original PDF to the page and area of the block you click in the Blocks view.'
+            label='Auto-scroll PDF to follow the AI text view'
+            hint='Scroll the original PDF to the page and area of the block you click in the Blocks view, and keep the PDF on the page shown by the Paginated Text Doc view.'
             value={aiText.autoScrollToLayoutBlock}
             disabled={disabled || !aiText.enabled}
             onValueChange={(autoScrollToLayoutBlock) => update({ autoScrollToLayoutBlock })}
             testID='autumn-studio-setting-ai-text-layout-autoscroll'
+          />
+          <SettingsSwitch
+            label='Fit Paginated Text Doc to width'
+            hint='Scale the paginated document pages to fit the split pane width. Turn off for a fixed 100% zoom.'
+            value={aiText.paginatedDocFitWidth}
+            disabled={disabled || !aiText.enabled}
+            onValueChange={(paginatedDocFitWidth) => update({ paginatedDocFitWidth })}
+            testID='autumn-studio-setting-ai-text-paginated-fit-width'
+          />
+          <SettingsSwitch
+            label='Show images in Paginated Text Doc'
+            hint='Render image, chart, and scanned-table blocks from the version assets inside the paginated document. These preferences are separate from the Docx/Doc editor settings.'
+            value={aiText.paginatedDocIncludeImages}
+            disabled={disabled || !aiText.enabled}
+            onValueChange={(paginatedDocIncludeImages) => update({ paginatedDocIncludeImages })}
+            testID='autumn-studio-setting-ai-text-paginated-images'
           />
         </SettingsCard>
       </SettingsSection>

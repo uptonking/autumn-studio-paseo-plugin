@@ -28,9 +28,9 @@ export const aiTextViewerDescriptorSchema = z.object({
 export type AiTextViewerDescriptor = z.infer<typeof aiTextViewerDescriptorSchema>;
 
 export const AI_TEXT_VIEWER_TEXT = 'text';
-export const AI_TEXT_VIEWER_RAW = 'raw';
-export const AI_TEXT_VIEWER_EDIT = 'edit';
+export const AI_TEXT_VIEWER_SOURCE = 'source';
 export const AI_TEXT_VIEWER_LAYOUT_BLOCKS = 'layout-blocks';
+export const AI_TEXT_VIEWER_PAGINATED_DOC = 'paginated-doc';
 export const DEFAULT_AI_TEXT_VIEWER_ID = AI_TEXT_VIEWER_TEXT;
 
 export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
@@ -64,24 +64,25 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
     },
   },
   {
-    id: AI_TEXT_VIEWER_RAW,
-    label: 'Markdown source',
-    shortLabel: 'Source',
-    description: 'The exact stored Markdown without rendering.',
+    id: AI_TEXT_VIEWER_PAGINATED_DOC,
+    label: 'Paginated Text Doc',
+    shortLabel: 'Pages',
+    description:
+      'A paginated Word-like document that mirrors the PDF pages. Editable; saves back to the stored Markdown version.',
     order: 2,
-    selectableAsDefault: false,
+    selectableAsDefault: true,
     capabilities: {
       requiresContent: true,
       requiresLayout: false,
-      editable: false,
-      usesSaveAction: false,
+      editable: true,
+      usesSaveAction: true,
     },
   },
   {
-    id: AI_TEXT_VIEWER_EDIT,
-    label: 'Edit',
-    shortLabel: 'Edit',
-    description: 'Edit the stored Markdown version and save it in place.',
+    id: AI_TEXT_VIEWER_SOURCE,
+    label: 'Source',
+    shortLabel: 'Source',
+    description: 'Edit the raw Markdown source of this version and save it in place.',
     order: 3,
     selectableAsDefault: false,
     capabilities: {

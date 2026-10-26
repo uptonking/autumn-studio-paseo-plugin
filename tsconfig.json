@@ -23,6 +23,8 @@
       "@datalking/begonia-browser/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
       "@datalking/begonia-docx-bridge": ["./node_modules/.paseo-vendor/docx-vendor.js"],
       "@datalking/begonia-docx-bridge/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-document-model": ["./node_modules/.paseo-vendor/docx-vendor.js"],
+      "@datalking/begonia-document-model/*": ["./node_modules/.paseo-vendor/docx-vendor.js"],
       "@pierre/trees": ["./node_modules/.paseo-vendor/trees-vendor.js"],
       "@pierre/trees/*": ["./node_modules/.paseo-vendor/trees-vendor.js"]
     },

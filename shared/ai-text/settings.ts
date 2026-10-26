@@ -23,6 +23,10 @@ export const aiTextSettingsSchema = z.object({
   defaultViewerId: z.string().default(DEFAULT_AI_TEXT_VIEWER_ID),
   showLayoutBlockOverlays: z.boolean().default(true),
   autoScrollToLayoutBlock: z.boolean().default(true),
+  /** Paginated Text Doc viewer: fit pages to the pane width instead of 100%. */
+  paginatedDocFitWidth: z.boolean().default(true),
+  /** Paginated Text Doc viewer: render image blocks from version assets. */
+  paginatedDocIncludeImages: z.boolean().default(true),
   defaultProfileId: z.string().default('mineru-cloud-free'),
   profiles: aiTextProfilesSchema,
   outputRootDir: z.string().default('.autumn'),

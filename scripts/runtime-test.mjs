@@ -560,11 +560,7 @@ console.log(
   '✓ File Viewer top-right More menu shows file-type icons, reopens closed tabs, handles moved/deleted files with Recent files below, and supports keyboard tab navigation',
 );
 
-await verifyAiTextSplitViewAndMultiVersion({
-  shadow,
-  dom,
-  simulatedDiskFiles,
-});
+await verifyAiTextSplitViewAndMultiVersion({ shadow, dom, rpcInputs, simulatedDiskFiles });
 console.log(
   "✓ AI Text Mode opens right-hand split view, switches button to 'AI text again', generates multiple .autumn/ versions with metadata, and switches versions",
 );

@@ -63,7 +63,8 @@ export interface FileViewerRenderProps {
   sourceFileSize?: number;
   autoSaveEdits?: boolean;
   onSaveFile?: (input: FileSaveCallbackInput) => Promise<FileSaveCallbackResult>;
-  onOpenSettings?(): void;
+  /** Opens the Autumn Studio settings page, optionally at a section id. */
+  onOpenSettings?(section?: string): void;
   onDirtyChange?: (isDirty: boolean) => void;
   /** Per-tab persisted view state; surfaces without a tab omit it. */
   surfacePersistence?: SurfacePersistenceHandle;

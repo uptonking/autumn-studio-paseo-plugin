@@ -104,8 +104,9 @@ async function waitFor(predicate, { timeoutMs = 8000, intervalMs = 100, label } 
 
 /**
  * Opens the .docx fixture from the file tree in-place and verifies the Begonia
- * surface: default editor mode, completed import, Paginated/Web toggle
- * round-trip (prop -> controller.setViewState -> onStateChange -> React).
+ * surface: the read-only paginated view is the default open, then the
+ * Paginated/Web editing modes toggle the flow (prop -> controller.setViewState
+ * -> onStateChange -> React) and return to the preview-only viewer.
  */
 export async function verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFileName }) {
   // A previous step may have left a file open in the in-place viewer; return
@@ -128,15 +129,55 @@ export async function verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFi
   const saveRpcCountBefore = rpcInputs.filter((call) => call.name === 'file.save').length;
   docxButton.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true }));
 
-  // Editor mode is the docx default; the surface mounts the Begonia editor.
-  await waitFor(() => shadow.querySelector('[data-testid="begonia-docx-editor"]'), {
-    label: 'begonia-docx-editor surface',
-  });
+  // The read-only viewer is the docx default: the surface mounts with the
+  // paginated projection promoted to the visible document.
+  const viewerSurfaceDefault = await waitFor(
+    () => shadow.querySelector('[data-testid="begonia-docx-viewer"]'),
+    { label: 'begonia-docx-viewer surface (default open behavior)' },
+  );
   await waitFor(() => !shadow.querySelector('[data-testid="docx-surface-importing"]'), {
     label: 'docx import to finish',
   });
+  await waitFor(
+    () => {
+      const node = viewerSurfaceDefault.querySelector('.ald-editor');
+      return node && (node.textContent ?? '').includes(DOCX_FIXTURE_TEXT) ? node : null;
+    },
+    { label: `imported text "${DOCX_FIXTURE_TEXT}" in the viewer` },
+  );
+  // Viewer mode is preview-only: no Begonia toolbar, and the editable column
+  // is moved offscreen (docx-preview-only) while staying mounted as the
+  // projection's measurement source.
+  if (viewerSurfaceDefault.querySelector('[role="toolbar"]')) {
+    throw new Error('Begonia formatting toolbar must be hidden in read-only viewer mode');
+  }
+  if (!viewerSurfaceDefault.querySelector('.docx-preview-only')) {
+    throw new Error('viewer surface should promote the paginated projection (docx-preview-only)');
+  }
+  if (!viewerSurfaceDefault.querySelector('[data-begonia-theme="microsoft-word"]')) {
+    throw new Error('docx viewer did not apply the microsoft-word begonia theme');
+  }
+  const defaultViewerButton = viewerSurfaceDefault.querySelector(
+    '[data-testid="docx-mode-viewer"]',
+  );
+  if (!defaultViewerButton || defaultViewerButton.getAttribute('aria-pressed') !== 'true') {
+    throw new Error('Viewer mode button should be pressed on the default open');
+  }
 
-  const editorSurface = shadow.querySelector('[data-testid="begonia-docx-editor"]');
+  // Switch into editing via the Paginated mode button.
+  const defaultPaginatedButton = viewerSurfaceDefault.querySelector(
+    '[data-testid="docx-mode-paginated"]',
+  );
+  if (!defaultPaginatedButton)
+    throw new Error('viewer surface is missing the Paginated mode button');
+  defaultPaginatedButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+
+  const editorSurface = await waitFor(
+    () => shadow.querySelector('[data-testid="begonia-docx-editor"]'),
+    {
+      label: 'begonia-docx-editor surface',
+    },
+  );
   await waitFor(
     () => {
       const node = editorSurface.querySelector('.ald-editor');
@@ -145,11 +186,35 @@ export async function verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFi
     { label: `imported text "${DOCX_FIXTURE_TEXT}" in the editor` },
   );
 
-  const paginatedBtn = editorSurface.querySelector('[data-testid="docx-flow-mode-paginated"]');
-  const webBtn = editorSurface.querySelector('[data-testid="docx-flow-mode-web"]');
-  if (!paginatedBtn || !webBtn) throw new Error('docx flow-mode switcher missing');
+  // The microsoft-word theme is the default editor look.
+  if (!editorSurface.querySelector('[data-begonia-theme="microsoft-word"]')) {
+    throw new Error('docx editor did not apply the microsoft-word begonia theme');
+  }
+
+  // Editor mode shows Begonia's formatting toolbar; the duplicate Web/Paged
+  // view controls are hidden (the toolbar owns Viewer/Paginated/Web). The
+  // view-controls group is recognizable by its "View"/"Layout" labels.
+  const begoniaToolbar = editorSurface.querySelector('[role="toolbar"]');
+  if (!begoniaToolbar) {
+    throw new Error('Begonia formatting toolbar missing in editor mode');
+  }
+  if (/View|Layout/.test(begoniaToolbar.textContent ?? '')) {
+    throw new Error('Begonia view controls should be hidden in favor of the toolbar mode switch');
+  }
+  // Editing is a single continuous surface: no second paginated column.
+  if (editorSurface.querySelector('.docx-preview-only')) {
+    throw new Error('Editor mode should not render the paginated preview column');
+  }
+
+  const paginatedBtn = editorSurface.querySelector('[data-testid="docx-mode-paginated"]');
+  const webBtn = editorSurface.querySelector('[data-testid="docx-mode-web"]');
+  const viewerBtn = editorSurface.querySelector('[data-testid="docx-mode-viewer"]');
+  if (!paginatedBtn || !webBtn || !viewerBtn) throw new Error('docx mode switcher missing');
   if (paginatedBtn.getAttribute('aria-pressed') !== 'true') {
-    throw new Error('docx flow mode should default to paginated');
+    throw new Error('docx editor should default to the paginated editing mode');
+  }
+  if (viewerBtn.getAttribute('aria-pressed') !== 'false') {
+    throw new Error('Viewer must not be pressed while editing');
   }
 
   // Toggle to web: React state -> flowMode prop -> controller.setViewState ->
@@ -165,6 +230,36 @@ export async function verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFi
   await waitFor(() => paginatedBtn.getAttribute('aria-pressed') === 'true', {
     label: 'flow mode toggle back to paginated',
   });
+
+  // Read-only Viewer mode swaps back to the preview-only surface, and the
+  // mode switch offers the way back into editing.
+  viewerBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  const viewerSurface = await waitFor(
+    () => shadow.querySelector('[data-testid="begonia-docx-viewer"]'),
+    { label: 'begonia-docx-viewer surface after switching to Viewer' },
+  );
+  await waitFor(
+    () => {
+      const node = viewerSurface.querySelector('.ald-editor');
+      return node && (node.textContent ?? '').includes(DOCX_FIXTURE_TEXT) ? node : null;
+    },
+    { label: 'viewer surface to display the imported document' },
+  );
+  const viewerModePaginated = viewerSurface.querySelector('[data-testid="docx-mode-paginated"]');
+  if (!viewerModePaginated) throw new Error('viewer surface is missing the Paginated mode button');
+  viewerModePaginated.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  const editorSurfaceAgain = await waitFor(
+    () => shadow.querySelector('[data-testid="begonia-docx-editor"]'),
+    { label: 'return to editor surface from viewer mode' },
+  );
+  // The editor remount re-imports the document; wait for it before editing.
+  await waitFor(
+    () => {
+      const node = editorSurfaceAgain.querySelector('.ald-editor');
+      return node && (node.textContent ?? '').includes(DOCX_FIXTURE_TEXT) ? node : null;
+    },
+    { label: `re-imported text "${DOCX_FIXTURE_TEXT}" after returning to editor mode` },
+  );
 
   // Opening the file and switching layout only must not report dirtiness:
   // selection/viewport transactions never schedule a save.
@@ -196,6 +291,6 @@ export async function verifyDocxEditorSurface({ shadow, dom, rpcInputs, reopenFi
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   console.log(
-    '✓ Word document opened in Begonia editor, imported, flow-mode toggle round-tripped, no spurious saves',
+    '✓ Word document opens in the preview-only paginated viewer by default, imports, round-trips Viewer/Paginated/Web modes with no spurious saves',
   );
 }

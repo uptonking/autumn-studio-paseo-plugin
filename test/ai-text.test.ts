@@ -70,6 +70,8 @@ describe('ai-text: settings schema, profiles, and format helpers', () => {
     assert.equal(parsed.aiText.defaultViewerId, 'text');
     assert.equal(parsed.aiText.showLayoutBlockOverlays, true);
     assert.equal(parsed.aiText.autoScrollToLayoutBlock, true);
+    assert.equal(parsed.aiText.paginatedDocFitWidth, true);
+    assert.equal(parsed.aiText.paginatedDocIncludeImages, true);
     assert.equal(parsed.aiText.defaultProfileId, 'mineru-cloud-free');
     assert.deepEqual(
       parsed.aiText.profiles.map((profile) => profile.id),

@@ -33,7 +33,7 @@ export function ExplorerPanel(
       file: FileOpenRef,
       options?: { maxOpenTabs?: number },
     ) => void;
-    onOpenSettings?: (workspaceId: string) => void;
+    onOpenSettings?: (workspaceId: string, section?: string) => void;
   },
 ) {
   const isWeb = Platform.OS === 'web';
@@ -95,9 +95,12 @@ export function ExplorerPanel(
     [props.workspaceId],
   );
 
-  const handleOpenSettings = useCallback(() => {
-    props.onOpenSettings?.(props.workspaceId);
-  }, [props.onOpenSettings, props.workspaceId]);
+  const handleOpenSettings = useCallback(
+    (section?: string) => {
+      props.onOpenSettings?.(props.workspaceId, section);
+    },
+    [props.onOpenSettings, props.workspaceId],
+  );
 
   const handleRetry = useCallback(() => {
     void query.refetch();

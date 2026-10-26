@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AI_TEXT_BUILTIN_VIEWERS,
-  AI_TEXT_VIEWER_EDIT,
   AI_TEXT_VIEWER_LAYOUT_BLOCKS,
-  AI_TEXT_VIEWER_RAW,
+  AI_TEXT_VIEWER_PAGINATED_DOC,
+  AI_TEXT_VIEWER_SOURCE,
   AI_TEXT_VIEWER_TEXT,
   DEFAULT_AI_TEXT_VIEWER_ID,
   aiTextViewerDescriptorSchema,
@@ -19,17 +19,21 @@ describe('ai-text viewers: built-in catalog', () => {
     assert.deepEqual(ids, [
       AI_TEXT_VIEWER_TEXT,
       AI_TEXT_VIEWER_LAYOUT_BLOCKS,
-      AI_TEXT_VIEWER_RAW,
-      AI_TEXT_VIEWER_EDIT,
+      AI_TEXT_VIEWER_PAGINATED_DOC,
+      AI_TEXT_VIEWER_SOURCE,
     ]);
     assert.equal(DEFAULT_AI_TEXT_VIEWER_ID, AI_TEXT_VIEWER_TEXT);
   });
 
-  it('allows Text and Layout Blocks as the default viewer', () => {
+  it('allows Text, Layout Blocks, and Paginated Text Doc as the default viewer', () => {
     const defaultable = AI_TEXT_BUILTIN_VIEWERS.filter((viewer) => viewer.selectableAsDefault).map(
       (viewer) => viewer.id,
     );
-    assert.deepEqual(defaultable, [AI_TEXT_VIEWER_TEXT, AI_TEXT_VIEWER_LAYOUT_BLOCKS]);
+    assert.deepEqual(defaultable, [
+      AI_TEXT_VIEWER_TEXT,
+      AI_TEXT_VIEWER_LAYOUT_BLOCKS,
+      AI_TEXT_VIEWER_PAGINATED_DOC,
+    ]);
   });
 
   it('requires layout only for the Blocks viewer', () => {
@@ -42,11 +46,33 @@ describe('ai-text viewers: built-in catalog', () => {
     );
   });
 
-  it('marks the editor as editable and save-driven', () => {
-    const edit = getBuiltinAiTextViewer(AI_TEXT_VIEWER_EDIT);
-    assert.equal(edit?.capabilities.editable, true);
-    assert.equal(edit?.capabilities.usesSaveAction, true);
-    assert.equal(getBuiltinAiTextViewer(AI_TEXT_VIEWER_EDIT)?.selectableAsDefault, false);
+  it('splits the catalog into read-only and editing views', () => {
+    const readOnly = AI_TEXT_BUILTIN_VIEWERS.filter((v) => !v.capabilities.editable).map(
+      (v) => v.id,
+    );
+    const editable = AI_TEXT_BUILTIN_VIEWERS.filter((v) => v.capabilities.editable).map(
+      (v) => v.id,
+    );
+    assert.deepEqual(readOnly, [AI_TEXT_VIEWER_TEXT, AI_TEXT_VIEWER_LAYOUT_BLOCKS]);
+    assert.deepEqual(editable, [AI_TEXT_VIEWER_PAGINATED_DOC, AI_TEXT_VIEWER_SOURCE]);
+  });
+
+  it('marks the Markdown source editor as editable and save-driven', () => {
+    const source = getBuiltinAiTextViewer(AI_TEXT_VIEWER_SOURCE);
+    assert.equal(source?.label, 'Source');
+    assert.equal(source?.capabilities.editable, true);
+    assert.equal(source?.capabilities.usesSaveAction, true);
+    assert.equal(source?.selectableAsDefault, false);
+  });
+
+  it('marks the Paginated Text Doc as an editable, save-driven default viewer', () => {
+    const paginated = getBuiltinAiTextViewer(AI_TEXT_VIEWER_PAGINATED_DOC);
+    assert.equal(paginated?.label, 'Paginated Text Doc');
+    assert.equal(paginated?.shortLabel, 'Pages');
+    assert.equal(paginated?.selectableAsDefault, true);
+    assert.equal(paginated?.capabilities.requiresLayout, false);
+    assert.equal(paginated?.capabilities.editable, true);
+    assert.equal(paginated?.capabilities.usesSaveAction, true);
   });
 
   it('parses descriptors with capability defaults filled in', () => {

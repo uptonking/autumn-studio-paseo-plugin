@@ -2,9 +2,9 @@ import * as React from 'react';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { sanitizeAssetRelativePath } from '../../../shared/asset-paths.js';
 import {
-  AI_TEXT_VIEWER_EDIT,
   AI_TEXT_VIEWER_LAYOUT_BLOCKS,
-  AI_TEXT_VIEWER_RAW,
+  AI_TEXT_VIEWER_PAGINATED_DOC,
+  AI_TEXT_VIEWER_SOURCE,
   AI_TEXT_VIEWER_TEXT,
   getBuiltinAiTextViewer,
 } from '../../../shared/ai-text/viewers.js';
@@ -12,7 +12,74 @@ import { Button } from '../../vendor/components/ui/button.js';
 import { MarkdownPreview } from '../../viewers/markdown-preview.js';
 import { AiTextAssetImage } from '../ai-text-asset-image.js';
 import { AiTextLayoutBlocksPanel } from '../ai-text-layout-blocks-panel.js';
+import { lazyWithPreload } from '../../lazy-with-preload.js';
 import { registerAiTextViewer, type AiTextViewerProps } from './registry.js';
+
+// Begonia stays out of the split-pane chunk until the viewer is selected.
+const LazyPaginatedDocViewer = lazyWithPreload(() =>
+  import('./paginated-doc/paginated-doc-viewer.js').then((mod) => ({
+    default: mod.PaginatedDocViewer,
+  })),
+);
+
+interface PaginatedDocErrorBoundaryState {
+  error: Error | null;
+}
+
+/**
+ * Contains editor crashes (e.g. a non-converging publish loop inside Begonia)
+ * to this pane: the split view keeps working and the user can switch to the
+ * Text or Source views instead of losing the whole tab.
+ */
+class PaginatedDocErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  PaginatedDocErrorBoundaryState
+> {
+  state: PaginatedDocErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): PaginatedDocErrorBoundaryState {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          data-testid='ai-text-paginated-doc-error'
+          className='flex size-full flex-col items-center justify-center gap-3 p-6 text-center'
+        >
+          <AlertTriangle className='size-5 text-muted-foreground' />
+          <p className='max-w-sm text-xs text-muted-foreground'>
+            The paginated editor hit an error: {this.state.error.message}
+          </p>
+          <p className='max-w-sm text-xs text-muted-foreground'>
+            Switch to the Text or Source view to keep reading and editing the Markdown.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function PaginatedDocAiTextViewer(props: AiTextViewerProps) {
+  return (
+    <PaginatedDocErrorBoundary>
+      <React.Suspense
+        fallback={
+          <div className='grid size-full place-items-center'>
+            <span className='inline-flex items-center gap-2 text-xs text-muted-foreground'>
+              <Loader2 className='size-3.5 animate-spin' />
+              Loading paginated editor…
+            </span>
+          </div>
+        }
+      >
+        <LazyPaginatedDocViewer {...props} />
+      </React.Suspense>
+    </PaginatedDocErrorBoundary>
+  );
+}
 
 function TextAiTextViewer({ content, loadAsset }: AiTextViewerProps) {
   const renderImage = React.useCallback(
@@ -40,18 +107,9 @@ function TextAiTextViewer({ content, loadAsset }: AiTextViewerProps) {
   );
 }
 
-function RawAiTextViewer({ content }: AiTextViewerProps) {
-  return (
-    <pre
-      data-testid='ai-text-raw-content'
-      className='size-full min-h-0 flex-1 overflow-auto p-4 font-mono text-xs leading-5 whitespace-pre-wrap break-words text-foreground'
-    >
-      {content}
-    </pre>
-  );
-}
-
-function EditAiTextViewer({
+/** The editable Markdown source of the active version (absorbs the former
+ *  read-only raw display: editing it is strictly more capable). */
+function SourceAiTextViewer({
   draftText,
   isSaving,
   onDraftChange,
@@ -60,7 +118,7 @@ function EditAiTextViewer({
   return (
     <textarea
       data-testid='ai-text-editor-textarea'
-      aria-label='Edit extracted AI text'
+      aria-label='Edit the Markdown source'
       value={draftText}
       disabled={isSaving}
       onChange={(event) => onDraftChange(event.target.value)}
@@ -126,6 +184,6 @@ function descriptor(viewerId: string) {
 }
 
 registerAiTextViewer(descriptor(AI_TEXT_VIEWER_TEXT), TextAiTextViewer);
-registerAiTextViewer(descriptor(AI_TEXT_VIEWER_RAW), RawAiTextViewer);
-registerAiTextViewer(descriptor(AI_TEXT_VIEWER_EDIT), EditAiTextViewer);
+registerAiTextViewer(descriptor(AI_TEXT_VIEWER_SOURCE), SourceAiTextViewer);
 registerAiTextViewer(descriptor(AI_TEXT_VIEWER_LAYOUT_BLOCKS), LayoutBlocksAiTextViewer);
+registerAiTextViewer(descriptor(AI_TEXT_VIEWER_PAGINATED_DOC), PaginatedDocAiTextViewer);

@@ -21,6 +21,24 @@ export interface AiTextViewerProps {
   onFocusBlock(block: AiTextLayoutBlock): void;
   onRequestParse(): void;
   loadAsset(assetPath: string): Promise<{ mimeType: string; base64: string }>;
+  /**
+   * Options for viewers that need host settings (e.g. the Paginated Text
+   * Doc's fit-width, image, and PDF-follow toggles). Derived by the split
+   * pane from the AI Text settings; viewers may ignore it.
+   */
+  paginatedDocOptions?: {
+    fitWidth: boolean;
+    includeImages: boolean;
+    /** Scroll the original PDF to the page the paginated editor shows. */
+    followPdfPage: boolean;
+  };
+  /**
+   * Viewers whose draft sync is asynchronous (e.g. the Paginated Text Doc's
+   * debounced serialization) register a flush here. The pane calls it right
+   * before Save/Copy so those actions never act on a stale draft; `flush`
+   * returns the up-to-date draft or null when nothing is pending.
+   */
+  onRegisterDraftSync?: (sync: { flush(): string | null } | null) => void;
 }
 
 export interface AiTextViewerRegistration {

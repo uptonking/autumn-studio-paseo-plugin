@@ -14,11 +14,12 @@ import {
 } from '../shared/settings.ts';
 
 describe('docx settings: schema', () => {
-  it('defaults to the Begonia editor with the paginated layout', () => {
+  it('defaults to the read-only viewer with the paginated layout', () => {
     const parsed = docxSettingsSchema.parse({});
     assert.deepEqual(parsed, DEFAULT_DOCX_SETTINGS);
-    // Docx is the only format whose default open behavior is the editor.
-    assert.equal(parsed.defaultOpenBehavior, 'editor');
+    // Clicking a .docx opens the Word-style paginated reading view; the
+    // Paginated/Web toolbar buttons switch into editing.
+    assert.equal(parsed.defaultOpenBehavior, 'viewer');
     assert.equal(parsed.defaultViewer, 'begonia-docx-viewer');
     assert.equal(parsed.defaultEditor, 'begonia-docx-editor');
     assert.equal(parsed.defaultFlowMode, 'paginated');
@@ -69,9 +70,9 @@ describe('docx settings: behavior config', () => {
     });
   });
 
-  it('defaults to editor when no docx settings are stored', () => {
+  it('defaults to viewer when no docx settings are stored', () => {
     const values = autumnStudioSettingsSchema.parse({});
-    assert.equal(getFormatBehaviorConfig(values, 'docx').defaultOpenBehavior, 'editor');
+    assert.equal(getFormatBehaviorConfig(values, 'docx').defaultOpenBehavior, 'viewer');
   });
 
   it('updates the dedicated docx block and leaves the formats map untouched', () => {

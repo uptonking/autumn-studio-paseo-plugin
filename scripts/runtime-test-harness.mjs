@@ -256,7 +256,7 @@ let currentSettingsData = {
     showDownloadButton: true,
   },
   docx: {
-    defaultOpenBehavior: 'editor',
+    defaultOpenBehavior: 'viewer',
     defaultViewer: 'begonia-docx-viewer',
     defaultEditor: 'begonia-docx-editor',
     defaultFlowMode: 'paginated',
