@@ -1,5 +1,5 @@
 /**
- * Parses the AI Text stored Markdown into the Paginated Text Doc block tree.
+ * Parses the AI Text stored Markdown into the Text Pages View block tree.
  *
  * The accepted subset mirrors what the Text viewer renders (see
  * client/viewers/markdown-preview.tsx): headings, one paragraph per line, pipe

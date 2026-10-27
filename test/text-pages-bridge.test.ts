@@ -6,17 +6,27 @@ import {
   collectImageAssetPaths,
   countPageBreaks,
   markdownContainsPageBreakMarkers,
-  resolvePaginatedDocSource,
+  resolveTextPagesSource,
   type DocumentBlock,
   type InlineRun,
-} from '../client/ai-text/viewers/paginated-doc/document-input.ts';
-import { markdownToDocumentBlocks } from '../client/ai-text/viewers/paginated-doc/markdown-to-document.ts';
-import { layoutToDocumentBlocks } from '../client/ai-text/viewers/paginated-doc/layout-to-document.ts';
+  type TextRun,
+} from '../client/ai-text/viewers/text-pages/document-input.ts';
+import { markdownToDocumentBlocks } from '../client/ai-text/viewers/text-pages/markdown-to-document.ts';
+import { layoutToDocumentBlocks } from '../client/ai-text/viewers/text-pages/layout-to-document.ts';
 import {
+  buildDocument,
   buildDocumentFromBlocks,
   countDocumentPages,
-} from '../client/ai-text/viewers/paginated-doc/build-document.ts';
-import { serializeDocumentToMarkdown } from '../client/ai-text/viewers/paginated-doc/document-to-markdown.ts';
+} from '../client/ai-text/viewers/text-pages/build-document.ts';
+import { serializeDocumentToMarkdown } from '../client/ai-text/viewers/text-pages/document-to-markdown.ts';
+import {
+  findSourceIdAtPosition,
+  mapSourceRanges,
+  readBodyCaretPosition,
+  resolveCaretSourceBlock,
+  type SourceRange,
+  type TransactionMappingLike,
+} from '../client/ai-text/viewers/text-pages/selection-source.ts';
 import type { AiTextLayoutBlock, AiTextLayoutDocument } from '../shared/ai-text/layout.ts';
 
 function layoutDocument(blocks: AiTextLayoutBlock[], pageCount: number): AiTextLayoutDocument {
@@ -61,7 +71,7 @@ function roundTrip(markdown: string): {
   return { first, second, serialized };
 }
 
-describe('paginated doc bridge: markdown → blocks', () => {
+describe('text pages bridge: markdown → blocks', () => {
   it('parses headings, paragraphs, and inline marks', () => {
     const blocks = markdownToDocumentBlocks(
       '# Title\n\nplain text\n\n**bold** and *em* and `code` and ~~gone~~ and [link](https://example.com)\n',
@@ -165,7 +175,7 @@ describe('paginated doc bridge: markdown → blocks', () => {
   });
 });
 
-describe('paginated doc bridge: layout → blocks', () => {
+describe('text pages bridge: layout → blocks', () => {
   it('maps one PDF page to one paginated page with explicit page breaks', () => {
     const layout = layoutDocument(
       [
@@ -182,10 +192,12 @@ describe('paginated doc bridge: layout → blocks', () => {
       kind: 'heading',
       level: 1,
       runs: [{ kind: 'text', text: 'Report' }],
+      sourceId: 'a',
     });
     assert.deepEqual(blocks[1], {
       kind: 'paragraph',
       runs: [{ kind: 'text', text: 'first page body' }],
+      sourceId: 'b',
     });
     assert.deepEqual(blocks[2], { kind: 'page_break' });
     assert.deepEqual(blocks[3], { kind: 'paragraph', runs: [] });
@@ -193,6 +205,7 @@ describe('paginated doc bridge: layout → blocks', () => {
     assert.deepEqual(blocks[5], {
       kind: 'paragraph',
       runs: [{ kind: 'text', text: 'third page body' }],
+      sourceId: 'c',
     });
   });
 
@@ -217,14 +230,38 @@ describe('paginated doc bridge: layout → blocks', () => {
       kind: 'heading',
       level: 3,
       runs: [{ kind: 'text', text: 'Section' }],
+      sourceId: 't',
     });
-    assert.deepEqual(blocks[1], { kind: 'code_block', text: 'print(1)' });
-    assert.deepEqual(blocks[2], { kind: 'image', alt: 'Figure', assetPath: 'images/pic.jpg' });
-    assert.deepEqual(blocks[3], { kind: 'table', headers: ['x'], rows: [['1']] });
-    assert.deepEqual(blocks[4], { kind: 'image', alt: 'Scanned', assetPath: 'images/scan.jpg' });
+    assert.deepEqual(blocks[1], { kind: 'code_block', text: 'print(1)', sourceId: 'c' });
+    assert.deepEqual(blocks[2], {
+      kind: 'image',
+      alt: 'Figure',
+      assetPath: 'images/pic.jpg',
+      sourceId: 'i',
+    });
+    assert.deepEqual(blocks[3], {
+      kind: 'table',
+      headers: ['x'],
+      rows: [['1']],
+      sourceId: 'tb',
+    });
+    assert.deepEqual(blocks[4], {
+      kind: 'image',
+      alt: 'Scanned',
+      assetPath: 'images/scan.jpg',
+      sourceId: 'sc',
+    });
     // Multi-line text becomes one paragraph per line.
-    assert.deepEqual(blocks[5], { kind: 'paragraph', runs: [{ kind: 'text', text: 'line one' }] });
-    assert.deepEqual(blocks[6], { kind: 'paragraph', runs: [{ kind: 'text', text: 'line two' }] });
+    assert.deepEqual(blocks[5], {
+      kind: 'paragraph',
+      runs: [{ kind: 'text', text: 'line one' }],
+      sourceId: 'm',
+    });
+    assert.deepEqual(blocks[6], {
+      kind: 'paragraph',
+      runs: [{ kind: 'text', text: 'line two' }],
+      sourceId: 'm',
+    });
   });
 
   it('drops images when the setting is off', () => {
@@ -241,12 +278,166 @@ describe('paginated doc bridge: layout → blocks', () => {
       1,
     );
     const blocks = layoutToDocumentBlocks(layout, { includeImages: false });
-    assert.deepEqual(blocks[0], { kind: 'paragraph', runs: [{ kind: 'text', text: 'Figure' }] });
-    assert.deepEqual(blocks[1], { kind: 'table', headers: ['x'], rows: [] });
+    assert.deepEqual(blocks[0], {
+      kind: 'paragraph',
+      runs: [{ kind: 'text', text: 'Figure' }],
+      sourceId: 'i',
+    });
+    assert.deepEqual(blocks[1], { kind: 'table', headers: ['x'], rows: [], sourceId: 'tb' });
   });
 });
 
-describe('paginated doc bridge: document round trip', () => {
+describe('text pages bridge: layout source ranges', () => {
+  const text = (value: string): TextRun => ({ kind: 'text', text: value });
+
+  it('reports one document span per layout-derived node, whatever its kind', () => {
+    const sourceIds = ['t', 'p', 'l', 'tb', 'q', 'c', 'i'];
+    const blocks: DocumentBlock[] = [
+      { kind: 'heading', level: 2, runs: [text('Section')], sourceId: 't' },
+      { kind: 'paragraph', runs: [text('body')], sourceId: 'p' },
+      { kind: 'list', ordered: false, items: [[text('one')], [text('two')]], sourceId: 'l' },
+      { kind: 'table', headers: ['x'], rows: [['1']], sourceId: 'tb' },
+      { kind: 'blockquote', runs: [text('aside')], sourceId: 'q' },
+      { kind: 'code_block', text: 'print(1)', sourceId: 'c' },
+      { kind: 'image', alt: 'Fig', assetPath: 'images/missing.jpg', sourceId: 'i' },
+    ];
+    const { doc, sourceRanges } = buildDocument(schema, blocks);
+
+    // Every layout-derived block yields one span, contiguous from the root.
+    // Code blocks and images have no writable identity attr in the schema,
+    // which is why the span — not a node attr — is the anchor.
+    const spans: { from: number; to: number }[] = [];
+    let offset = 0;
+    doc.forEach((node) => {
+      spans.push({ from: offset, to: offset + node.nodeSize });
+      offset += node.nodeSize;
+    });
+    assert.deepEqual(
+      sourceRanges,
+      spans.map((span, index) => ({ ...span, sourceId: sourceIds[index] })),
+    );
+    // No ids are stamped into the document itself.
+    assert.equal(doc.child(0).attrs.paraId, null);
+    assert.equal(doc.child(1).attrs.paraId, null);
+  });
+
+  it('gives every node derived from one block its own span', () => {
+    // A multi-line extracted block becomes several paragraphs; each caret
+    // must map back to the same layout block.
+    const { sourceRanges } = buildDocument(schema, [
+      { kind: 'paragraph', runs: [text('line one')], sourceId: 'p1-b0' },
+      { kind: 'paragraph', runs: [text('line two')], sourceId: 'p1-b0' },
+    ]);
+    assert.deepEqual(
+      sourceRanges.map((range) => range.sourceId),
+      ['p1-b0', 'p1-b0'],
+    );
+    assert.ok(sourceRanges[0] && sourceRanges[1]);
+    assert.notEqual(sourceRanges[0].from, sourceRanges[1].from);
+  });
+
+  it('reads the body caret position from the selection snapshot', () => {
+    const snapshot = (offset: number, storyType = 'body') => ({
+      range: { range: { head: { offset, story: { storyType } } } },
+    });
+    assert.equal(readBodyCaretPosition(snapshot(1)), 1);
+    assert.equal(readBodyCaretPosition(snapshot(12)), 12);
+    assert.equal(readBodyCaretPosition(snapshot(3, 'header')), null);
+    assert.equal(readBodyCaretPosition({ range: { range: { head: { offset: 2 } } } }), 2);
+    assert.equal(readBodyCaretPosition({ range: { range: {} } }), null);
+    assert.equal(readBodyCaretPosition(null), null);
+  });
+
+  it('finds the span covering a position, preferring the following block', () => {
+    const ranges: SourceRange[] = [
+      { from: 0, to: 7, sourceId: 'a' },
+      { from: 7, to: 13, sourceId: 'b' },
+    ];
+    assert.equal(findSourceIdAtPosition(ranges, 0), 'a');
+    assert.equal(findSourceIdAtPosition(ranges, 6), 'a');
+    // A shared boundary belongs to the block that starts there.
+    assert.equal(findSourceIdAtPosition(ranges, 7), 'b');
+    assert.equal(findSourceIdAtPosition(ranges, 13), 'b');
+    assert.equal(findSourceIdAtPosition(ranges, 14), null);
+    assert.equal(findSourceIdAtPosition([], 1), null);
+    assert.equal(findSourceIdAtPosition(ranges, 1.5), null);
+  });
+
+  it('resolves caret positions to layout blocks, code blocks included', () => {
+    // Top-level spans (position → node): heading "Guide" [0,7], paragraph
+    // "body" [7,13], code_block "print(1)" [13,23], paragraph "user-added"
+    // [23,35], paragraph "unanchored" [35,47].
+    const { doc, sourceRanges } = buildDocument(schema, [
+      { kind: 'heading', level: 1, runs: [text('Guide')], sourceId: 'p1-b0' },
+      { kind: 'paragraph', runs: [text('body')], sourceId: 'p1-b1' },
+      { kind: 'code_block', text: 'print(1)', sourceId: 'p1-b2' },
+      { kind: 'paragraph', runs: [text('user-added')], sourceId: 'p2-b0' },
+      { kind: 'paragraph', runs: [text('unanchored')] },
+    ]);
+    assert.equal(doc.childCount, 5);
+    const layout = layoutDocument(
+      [
+        layoutBlock({ id: 'p1-b0', pageNumber: 1, type: 'doc_title', text: 'Guide' }),
+        layoutBlock({ id: 'p1-b1', pageNumber: 1, type: 'text', text: 'body' }),
+        layoutBlock({ id: 'p1-b2', pageNumber: 1, type: 'code', text: 'print(1)' }),
+        layoutBlock({ id: 'p2-b0', pageNumber: 2, type: 'text', text: 'user-added' }),
+      ],
+      2,
+    );
+
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 0, layout)?.id, 'p1-b0');
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 1, layout)?.id, 'p1-b0');
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 8, layout)?.id, 'p1-b1');
+    // Code blocks carry no id attr; the span still maps their carets.
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 14, layout)?.id, 'p1-b2');
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 20, layout)?.id, 'p1-b2');
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 24, layout)?.id, 'p2-b0');
+    // User-created nodes and positions past the document resolve to null.
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 36, layout), null);
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 48, layout), null);
+    assert.equal(resolveCaretSourceBlock(sourceRanges, -1, layout), null);
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 1, null), null);
+    // An anchor whose block is missing from the layout resolves to null.
+    const partial = layoutDocument([layoutBlock({ id: 'p1-b0' })], 1);
+    assert.equal(resolveCaretSourceBlock(sourceRanges, 8, partial), null);
+    // Documents rebuilt from Markdown have no spans at all.
+    assert.deepEqual(buildDocument(schema, markdownToDocumentBlocks('# Title')).sourceRanges, []);
+  });
+
+  it('keeps source ranges current through edit transactions', () => {
+    const insertion = (at: number, size: number): TransactionMappingLike => ({
+      mapResult(position, assoc = 1) {
+        const after = position > at || (position === at && assoc > 0);
+        return { pos: after ? position + size : position, deleted: false };
+      },
+    });
+    const ranges: SourceRange[] = [
+      { from: 0, to: 7, sourceId: 'a' },
+      { from: 7, to: 13, sourceId: 'b' },
+    ];
+    // Text inserted inside the first block stretches its span and shifts the
+    // following one; neither mapping loses the block association.
+    assert.deepEqual(mapSourceRanges(ranges, insertion(3, 5)), [
+      { from: 0, to: 12, sourceId: 'a' },
+      { from: 12, to: 18, sourceId: 'b' },
+    ]);
+
+    // A span whose end lands inside a deleted range is dropped instead of
+    // drifting onto whichever block follows.
+    const deletion: TransactionMappingLike = {
+      mapResult: (position) => ({ pos: position, deleted: position > 7 && position <= 13 }),
+    };
+    assert.deepEqual(mapSourceRanges(ranges, deletion), [{ from: 0, to: 7, sourceId: 'a' }]);
+  });
+
+  it('does not leak editor metadata into the serialized markdown', () => {
+    const layout = layoutDocument([layoutBlock({ id: 'p1-b1', type: 'text', text: 'body' })], 1);
+    const { doc } = buildDocument(schema, layoutToDocumentBlocks(layout));
+    assert.equal(serializeDocumentToMarkdown(doc).trim(), 'body');
+  });
+});
+
+describe('text pages bridge: document round trip', () => {
   it('markdown → document → markdown → blocks keeps the block structure', () => {
     const markdown = [
       '# Heading',
@@ -356,22 +547,22 @@ describe('paginated doc bridge: document round trip', () => {
   });
 });
 
-describe('paginated doc bridge: source resolution', () => {
+describe('text pages bridge: source resolution', () => {
   it('prefers a dirty draft, then markers, then layout, then plain markdown', () => {
-    assert.deepEqual(resolvePaginatedDocSource('saved', 'draft', true), {
+    assert.deepEqual(resolveTextPagesSource('saved', 'draft', true), {
       source: 'draft',
       markdown: 'draft',
     });
     const withMarkers = `page one\n${PAGE_BREAK_MARKER}\npage two`;
-    assert.deepEqual(resolvePaginatedDocSource(withMarkers, withMarkers, true), {
+    assert.deepEqual(resolveTextPagesSource(withMarkers, withMarkers, true), {
       source: 'markdown',
       markdown: withMarkers,
     });
-    assert.deepEqual(resolvePaginatedDocSource('plain', 'plain', true), {
+    assert.deepEqual(resolveTextPagesSource('plain', 'plain', true), {
       source: 'layout',
       markdown: 'plain',
     });
-    assert.deepEqual(resolvePaginatedDocSource('plain', 'plain', false), {
+    assert.deepEqual(resolveTextPagesSource('plain', 'plain', false), {
       source: 'markdown',
       markdown: 'plain',
     });

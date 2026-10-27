@@ -3,9 +3,9 @@ import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { sanitizeAssetRelativePath } from '../../../shared/asset-paths.js';
 import {
   AI_TEXT_VIEWER_LAYOUT_BLOCKS,
-  AI_TEXT_VIEWER_PAGINATED_DOC,
   AI_TEXT_VIEWER_SOURCE,
   AI_TEXT_VIEWER_TEXT,
+  AI_TEXT_VIEWER_TEXT_PAGES,
   getBuiltinAiTextViewer,
 } from '../../../shared/ai-text/viewers.js';
 import { Button } from '../../vendor/components/ui/button.js';
@@ -16,13 +16,13 @@ import { lazyWithPreload } from '../../lazy-with-preload.js';
 import { registerAiTextViewer, type AiTextViewerProps } from './registry.js';
 
 // Begonia stays out of the split-pane chunk until the viewer is selected.
-const LazyPaginatedDocViewer = lazyWithPreload(() =>
-  import('./paginated-doc/paginated-doc-viewer.js').then((mod) => ({
-    default: mod.PaginatedDocViewer,
+const LazyTextPagesViewer = lazyWithPreload(() =>
+  import('./text-pages/text-pages-viewer.js').then((mod) => ({
+    default: mod.TextPagesViewer,
   })),
 );
 
-interface PaginatedDocErrorBoundaryState {
+interface TextPagesErrorBoundaryState {
   error: Error | null;
 }
 
@@ -31,13 +31,13 @@ interface PaginatedDocErrorBoundaryState {
  * to this pane: the split view keeps working and the user can switch to the
  * Text or Source views instead of losing the whole tab.
  */
-class PaginatedDocErrorBoundary extends React.Component<
+class TextPagesErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  PaginatedDocErrorBoundaryState
+  TextPagesErrorBoundaryState
 > {
-  state: PaginatedDocErrorBoundaryState = { error: null };
+  state: TextPagesErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(error: Error): PaginatedDocErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): TextPagesErrorBoundaryState {
     return { error };
   }
 
@@ -45,7 +45,7 @@ class PaginatedDocErrorBoundary extends React.Component<
     if (this.state.error) {
       return (
         <div
-          data-testid='ai-text-paginated-doc-error'
+          data-testid='ai-text-text-pages-error'
           className='flex size-full flex-col items-center justify-center gap-3 p-6 text-center'
         >
           <AlertTriangle className='size-5 text-muted-foreground' />
@@ -62,9 +62,9 @@ class PaginatedDocErrorBoundary extends React.Component<
   }
 }
 
-function PaginatedDocAiTextViewer(props: AiTextViewerProps) {
+function TextPagesAiTextViewer(props: AiTextViewerProps) {
   return (
-    <PaginatedDocErrorBoundary>
+    <TextPagesErrorBoundary>
       <React.Suspense
         fallback={
           <div className='grid size-full place-items-center'>
@@ -75,9 +75,9 @@ function PaginatedDocAiTextViewer(props: AiTextViewerProps) {
           </div>
         }
       >
-        <LazyPaginatedDocViewer {...props} />
+        <LazyTextPagesViewer {...props} />
       </React.Suspense>
-    </PaginatedDocErrorBoundary>
+    </TextPagesErrorBoundary>
   );
 }
 
@@ -186,4 +186,4 @@ function descriptor(viewerId: string) {
 registerAiTextViewer(descriptor(AI_TEXT_VIEWER_TEXT), TextAiTextViewer);
 registerAiTextViewer(descriptor(AI_TEXT_VIEWER_SOURCE), SourceAiTextViewer);
 registerAiTextViewer(descriptor(AI_TEXT_VIEWER_LAYOUT_BLOCKS), LayoutBlocksAiTextViewer);
-registerAiTextViewer(descriptor(AI_TEXT_VIEWER_PAGINATED_DOC), PaginatedDocAiTextViewer);
+registerAiTextViewer(descriptor(AI_TEXT_VIEWER_TEXT_PAGES), TextPagesAiTextViewer);

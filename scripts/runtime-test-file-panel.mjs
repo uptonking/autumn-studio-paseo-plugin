@@ -4,6 +4,7 @@
 // workspace-relative identity and no file.content read RPC.
 
 import { dom, React, rpcInputs } from './runtime-test-harness.mjs';
+import { waitForRuntime } from './runtime-test-ai-text-text-pages.mjs';
 
 const EXPECTED_FILE_PANELS = [
   { id: 'pdf', extensions: ['pdf'], minFilenames: 0 },
@@ -158,6 +159,9 @@ export async function verifyNativeFilePanelAiTextPersistence({
   const { QueryClient, QueryClientProvider } = pluginRequire('@tanstack/react-query');
 
   const fakePdfBytes = new TextEncoder().encode('%PDF-1.4\n%%EOF\n');
+  // Any write here replaces the open PDF document — the regression this test
+  // guards against wrote the AI Text Markdown into it.
+  const pdfHandleWrites = [];
   const guideUrl = URL.createObjectURL(new Blob([fakePdfBytes], { type: 'application/pdf' }));
   const makeGuideFile = () => ({
     path: '/Users/yaoo/Documents/repos/tests/guide.pdf',
@@ -170,7 +174,9 @@ export async function verifyNativeFilePanelAiTextPersistence({
     readBytes: async () => fakePdfBytes,
     url: async () => guideUrl,
     writeText: async () => {},
-    writeBytes: async () => {},
+    writeBytes: async (bytes) => {
+      pdfHandleWrites.push(bytes);
+    },
     watch: () => () => {},
   });
 
@@ -237,6 +243,58 @@ export async function verifyNativeFilePanelAiTextPersistence({
   if (!secondShadow.querySelector('[data-testid="ai-text-split-layout"]')) {
     throw new Error('persisted aiText splitOpen did not re-open the split');
   }
+
+  // Regression: Save from the AI Text pane must write the version Markdown via
+  // the `file.save` RPC. The panel's PluginFile handle can only replace the
+  // open document, so routing this save through it used to overwrite
+  // guide.pdf with Markdown (and lose the edit).
+  const rightPane = secondShadow.querySelector('[data-testid="ai-text-split-pane"]');
+  const pagesToggle = rightPane?.querySelector('[data-testid="ai-text-mode-text-pages"]');
+  if (!pagesToggle) throw new Error('Text Pages View toggle missing in the native pdf panel');
+  pagesToggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  const editor = await waitForRuntime(
+    () => {
+      const node = secondShadow.querySelector('[data-testid="ai-text-text-pages"] .ald-editor');
+      return node && (node.textContent ?? '').includes('Opening paragraph') ? node : null;
+    },
+    { label: 'text pages editor in the native pdf panel' },
+  );
+  const textNode = [...editor.querySelectorAll('p')]
+    .flatMap((paragraph) => [...paragraph.childNodes])
+    .find((node) => node.nodeType === 3 && (node.textContent ?? '').includes('Opening paragraph'));
+  if (!textNode) throw new Error('text pages paragraph text node not found in the native panel');
+  textNode.data = 'Opening paragraph saved from the native panel';
+  textNode.parentElement?.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 60));
+
+  const saveButton = rightPane.querySelector('[data-testid="ai-text-save-button"]');
+  if (!saveButton) throw new Error('Save button missing in the native pdf panel');
+  // Earlier suites save other AI text versions; only calls made from this click
+  // can prove where this panel routes its write.
+  const saveInputsStart = rpcInputs.length;
+  saveButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+
+  const savedCall = await waitForRuntime(
+    () =>
+      rpcInputs
+        .slice(saveInputsStart)
+        .find(
+          (call) =>
+            call.name === 'file.save' &&
+            typeof call.input?.relPath === 'string' &&
+            call.input.relPath.startsWith('.autumn/guide.pdf/'),
+        ),
+    { label: 'AI text save RPC from the native panel' },
+  );
+  if (!savedCall.input.content.includes('Opening paragraph saved from the native panel')) {
+    throw new Error('native panel save lost the latest text pages edit');
+  }
+  if (pdfHandleWrites.length > 0) {
+    throw new Error(
+      'the AI text save wrote through the open PDF handle instead of the version Markdown',
+    );
+  }
+
   second.root.unmount();
   second.host.remove();
 

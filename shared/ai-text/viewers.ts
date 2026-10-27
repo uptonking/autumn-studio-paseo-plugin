@@ -30,7 +30,7 @@ export type AiTextViewerDescriptor = z.infer<typeof aiTextViewerDescriptorSchema
 export const AI_TEXT_VIEWER_TEXT = 'text';
 export const AI_TEXT_VIEWER_SOURCE = 'source';
 export const AI_TEXT_VIEWER_LAYOUT_BLOCKS = 'layout-blocks';
-export const AI_TEXT_VIEWER_PAGINATED_DOC = 'paginated-doc';
+export const AI_TEXT_VIEWER_TEXT_PAGES = 'text-pages';
 export const DEFAULT_AI_TEXT_VIEWER_ID = AI_TEXT_VIEWER_TEXT;
 
 export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
@@ -64,11 +64,11 @@ export const AI_TEXT_BUILTIN_VIEWERS: readonly AiTextViewerDescriptor[] = [
     },
   },
   {
-    id: AI_TEXT_VIEWER_PAGINATED_DOC,
-    label: 'Paginated Text Doc',
+    id: AI_TEXT_VIEWER_TEXT_PAGES,
+    label: 'Text Pages View',
     shortLabel: 'Pages',
     description:
-      'A paginated Word-like document that mirrors the PDF pages. Editable; saves back to the stored Markdown version.',
+      'A paginated Word-like view that mirrors the PDF pages; clicking or moving the caret highlights the matching PDF section. Editable; saves back to the stored Markdown version.',
     order: 2,
     selectableAsDefault: true,
     capabilities: {

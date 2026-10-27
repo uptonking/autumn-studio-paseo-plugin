@@ -33,6 +33,8 @@ export interface AiTextBridge {
   getMetadata(relPath: string): Promise<{
     metadata: AiTextDocumentMetadata | null;
     activeContent: string | null;
+    /** True when the stored Markdown no longer matches the extraction output. */
+    activeContentEdited: boolean | null;
   }>;
   startTask(
     input: {
@@ -66,6 +68,7 @@ export interface AiTextBridge {
     metadata: AiTextDocumentMetadata;
     activeVersion: AiTextVersionRecord | null;
     content: string | null;
+    activeContentEdited: boolean | null;
   }>;
   deleteVersion?(
     relPath: string,
@@ -74,6 +77,19 @@ export interface AiTextBridge {
     metadata: AiTextDocumentMetadata | null;
     activeVersion: AiTextVersionRecord | null;
     content: string | null;
+    activeContentEdited: boolean | null;
+  }>;
+  /**
+   * Records that the AI Text pane saved a version's Markdown. Keeps the stored
+   * file authoritative after a restart even for versions extracted before
+   * content fingerprinting existed.
+   */
+  markVersionSaved?(
+    relPath: string,
+    versionId: string,
+  ): Promise<{
+    metadata: AiTextDocumentMetadata;
+    activeContentEdited: boolean | null;
   }>;
 }
 
@@ -89,6 +105,8 @@ export interface FileAiTextContextValue {
   metadata: AiTextDocumentMetadata | null;
   activeVersion: AiTextVersionRecord | null;
   activeContent: string | null;
+  /** True when the stored Markdown no longer matches the extraction output. */
+  activeContentEdited: boolean | null;
   settings: AiTextSettings;
   sourceUpdatedAt?: number;
   sourceFileSize?: number;

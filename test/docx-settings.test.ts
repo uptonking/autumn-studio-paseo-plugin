@@ -37,7 +37,7 @@ describe('docx settings: schema', () => {
   });
 
   it('exposes the current settings schema version', () => {
-    assert.equal(autumnStudioSettings.version, 3);
+    assert.equal(autumnStudioSettings.version, 4);
   });
 });
 

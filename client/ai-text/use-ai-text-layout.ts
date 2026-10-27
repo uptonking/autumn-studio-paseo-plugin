@@ -38,12 +38,20 @@ export function useAiTextLayout({
   const currentFilePathRef = React.useRef(filePath);
   currentFilePathRef.current = filePath;
 
-  const versionLayoutRef = activeVersion?.layout;
+  // Metadata refetches rebuild the version object without changing the layout
+  // it points at. Keying the effect on primitives keeps a refresh from
+  // flashing the layout to 'loading' and, more visibly, from clearing the
+  // active block (the PDF section highlight) after every save.
+  const versionId = activeVersion?.id ?? null;
+  const versionLayoutRef = activeVersion?.layout ?? null;
+  const versionLayoutKey = versionLayoutRef
+    ? `${versionLayoutRef.relPath}:${versionLayoutRef.blockCount}:${versionLayoutRef.pageCount}`
+    : '';
 
   React.useEffect(() => {
     generationRef.current += 1;
     setActiveBlockId(null);
-    if (!activeVersion || !filePath || !getLayout) {
+    if (!versionId || !filePath || !getLayout) {
       setLayout(null);
       setLayoutStatus('idle');
       setLayoutMessage(null);
@@ -63,7 +71,7 @@ export function useAiTextLayout({
     setLayout(null);
     setLayoutStatus('loading');
     setLayoutMessage(null);
-    getLayout(targetPath, activeVersion.id)
+    getLayout(targetPath, versionId)
       .then((result) => {
         if (generationRef.current !== generation) return;
         if (currentFilePathRef.current !== targetPath) return;
@@ -89,7 +97,10 @@ export function useAiTextLayout({
     return () => {
       generationRef.current += 1;
     };
-  }, [activeVersion, filePath, getLayout, versionLayoutRef]);
+    // `versionLayoutRef` is covered by its primitive key; the version object
+    // identity changes on every metadata refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versionId, filePath, getLayout, versionLayoutKey]);
 
   const focusBlock = React.useCallback(
     (block: AiTextLayoutBlock) => {

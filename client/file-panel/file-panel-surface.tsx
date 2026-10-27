@@ -47,6 +47,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
     aiText,
     getPdfWasmUrl,
     getXlsxWasmDataUri,
+    handleSaveFile: handleWorkspaceSaveFile,
   } = useWorkspaceFileBridge(workspaceId);
 
   const [stat, setStat] = useState(() => ({
@@ -107,9 +108,18 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
 
   const handleSaveFile = useCallback(
     async (input: FileSaveCallbackInput) => {
+      // The PluginFile handle can only write the tab's own document. Saves that
+      // target another workspace file — the AI Text version Markdown saved from
+      // the paginated editor — must go through the `file.save` RPC by relPath;
+      // writing them through this handle would replace the open PDF with
+      // Markdown bytes.
+      if (input.relPath !== filePath) {
+        return await handleWorkspaceSaveFile(input);
+      }
       const saved = await saveSerializedFileViaPluginFile({
         workspaceId,
-        filePath: input.relPath,
+        openFilePath: filePath,
+        targetPath: input.relPath,
         file,
         payload: input.payload,
         force: input.force,
@@ -122,7 +132,7 @@ export function FilePanelSurface(props: PluginFilePanelProps) {
       });
       return saved;
     },
-    [file, workspaceId],
+    [file, filePath, handleWorkspaceSaveFile, workspaceId],
   );
 
   const handleDirtyChange = useCallback(

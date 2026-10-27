@@ -62,6 +62,7 @@ export function AiTextSplitPane({
     metadata,
     activeVersion,
     activeContent,
+    activeContentEdited,
     settings,
     sourceUpdatedAt,
     sourceFileSize,
@@ -80,6 +81,7 @@ export function AiTextSplitPane({
     onShowOriginal,
     onUpdateActiveContent,
     onFocusLayoutBlock,
+    onClearActiveLayoutBlock,
     getAsset,
   } = aiTextState;
 
@@ -123,7 +125,7 @@ export function AiTextSplitPane({
   const savingRef = React.useRef(false);
   const savedFeedbackTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Async-sync viewers (Paginated Text Doc) register a flush here so Save and
+  // Async-sync viewers (Text Pages View) register a flush here so Save and
   // Copy can pull the up-to-the-keystroke draft instead of the debounced one.
   const draftSyncRef = React.useRef<{ flush(): string | null } | null>(null);
   const handleRegisterDraftSync = React.useCallback((sync: { flush(): string | null } | null) => {
@@ -255,17 +257,13 @@ export function AiTextSplitPane({
     activeViewer?.descriptor.capabilities.usesSaveAction && onSaveFile && activeVersion,
   );
 
-  const paginatedDocOptions = React.useMemo(
+  const textPagesOptions = React.useMemo(
     () => ({
-      fitWidth: settings.paginatedDocFitWidth,
-      includeImages: settings.paginatedDocIncludeImages,
+      fitWidth: settings.textPagesFitWidth,
+      includeImages: settings.textPagesIncludeImages,
       followPdfPage: settings.autoScrollToLayoutBlock,
     }),
-    [
-      settings.paginatedDocFitWidth,
-      settings.paginatedDocIncludeImages,
-      settings.autoScrollToLayoutBlock,
-    ],
+    [settings.textPagesFitWidth, settings.textPagesIncludeImages, settings.autoScrollToLayoutBlock],
   );
 
   return (
@@ -282,6 +280,7 @@ export function AiTextSplitPane({
             fileName={fileName}
             versions={versions}
             activeVersion={activeVersion}
+            contentEdited={activeContentEdited}
             isExtracting={isExtracting}
             onSelectVersion={onSelectVersion}
             onDeleteVersion={onDeleteVersion}
@@ -468,6 +467,7 @@ export function AiTextSplitPane({
         ) : activeViewer ? (
           <activeViewer.component
             content={activeContent}
+            contentEdited={activeContentEdited}
             layout={layout}
             layoutStatus={layoutStatus}
             layoutMessage={layoutMessage}
@@ -482,9 +482,10 @@ export function AiTextSplitPane({
               void handleSaveEditedMarkdown();
             }}
             onFocusBlock={onFocusLayoutBlock}
+            onClearActiveLayoutBlock={onClearActiveLayoutBlock}
             onRequestParse={handleReparse}
             loadAsset={getAsset}
-            paginatedDocOptions={paginatedDocOptions}
+            textPagesOptions={textPagesOptions}
             onRegisterDraftSync={handleRegisterDraftSync}
           />
         ) : (

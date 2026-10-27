@@ -4,6 +4,7 @@ import {
   aiTextSettingsSchema,
   createDefaultAiTextSettings,
   migrateAutumnStudioSettingsV1,
+  migrateAutumnStudioSettingsV3,
   type AiTextSettings,
 } from './ai-text/settings.ts';
 import {
@@ -163,18 +164,24 @@ export const DEFAULT_AUTUMN_STUDIO_SETTINGS: AutumnStudioSettingsValues = {
  * - v1 → v2: normalize the legacy AI Text block (`migrateAutumnStudioSettingsV1`).
  * - v2 → v3: adds the dedicated `docx` block; the zod schema default fills it,
  *   so no data transformation is required.
+ * - v3 → v4: rename the AI Text Paginated Text Doc keys/viewer id to the
+ *   Text Pages View names (`migrateAutumnStudioSettingsV3`).
  */
 export function migrateAutumnStudioSettings(values: unknown, fromVersion: number): unknown {
+  let current = values;
   if (fromVersion < 2) {
-    return migrateAutumnStudioSettingsV1(values);
+    current = migrateAutumnStudioSettingsV1(current);
   }
-  return values;
+  if (fromVersion < 4) {
+    current = migrateAutumnStudioSettingsV3(current);
+  }
+  return current;
 }
 
 export const autumnStudioSettings = defineSettings({
   id: 'preferences',
   scope: 'host',
-  version: 3,
+  version: 4,
   schema: autumnStudioSettingsSchema,
   migrate: migrateAutumnStudioSettings,
 });

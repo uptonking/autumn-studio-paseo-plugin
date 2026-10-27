@@ -20,6 +20,7 @@ import {
   listAiTextEngines,
   listAiTextStorageStats,
   locateWorkspaceFile,
+  markAiTextVersionSaved,
   revealAiTextPath,
   saveFileContent,
   selectAiTextVersion,
@@ -27,6 +28,7 @@ import {
 } from './shared/contracts.js';
 import {
   deleteExtractedVersion,
+  markVersionSaved,
   readDocumentMetadata,
   selectActiveVersion,
 } from './server/ai-text/metadata-store.js';
@@ -280,6 +282,12 @@ export default function contribute(server: PluginServerContext) {
       aiSettings.outputRootDir,
       workspaceId,
     );
+  });
+
+  server.handle(markAiTextVersionSaved, async ({ workspaceId, relPath, versionId }, { paseo }) => {
+    const root = await workspaceRoot(paseo, workspaceId);
+    const aiSettings = await resolveAiTextSettings();
+    return await markVersionSaved(root, relPath, versionId, aiSettings.outputRootDir, workspaceId);
   });
 
   server.handle(deleteAiTextVersion, async ({ workspaceId, relPath, versionId }, { paseo }) => {

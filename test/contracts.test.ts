@@ -233,7 +233,7 @@ describe('contracts: autumnStudioSettings', () => {
     assert.deepEqual(parsed, custom);
     assert.equal(autumnStudioSettings.id, 'preferences');
     assert.equal(autumnStudioSettings.scope, 'host');
-    assert.equal(autumnStudioSettings.version, 3);
+    assert.equal(autumnStudioSettings.version, 4);
   });
 
   it('maps PdfDefaultZoom and XlsxDefaultZoom values', () => {

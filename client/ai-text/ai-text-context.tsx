@@ -106,6 +106,11 @@ export function AiTextSurfaceSplitWrapper({
   const [isLoadingMetadata, setIsLoadingMetadata] = React.useState(false);
   const [metadata, setMetadata] = React.useState<AiTextDocumentMetadata | null>(null);
   const [activeContent, setActiveContent] = React.useState<string | null>(null);
+  // Whether the stored Markdown differs from the extractor's output. `null`
+  // means the version predates content fingerprinting. The saved Markdown wins
+  // over the layout whenever this is true, so user edits survive a reopen even
+  // when the document has no page-break markers (single-page PDFs).
+  const [activeContentEdited, setActiveContentEdited] = React.useState<boolean | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const stopResizeRef = React.useRef<(() => void) | null>(null);
   const autoOpenedFilePathRef = React.useRef<string | null>(null);
@@ -172,6 +177,7 @@ export function AiTextSurfaceSplitWrapper({
     setIsOriginalHidden(Boolean(persistenceRef.current?.state.aiText?.originalHidden));
     setMetadata(null);
     setActiveContent(null);
+    setActiveContentEdited(null);
 
     if (!enabled || !supported || !filePath || !getMetadata) {
       setIsLoadingMetadata(false);
@@ -185,6 +191,7 @@ export function AiTextSurfaceSplitWrapper({
         if (cancelled) return;
         setMetadata(res.metadata);
         setActiveContent(res.activeContent);
+        setActiveContentEdited(res.activeContentEdited);
         setIsLoadingMetadata(false);
         // An explicitly persisted decision wins over the settings-driven
         // auto-open; absence of the field keeps the automatic behavior.
@@ -237,6 +244,7 @@ export function AiTextSurfaceSplitWrapper({
             if (currentFilePathRef.current !== targetPath) return;
             setMetadata(result.metadata);
             setActiveContent(result.content);
+            setActiveContentEdited(false);
           },
         },
       );
@@ -300,6 +308,7 @@ export function AiTextSurfaceSplitWrapper({
         if (currentFilePathRef.current !== targetPath) return;
         setMetadata(res.metadata);
         setActiveContent(res.content);
+        setActiveContentEdited(res.activeContentEdited);
       } catch (err) {
         if (currentFilePathRef.current !== targetPath) return;
         setError(err instanceof Error ? err.message : 'Failed to switch text version');
@@ -318,6 +327,7 @@ export function AiTextSurfaceSplitWrapper({
         if (currentFilePathRef.current !== targetPath) return;
         setMetadata(res.metadata);
         setActiveContent(res.content);
+        setActiveContentEdited(res.activeContentEdited);
       } catch (err) {
         if (currentFilePathRef.current !== targetPath) return;
         setError(err instanceof Error ? err.message : 'Failed to delete text version');
@@ -344,6 +354,23 @@ export function AiTextSurfaceSplitWrapper({
     setIsOriginalHidden(false);
     persistAiText({ originalHidden: false });
   }, [persistAiText]);
+
+  // Re-reads the document metadata without touching the editor-owned content:
+  // after a save the version records (size, mtime) and the server-computed
+  // `activeContentEdited` flag are stale, while `activeContent` in the pane is
+  // newer than disk could be.
+  const refreshActiveMetadata = React.useCallback(async () => {
+    if (!filePath || !getMetadata) return;
+    const targetPath = filePath;
+    try {
+      const res = await getMetadata(targetPath);
+      if (currentFilePathRef.current !== targetPath) return;
+      setMetadata(res.metadata);
+      setActiveContentEdited(res.activeContentEdited);
+    } catch {
+      // A metadata refresh failure must not undo a successful save.
+    }
+  }, [filePath, getMetadata]);
 
   React.useEffect(
     () => () => {
@@ -396,6 +423,7 @@ export function AiTextSurfaceSplitWrapper({
       metadata,
       activeVersion,
       activeContent,
+      activeContentEdited,
       settings,
       sourceUpdatedAt,
       sourceFileSize,
@@ -420,7 +448,27 @@ export function AiTextSurfaceSplitWrapper({
       onCloseSplit: handleCloseSplit,
       onHideOriginal: handleHideOriginal,
       onShowOriginal: handleShowOriginal,
-      onUpdateActiveContent: setActiveContent,
+      onUpdateActiveContent: (nextContent: string) => {
+        setActiveContent(nextContent);
+        // A save makes the stored Markdown authoritative from now on, even
+        // before the metadata round trip recomputes the server-side flag.
+        setActiveContentEdited(true);
+        const savedVersionId = activeVersion?.id;
+        if (filePath && savedVersionId && aiText?.markVersionSaved) {
+          // Records the save so even a version extracted before fingerprinting
+          // reopens from this Markdown instead of the layout.
+          void aiText
+            .markVersionSaved(filePath, savedVersionId)
+            .then((res) => {
+              if (currentFilePathRef.current !== filePath) return;
+              setMetadata(res.metadata);
+              setActiveContentEdited(res.activeContentEdited);
+            })
+            .catch(() => void refreshActiveMetadata());
+          return;
+        }
+        void refreshActiveMetadata();
+      },
       onFocusLayoutBlock: focusBlock,
       onClearActiveLayoutBlock: clearActiveBlock,
       getAsset: loadAsset,
@@ -429,11 +477,14 @@ export function AiTextSurfaceSplitWrapper({
       activeBlock,
       activeBlockId,
       activeContent,
+      activeContentEdited,
       activeVersion,
+      aiText,
       cancelExtraction,
       clearActiveBlock,
       enabled,
       error,
+      filePath,
       focusBlock,
       handleCloseSplit,
       handleDeleteVersion,
@@ -451,6 +502,7 @@ export function AiTextSurfaceSplitWrapper({
       layoutStatus,
       loadAsset,
       metadata,
+      refreshActiveMetadata,
       settings,
       sourceFileSize,
       sourceUpdatedAt,

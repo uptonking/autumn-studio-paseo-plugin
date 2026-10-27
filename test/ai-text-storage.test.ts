@@ -1,13 +1,17 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   DEFAULT_AI_TEXT_OUTPUT_ROOT,
   parseAiTextOutputRoot,
 } from '../shared/ai-text/output-root.ts';
-import { appendExtractedVersion, readDocumentMetadata } from '../server/ai-text/metadata-store.ts';
+import {
+  appendExtractedVersion,
+  markVersionSaved,
+  readDocumentMetadata,
+} from '../server/ai-text/metadata-store.ts';
 import { resolveAutumnDocPaths, resolveOutputBase } from '../server/ai-text/metadata-paths.ts';
 import { listAiTextStorageStats } from '../server/ai-text/output-stats.ts';
 import { buildRevealCommand } from '../server/ai-text/reveal.ts';
@@ -206,6 +210,83 @@ describe('ai-text storage: disk helpers', () => {
     await writeFile(join(cacheDir, 'model.bin'), 'xx');
     await clearCacheDirectory(cacheDir);
     assert.deepEqual(await readdir(cacheDir), []);
+  });
+});
+
+describe('ai-text storage: saved-content marker', () => {
+  let workspace: string;
+
+  before(async () => {
+    workspace = await mkdtemp(join(tmpdir(), 'fe-saved-mark-'));
+  });
+
+  after(async () => {
+    await rm(workspace, { recursive: true, force: true });
+  });
+
+  async function appendVersion(markdown: string) {
+    return await appendExtractedVersion({
+      workspaceRootPath: workspace,
+      sourceRelPath: 'docs/paper.pdf',
+      sourceSize: 42,
+      sourceMtimeMs: 1_700_000_000_000,
+      markdownContent: markdown,
+      durationMs: 10,
+      provenance: sampleProvenance(),
+    });
+  }
+
+  /** Rewrites metadata.json to mimic a version extracted before fingerprinting. */
+  async function dropContentHash(docFolderRelPath: string) {
+    const metadataPath = join(workspace, docFolderRelPath, 'metadata.json');
+    const parsed = JSON.parse(await readFile(metadataPath, 'utf8'));
+    for (const version of parsed.versions) delete version.contentHash;
+    await writeFile(metadataPath, JSON.stringify(parsed));
+  }
+
+  it('marks a legacy version as user-saved so the Markdown outranks the layout', async () => {
+    const extracted = '# Paper\n\nExtracted body\n';
+    const appended = await appendVersion(extracted);
+    await dropContentHash(appended.metadata.docFolderRelPath);
+
+    assert.equal(
+      (await readDocumentMetadata(workspace, 'docs/paper.pdf')).activeContentEdited,
+      null,
+    );
+
+    // The user edited in the app: the save writes the file first, then the
+    // pane records it.
+    await writeFile(join(workspace, appended.newVersion.relPath), '# Paper\n\nEdited body\n');
+    const marked = await markVersionSaved(workspace, 'docs/paper.pdf', appended.newVersion.id);
+    assert.equal(marked.activeContentEdited, true);
+    assert.ok(marked.metadata.versions[0]?.savedContentHash);
+
+    // Surviving a restart is what makes this durable: the metadata read now
+    // reports the Markdown as authoritative.
+    const reopened = await readDocumentMetadata(workspace, 'docs/paper.pdf');
+    assert.equal(reopened.activeContentEdited, true);
+    assert.ok(reopened.activeContent?.includes('Edited body'));
+  });
+
+  it('keeps the extraction fingerprint authoritative when both hashes exist', async () => {
+    const extracted = '# Revisited\n\nBody\n';
+    const appended = await appendVersion(extracted);
+
+    await writeFile(join(workspace, appended.newVersion.relPath), '# Revisited\n\nBody!\n');
+    const edited = await markVersionSaved(workspace, 'docs/paper.pdf', appended.newVersion.id);
+    assert.equal(edited.activeContentEdited, true);
+
+    await writeFile(join(workspace, appended.newVersion.relPath), extracted);
+    const reverted = await markVersionSaved(workspace, 'docs/paper.pdf', appended.newVersion.id);
+    assert.equal(reverted.activeContentEdited, false);
+  });
+
+  it('rejects unknown versions instead of writing metadata', async () => {
+    await appendVersion('# Known\n');
+    await assert.rejects(
+      markVersionSaved(workspace, 'docs/paper.pdf', '20200101-000000_v9_mineru-auto'),
+      /no longer exists/,
+    );
   });
 });
 

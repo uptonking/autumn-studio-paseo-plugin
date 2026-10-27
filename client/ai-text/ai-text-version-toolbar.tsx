@@ -8,6 +8,7 @@ export function AiTextVersionToolbar({
   fileName,
   versions,
   activeVersion,
+  contentEdited,
   isExtracting,
   onSelectVersion,
   onDeleteVersion,
@@ -15,6 +16,8 @@ export function AiTextVersionToolbar({
   fileName: string;
   versions: readonly AiTextVersionRecord[];
   activeVersion: AiTextVersionRecord | null;
+  /** True when the active version's saved Markdown differs from the extraction. */
+  contentEdited: boolean | null;
   isExtracting: boolean;
   onSelectVersion(versionId: string): void;
   onDeleteVersion(versionId: string): void;
@@ -78,6 +81,16 @@ export function AiTextVersionToolbar({
           </option>
         ))}
       </select>
+
+      {contentEdited === true ? (
+        <span
+          data-testid='ai-text-edited-badge'
+          title={`The saved Markdown for v${activeVersion?.versionNumber ?? '?'} contains edits that differ from the AI extraction`}
+          className='shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400'
+        >
+          Edited
+        </span>
+      ) : null}
 
       {versions.length > 1 ? (
         <span

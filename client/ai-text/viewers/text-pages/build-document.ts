@@ -5,10 +5,16 @@
  * imports prosemirror-model directly (the vendor bundler only maps the
  * @datalking/* packages). At runtime the schema comes from the mounted
  * editor's controller; tests construct one via createBegoniaSchema().
+ *
+ * Layout-derived blocks also yield the root document span of the node they
+ * produced (SourceRange), which is what maps an editor caret back to a PDF
+ * section; code blocks and images carry no layout metadata in the document
+ * itself, so the span is the only anchor they can have.
  */
 
 import type { createBegoniaSchema } from '@datalking/begonia-document-model';
 import type { DocumentBlock, InlineRun, TextRun } from './document-input.ts';
+import type { SourceRange } from './selection-source.ts';
 
 export type BegoniaSchema = ReturnType<typeof createBegoniaSchema>;
 export type BegoniaNode = ReturnType<BegoniaSchema['node']>;
@@ -155,7 +161,7 @@ function blockToNode(
       const src = assets.get(block.assetPath);
       if (!src) {
         // A missing asset degrades to its alt text instead of a broken image.
-        return [schema.nodes.paragraph.create(null, block.alt ? [schema.text(block.alt)] : [])];
+        return [paragraphFromRuns(schema, [{ kind: 'text', text: block.alt }], assets)];
       }
       return [
         schema.nodes.image.create({
@@ -170,22 +176,46 @@ function blockToNode(
   }
 }
 
-export function buildDocumentFromBlocks(
+export interface BuiltDocument {
+  doc: BegoniaNode;
+  /** One span per layout-derived top-level node, in document order. */
+  sourceRanges: SourceRange[];
+}
+
+export function buildDocument(
   schema: BegoniaSchema,
   blocks: readonly DocumentBlock[],
   assets: DocumentAssetMap = new Map(),
   options: BuildDocumentOptions = {},
-): BegoniaNode {
+): BuiltDocument {
   const children: BegoniaNode[] = [];
+  const sourceRanges: SourceRange[] = [];
+  let offset = 0;
   for (const block of blocks) {
-    children.push(...blockToNode(schema, block, assets, options));
+    for (const node of blockToNode(schema, block, assets, options)) {
+      if (block.sourceId) {
+        sourceRanges.push({ from: offset, to: offset + node.nodeSize, sourceId: block.sourceId });
+      }
+      offset += node.nodeSize;
+      children.push(node);
+    }
   }
   // The `doc` node's content is `block+`: an empty source still needs one
   // block so the built document is structurally valid for the editor.
   if (children.length === 0) {
     children.push(schema.nodes.paragraph.create());
   }
-  return schema.nodes.doc.create(null, children);
+  return { doc: schema.nodes.doc.create(null, children), sourceRanges };
+}
+
+/** Document-only convenience for callers that do not map carets (serialization). */
+export function buildDocumentFromBlocks(
+  schema: BegoniaSchema,
+  blocks: readonly DocumentBlock[],
+  assets: DocumentAssetMap = new Map(),
+  options: BuildDocumentOptions = {},
+): BegoniaNode {
+  return buildDocument(schema, blocks, assets, options).doc;
 }
 
 /**

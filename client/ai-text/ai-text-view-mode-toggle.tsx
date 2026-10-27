@@ -11,7 +11,7 @@ const BASE_MODE_CLASS =
 const VIEWER_ICONS: Record<string, LucideIcon> = {
   text: Eye,
   'layout-blocks': LayoutGrid,
-  'paginated-doc': BookOpen,
+  'text-pages': BookOpen,
   source: Code2,
 };
 

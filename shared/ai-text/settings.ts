@@ -8,7 +8,7 @@ import {
   createDefaultAiTextProfiles,
 } from './profiles.ts';
 import { aiTextVersionAssetsRefSchema, aiTextVersionLayoutRefSchema } from './layout.ts';
-import { DEFAULT_AI_TEXT_VIEWER_ID } from './viewers.ts';
+import { AI_TEXT_VIEWER_TEXT_PAGES, DEFAULT_AI_TEXT_VIEWER_ID } from './viewers.ts';
 
 const aiTextProfilesSchema = z
   .array(aiTextProfileSchema)
@@ -23,10 +23,10 @@ export const aiTextSettingsSchema = z.object({
   defaultViewerId: z.string().default(DEFAULT_AI_TEXT_VIEWER_ID),
   showLayoutBlockOverlays: z.boolean().default(true),
   autoScrollToLayoutBlock: z.boolean().default(true),
-  /** Paginated Text Doc viewer: fit pages to the pane width instead of 100%. */
-  paginatedDocFitWidth: z.boolean().default(true),
-  /** Paginated Text Doc viewer: render image blocks from version assets. */
-  paginatedDocIncludeImages: z.boolean().default(true),
+  /** Text Pages View: fit pages to the pane width instead of 100%. */
+  textPagesFitWidth: z.boolean().default(true),
+  /** Text Pages View: render image blocks from version assets. */
+  textPagesIncludeImages: z.boolean().default(true),
   defaultProfileId: z.string().default('mineru-cloud-free'),
   profiles: aiTextProfilesSchema,
   outputRootDir: z.string().default('.autumn'),
@@ -129,6 +129,19 @@ export const aiTextVersionRecordSchema = z.object({
   provenance: aiTextVersionProvenanceSchema,
   layout: aiTextVersionLayoutRefSchema.nullable().optional(),
   assets: aiTextVersionAssetsRefSchema.nullable().optional(),
+  /**
+   * SHA-256 of the Markdown exactly as the extractor produced it. A mismatch
+   * with the file on disk means the user edited and saved the version, which
+   * outranks the layout as the source of truth. Absent on versions extracted
+   * before this field existed.
+   */
+  contentHash: z.string().optional(),
+  /**
+   * SHA-256 of the Markdown the app last saved for this version. Versions that
+   * predate `contentHash` cannot prove an edit, but a recorded user save still
+   * makes the stored Markdown authoritative after a restart.
+   */
+  savedContentHash: z.string().optional(),
 });
 export type AiTextVersionRecord = z.infer<typeof aiTextVersionRecordSchema>;
 
@@ -421,6 +434,40 @@ export function migrateAutumnStudioSettingsV1(values: unknown): Record<string, u
     ...record,
     aiText: migrateAiTextSettingsV1(record.aiText),
   };
+}
+
+/** Viewer id before the Paginated Text Doc was renamed to Text Pages View. */
+const LEGACY_PAGINATED_DOC_VIEWER_ID = 'paginated-doc';
+
+/**
+ * Settings `migrate` hook body for `autumnStudioSettings` version 3 -> 4.
+ * The Paginated Text Doc viewer became Text Pages View: the stored viewer
+ * toggles move to the renamed keys and a saved default-viewer choice carries
+ * across the id rename. Sections other than `aiText` pass through untouched.
+ */
+export function migrateAutumnStudioSettingsV3(values: unknown): Record<string, unknown> {
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) {
+    return {};
+  }
+  const record = values as Record<string, unknown>;
+  const aiText = record.aiText;
+  if (typeof aiText !== 'object' || aiText === null || Array.isArray(aiText)) {
+    return record;
+  }
+  const legacy = aiText as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...legacy };
+  if (typeof legacy.paginatedDocFitWidth === 'boolean') {
+    next.textPagesFitWidth = legacy.paginatedDocFitWidth;
+  }
+  if (typeof legacy.paginatedDocIncludeImages === 'boolean') {
+    next.textPagesIncludeImages = legacy.paginatedDocIncludeImages;
+  }
+  if (legacy.defaultViewerId === LEGACY_PAGINATED_DOC_VIEWER_ID) {
+    next.defaultViewerId = AI_TEXT_VIEWER_TEXT_PAGES;
+  }
+  delete next.paginatedDocFitWidth;
+  delete next.paginatedDocIncludeImages;
+  return { ...record, aiText: next };
 }
 
 export { createDefaultAiTextProfiles };

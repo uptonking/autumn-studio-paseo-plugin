@@ -109,7 +109,8 @@ describe('editing: saveSerializedFileViaPluginFile', () => {
     });
     const saved = await saveSerializedFileViaPluginFile({
       workspaceId,
-      filePath,
+      openFilePath: filePath,
+      targetPath: filePath,
       file,
       payload: { encoding: 'utf8', data: 'hello world' },
     });
@@ -135,7 +136,8 @@ describe('editing: saveSerializedFileViaPluginFile', () => {
     const { file, writes } = makeStubFile();
     await saveSerializedFileViaPluginFile({
       workspaceId,
-      filePath,
+      openFilePath: filePath,
+      targetPath: filePath,
       file,
       payload: { encoding: 'utf8', data: 'again' },
       force: true,
@@ -151,12 +153,29 @@ describe('editing: saveSerializedFileViaPluginFile', () => {
       () =>
         saveSerializedFileViaPluginFile({
           workspaceId,
-          filePath,
+          openFilePath: filePath,
+          targetPath: filePath,
           file,
           payload: { encoding: 'utf8', data: 'x' },
         }),
       /changed on disk/,
     );
+  });
+
+  it('refuses to write a different path through the open file handle', async () => {
+    const { file, writes } = makeStubFile();
+    await assert.rejects(
+      () =>
+        saveSerializedFileViaPluginFile({
+          workspaceId,
+          openFilePath: filePath,
+          targetPath: '.autumn/docs__a.pdf/v1.md',
+          file,
+          payload: { encoding: 'utf8', data: '# edited' },
+        }),
+      /Refusing to save/,
+    );
+    assert.equal(writes.length, 0, 'the open PDF must not receive the Markdown bytes');
   });
 
   it('serializes with workspace reads: an in-flight save blocks same-path refetches', async () => {
@@ -176,7 +195,8 @@ describe('editing: saveSerializedFileViaPluginFile', () => {
 
       const savePromise = saveSerializedFileViaPluginFile({
         workspaceId: serializeWs,
-        filePath: serializePath,
+        openFilePath: serializePath,
+        targetPath: serializePath,
         file: gatedFile,
         payload: { encoding: 'utf8', data: 'slow save' },
       });

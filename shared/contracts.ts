@@ -140,6 +140,8 @@ export const getAiTextMetadata = defineRpc({
   output: z.object({
     metadata: aiTextDocumentMetadataSchema.nullable(),
     activeContent: z.string().nullable(),
+    /** True when the stored Markdown no longer matches the extraction output. */
+    activeContentEdited: z.boolean().nullable(),
   }),
 });
 
@@ -256,6 +258,23 @@ export const selectAiTextVersion = defineRpc({
     metadata: aiTextDocumentMetadataSchema,
     activeVersion: aiTextVersionRecordSchema.nullable(),
     content: z.string().nullable(),
+    /** True when the stored Markdown no longer matches the extraction output. */
+    activeContentEdited: z.boolean().nullable(),
+  }),
+});
+
+/** Records that the AI Text pane saved a version's Markdown, so the stored file stays authoritative after a restart even for versions extracted before fingerprinting. */
+export const markAiTextVersionSaved = defineRpc({
+  name: 'ai_text.version.mark_saved',
+  input: z.object({
+    workspaceId: z.string(),
+    relPath: z.string(),
+    versionId: z.string(),
+  }),
+  output: z.object({
+    metadata: aiTextDocumentMetadataSchema,
+    /** True when the stored Markdown no longer matches the extraction output. */
+    activeContentEdited: z.boolean().nullable(),
   }),
 });
 
@@ -271,6 +290,8 @@ export const deleteAiTextVersion = defineRpc({
     metadata: aiTextDocumentMetadataSchema.nullable(),
     activeVersion: aiTextVersionRecordSchema.nullable(),
     content: z.string().nullable(),
+    /** True when the stored Markdown no longer matches the extraction output. */
+    activeContentEdited: z.boolean().nullable(),
   }),
 });
 

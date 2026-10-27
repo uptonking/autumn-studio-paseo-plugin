@@ -168,7 +168,7 @@ export function MarkdownPreview({
       }
 
       // Standalone HTML comments are invisible in rendered Markdown; the
-      // Paginated Text Doc viewer uses one to persist page breaks.
+      // Text Pages View uses one to persist page breaks.
       if (/^\s*<!--.*-->\s*$/.test(line)) {
         i += 1;
         continue;

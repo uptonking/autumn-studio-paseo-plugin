@@ -12,6 +12,7 @@ import {
   type AiTextVersionRecord,
 } from '../../shared/contracts.ts';
 import { withDocLock } from './doc-lock.ts';
+import { hashAiTextContent, resolveActiveContentEdited } from './content-hash.ts';
 import {
   formatTimestampCompact,
   resolveAutumnDocPaths,
@@ -37,6 +38,11 @@ export async function readDocumentMetadata(
 ): Promise<{
   metadata: AiTextDocumentMetadata | null;
   activeContent: string | null;
+  /**
+   * True when the active version's Markdown differs from the extractor's
+   * output; null when the version was extracted before content hashing.
+   */
+  activeContentEdited: boolean | null;
 }> {
   const paths = resolveAutumnDocPaths(workspaceRootPath, sourceRelPath, outputRootDir, workspaceId);
   const folder = await resolveDocFolderForSource(workspaceRootPath, paths);
@@ -44,19 +50,19 @@ export async function readDocumentMetadata(
   try {
     rawJson = await readFile(folder.metadataAbsPath, 'utf8');
   } catch {
-    return { metadata: null, activeContent: null };
+    return { metadata: null, activeContent: null, activeContentEdited: null };
   }
 
   let parsedUnknown: unknown;
   try {
     parsedUnknown = JSON.parse(rawJson);
   } catch {
-    return { metadata: null, activeContent: null };
+    return { metadata: null, activeContent: null, activeContentEdited: null };
   }
 
   const parsedResult = normalizeAiTextDocumentMetadata(parsedUnknown);
   if (!parsedResult) {
-    return { metadata: null, activeContent: null };
+    return { metadata: null, activeContent: null, activeContentEdited: null };
   }
 
   const validVersions: AiTextVersionRecord[] = [];
@@ -130,7 +136,7 @@ export async function readDocumentMetadata(
   }
 
   if (validVersions.length === 0) {
-    return { metadata: null, activeContent: null };
+    return { metadata: null, activeContent: null, activeContentEdited: null };
   }
 
   // Sort versions newest first (descending by versionNumber)
@@ -160,7 +166,11 @@ export async function readDocumentMetadata(
     versions: validVersions,
   };
 
-  return { metadata, activeContent };
+  return {
+    metadata,
+    activeContent,
+    activeContentEdited: resolveActiveContentEdited(activeVersion, activeContent),
+  };
 }
 
 export async function appendExtractedVersion(input: {
@@ -270,6 +280,7 @@ export async function appendExtractedVersion(input: {
       provenance: enrichedProvenance,
       layout: layoutRef,
       assets: assetsRef,
+      contentHash: hashAiTextContent(input.markdownContent),
     };
 
     const nextVersions = [newVersion, ...existingVersions].sort(
@@ -306,6 +317,7 @@ export async function selectActiveVersion(
   metadata: AiTextDocumentMetadata;
   activeVersion: AiTextVersionRecord | null;
   content: string | null;
+  activeContentEdited: boolean | null;
 }> {
   const paths = resolveAutumnDocPaths(workspaceRootPath, sourceRelPath, outputRootDir, workspaceId);
   return await withDocLock(`${workspaceRootPath}\0${paths.docFolderRelPath}`, async () => {
@@ -326,7 +338,7 @@ export async function selectActiveVersion(
         activeVersionId: null,
         versions: [],
       };
-      return { metadata: empty, activeVersion: null, content: null };
+      return { metadata: empty, activeVersion: null, content: null, activeContentEdited: null };
     }
 
     const target =
@@ -361,6 +373,72 @@ export async function selectActiveVersion(
       metadata: updatedMetadata,
       activeVersion: target,
       content,
+      activeContentEdited: resolveActiveContentEdited(target, content),
+    };
+  });
+}
+
+/**
+ * Records that the app just saved a version's Markdown. `contentHash` keeps
+ * the extractor's immutable fingerprint; `savedContentHash` proves a user save
+ * for versions extracted before fingerprinting, so a single-page document
+ * still reopens from the edited Markdown instead of the layout.
+ */
+export async function markVersionSaved(
+  workspaceRootPath: string,
+  sourceRelPath: string,
+  versionId: string,
+  outputRootDir = '.autumn',
+  workspaceId?: string,
+): Promise<{
+  metadata: AiTextDocumentMetadata;
+  activeContentEdited: boolean | null;
+}> {
+  const paths = resolveAutumnDocPaths(workspaceRootPath, sourceRelPath, outputRootDir, workspaceId);
+  return await withDocLock(`${workspaceRootPath}\0${paths.docFolderRelPath}`, async () => {
+    const folder = await resolveDocFolderForSource(workspaceRootPath, paths);
+    const current = await readDocumentMetadata(
+      workspaceRootPath,
+      sourceRelPath,
+      outputRootDir,
+      workspaceId,
+    );
+    if (!current.metadata) {
+      throw new Error('No AI text metadata exists for this document');
+    }
+    const target = current.metadata.versions.find((version) => version.id === versionId);
+    if (!target) {
+      throw new Error(`AI text version "${versionId}" no longer exists`);
+    }
+
+    let content = target.id === current.metadata.activeVersionId ? current.activeContent : null;
+    if (content === null) {
+      try {
+        const absMdPath = await resolveOutputArtifactPath(
+          paths.artifactBaseAbsPath,
+          target.relPath,
+        );
+        content = await readFile(absMdPath, 'utf8');
+      } catch {
+        content = null;
+      }
+    }
+    if (content === null) {
+      throw new Error('The saved version Markdown could not be read back');
+    }
+
+    const savedContentHash = hashAiTextContent(content);
+    const nextMetadata: AiTextDocumentMetadata = {
+      ...current.metadata,
+      versions: current.metadata.versions.map((version) =>
+        version.id === target.id ? { ...version, savedContentHash } : version,
+      ),
+    };
+    await writeFileAtomically(folder.metadataAbsPath, `${JSON.stringify(nextMetadata, null, 2)}\n`);
+
+    return {
+      metadata: nextMetadata,
+      activeContentEdited: resolveActiveContentEdited({ ...target, savedContentHash }, content),
     };
   });
 }
@@ -375,6 +453,7 @@ export async function deleteExtractedVersion(
   metadata: AiTextDocumentMetadata | null;
   activeVersion: AiTextVersionRecord | null;
   content: string | null;
+  activeContentEdited: boolean | null;
 }> {
   const paths = resolveAutumnDocPaths(workspaceRootPath, sourceRelPath, outputRootDir, workspaceId);
   return await withDocLock(`${workspaceRootPath}\0${paths.docFolderRelPath}`, async () => {
@@ -386,7 +465,7 @@ export async function deleteExtractedVersion(
       workspaceId,
     );
     if (!current.metadata) {
-      return { metadata: null, activeVersion: null, content: null };
+      return { metadata: null, activeVersion: null, content: null, activeContentEdited: null };
     }
 
     const targetToDelete = current.metadata.versions.find((v) => v.id === versionId);
@@ -429,7 +508,7 @@ export async function deleteExtractedVersion(
       await unlink(folder.metadataAbsPath).catch(() => undefined);
       // Removing the last version should not leave an empty `.autumn/<slug>/`.
       await rmdir(folder.docFolderAbsPath).catch(() => undefined);
-      return { metadata: null, activeVersion: null, content: null };
+      return { metadata: null, activeVersion: null, content: null, activeContentEdited: null };
     }
 
     const nextActive =
@@ -461,6 +540,7 @@ export async function deleteExtractedVersion(
       metadata: updatedMetadata,
       activeVersion: nextActive,
       content,
+      activeContentEdited: resolveActiveContentEdited(nextActive, content),
     };
   });
 }

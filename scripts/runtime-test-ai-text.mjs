@@ -8,7 +8,7 @@ import {
 
 import { handleAiTextRpc, simulatedAutumnDocs } from './runtime-test-ai-text-mocks.mjs';
 
-import { verifyAiTextPaginatedDocViewer } from './runtime-test-ai-text-paginated.mjs';
+import { verifyAiTextTextPagesViewer } from './runtime-test-ai-text-text-pages.mjs';
 
 export { handleAiTextRpc, simulatedAutumnDocs };
 
@@ -459,7 +459,7 @@ export async function verifyAiTextSplitViewAndMultiVersion({
 
   await verifyAiTextSplitPaneToggles({ shadow, dom });
 
-  await verifyAiTextPaginatedDocViewer({ shadow, dom, rpcInputs });
+  await verifyAiTextTextPagesViewer({ shadow, dom, rpcInputs });
 
   // Close split pane and verify button reverts to "AI Text Mode" with badge "2"
   const closeSplitBtn = shadow.querySelector(

@@ -16,6 +16,7 @@ import {
   getPdfWasm,
   getTextViewerSettings,
   getXlsxWasm,
+  markAiTextVersionSaved,
   saveFileContent,
   selectAiTextVersion,
   startAiTextTask,
@@ -47,6 +48,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
   const callGetAiTextEngineEnvironment = useRpc(getAiTextEngineEnvironment);
   const callSelectAiTextVersion = useRpc(selectAiTextVersion);
   const callDeleteAiTextVersion = useRpc(deleteAiTextVersion);
+  const callMarkAiTextVersionSaved = useRpc(markAiTextVersionSaved);
   const settingsState = useSettings(autumnStudioSettings);
   const settings =
     settingsState.status === 'ready' ? settingsState.values : DEFAULT_AUTUMN_STUDIO_SETTINGS;
@@ -261,6 +263,12 @@ export function useWorkspaceFileBridge(workspaceId: string) {
     [callSelectAiTextVersion, workspaceId],
   );
 
+  const markAiTextVersionSavedForFile = useCallback(
+    (relPath: string, versionId: string) =>
+      callMarkAiTextVersionSaved({ workspaceId, relPath, versionId }),
+    [callMarkAiTextVersionSaved, workspaceId],
+  );
+
   const deleteAiTextVersionForFile = useCallback(
     async (relPath: string, versionId: string) => {
       const result = await callDeleteAiTextVersion({
@@ -289,6 +297,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
       getEngineEnvironment: getAiTextEngineEnvironmentForWorkspace,
       selectVersion: selectAiTextVersionForFile,
       deleteVersion: deleteAiTextVersionForFile,
+      markVersionSaved: markAiTextVersionSavedForFile,
     }),
     [
       aiTextSettings,
@@ -299,6 +308,7 @@ export function useWorkspaceFileBridge(workspaceId: string) {
       getAiTextLayoutForFile,
       getAiTextMetadataForFile,
       getAiTextTaskSnapshot,
+      markAiTextVersionSavedForFile,
       selectAiTextVersionForFile,
       startAiTextTaskForFile,
     ],

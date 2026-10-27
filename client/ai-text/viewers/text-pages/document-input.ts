@@ -1,5 +1,5 @@
 /**
- * Plain-data document tree shared by the Paginated Text Doc sources.
+ * Plain-data document tree shared by the Text Pages View sources.
  *
  * Both producers — the stored Markdown (markdown-to-document.ts) and the
  * extracted layout blocks (layout-to-document.ts) — normalize into these
@@ -42,52 +42,64 @@ export interface ImageRun {
 
 export type InlineRun = TextRun | ImageRun;
 
-export interface HeadingBlock {
+/**
+ * Layout block id a document block was derived from; present only when the
+ * document was built from extracted layout metadata. build-document.ts turns
+ * it into the document span that maps an editor caret back to the source PDF
+ * section for the caret-follow highlight.
+ */
+export type BlockSourceId = string;
+
+export interface DocumentBlockBase {
+  sourceId?: BlockSourceId;
+}
+
+export interface HeadingBlock extends DocumentBlockBase {
   kind: 'heading';
   level: number;
   runs: TextRun[];
 }
 
-export interface ParagraphBlock {
+export interface ParagraphBlock extends DocumentBlockBase {
   kind: 'paragraph';
   runs: InlineRun[];
 }
 
-export interface CodeBlockBlock {
+export interface CodeBlockBlock extends DocumentBlockBase {
   kind: 'code_block';
   text: string;
 }
 
-export interface BlockquoteBlock {
+export interface BlockquoteBlock extends DocumentBlockBase {
   kind: 'blockquote';
   runs: InlineRun[];
 }
 
-export interface ListBlock {
+export interface ListBlock extends DocumentBlockBase {
   kind: 'list';
   ordered: boolean;
   /** One entry per item; runs may be empty for a blank item. */
   items: InlineRun[][];
 }
 
-export interface TableBlock {
+export interface TableBlock extends DocumentBlockBase {
   kind: 'table';
   headers: string[];
   rows: string[][];
 }
 
-export interface ImageBlock {
+export interface ImageBlock extends DocumentBlockBase {
   kind: 'image';
   alt: string;
   /** Version-relative asset path such as `images/abc.jpg`. */
   assetPath: string;
 }
 
-export interface HorizontalRuleBlock {
+export interface HorizontalRuleBlock extends DocumentBlockBase {
   kind: 'hr';
 }
 
-export interface PageBreakBlock {
+export interface PageBreakBlock extends DocumentBlockBase {
   kind: 'page_break';
 }
 
@@ -147,7 +159,7 @@ export function textToParagraphBlocks(text: string): ParagraphBlock[] {
   }));
 }
 
-export interface PaginatedDocSource {
+export interface TextPagesSource {
   source: 'draft' | 'markdown' | 'layout';
   markdown: string;
 }
@@ -155,17 +167,23 @@ export interface PaginatedDocSource {
 /**
  * Chooses the source for the initial paginated document build:
  * 1. a dirty draft (edited in this or another pane) wins over everything,
- * 2. Markdown that already carries page markers keeps its pagination,
- * 3. layout blocks map PDF pages 1:1 onto paginated pages,
- * 4. plain Markdown degrades to a paginated document without page mapping.
+ * 2. Markdown the user saved wins over the layout: the layout still holds the
+ *    extraction text, so preferring it would silently drop those edits,
+ * 3. Markdown that already carries page markers keeps its pagination,
+ * 4. layout blocks map PDF pages 1:1 onto paginated pages,
+ * 5. plain Markdown degrades to a paginated document without page mapping.
  */
-export function resolvePaginatedDocSource(
+export function resolveTextPagesSource(
   content: string,
   draftText: string,
   hasLayout: boolean,
-): PaginatedDocSource {
+  contentEdited: boolean | null = null,
+): TextPagesSource {
   if (draftText !== content) {
     return { source: 'draft', markdown: draftText };
+  }
+  if (contentEdited === true) {
+    return { source: 'markdown', markdown: draftText };
   }
   if (markdownContainsPageBreakMarkers(draftText)) {
     return { source: 'markdown', markdown: draftText };

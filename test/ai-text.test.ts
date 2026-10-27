@@ -9,6 +9,7 @@ import {
   getAiTextSettings,
   isAiTextSupportedFormat,
   migrateAiTextSettingsV1,
+  migrateAutumnStudioSettingsV3,
   normalizeAiTextDocumentMetadata,
   shouldAutoOpenAiTextSplit,
   toAutumnDocFolderSlug,
@@ -70,8 +71,8 @@ describe('ai-text: settings schema, profiles, and format helpers', () => {
     assert.equal(parsed.aiText.defaultViewerId, 'text');
     assert.equal(parsed.aiText.showLayoutBlockOverlays, true);
     assert.equal(parsed.aiText.autoScrollToLayoutBlock, true);
-    assert.equal(parsed.aiText.paginatedDocFitWidth, true);
-    assert.equal(parsed.aiText.paginatedDocIncludeImages, true);
+    assert.equal(parsed.aiText.textPagesFitWidth, true);
+    assert.equal(parsed.aiText.textPagesIncludeImages, true);
     assert.equal(parsed.aiText.defaultProfileId, 'mineru-cloud-free');
     assert.deepEqual(
       parsed.aiText.profiles.map((profile) => profile.id),
@@ -221,6 +222,39 @@ describe('ai-text: settings schema, profiles, and format helpers', () => {
       migrated.profiles.some((item) => item.engineId === 'agent-vlm'),
       false,
     );
+  });
+
+  it('migrates v3 paginated-doc keys and viewer id to the Text Pages View names', () => {
+    const migrated = migrateAutumnStudioSettingsV3({
+      general: { theme: 'dark' },
+      aiText: {
+        enabled: true,
+        defaultViewerId: 'paginated-doc',
+        autoScrollToLayoutBlock: false,
+        paginatedDocFitWidth: false,
+        paginatedDocIncludeImages: false,
+      },
+    }) as { general: { theme: string }; aiText: Record<string, unknown> };
+
+    assert.equal(migrated.general.theme, 'dark');
+    assert.equal(migrated.aiText.textPagesFitWidth, false);
+    assert.equal(migrated.aiText.textPagesIncludeImages, false);
+    assert.equal(migrated.aiText.defaultViewerId, 'text-pages');
+    assert.equal(migrated.aiText.autoScrollToLayoutBlock, false);
+    assert.equal('paginatedDocFitWidth' in migrated.aiText, false);
+    assert.equal('paginatedDocIncludeImages' in migrated.aiText, false);
+
+    const parsed = autumnStudioSettingsSchema.parse(migrated);
+    assert.equal(parsed.aiText.textPagesFitWidth, false);
+    assert.equal(parsed.aiText.defaultViewerId, 'text-pages');
+  });
+
+  it('keeps v3 settings that never used the paginated viewer untouched', () => {
+    const migrated = migrateAutumnStudioSettingsV3({
+      aiText: { defaultViewerId: 'layout-blocks', autoScrollToLayoutBlock: true },
+    }) as { aiText: Record<string, unknown> };
+    assert.equal(migrated.aiText.defaultViewerId, 'layout-blocks');
+    assert.equal(migrated.aiText.textPagesFitWidth, undefined);
   });
 
   it('exposes AI Text Mode only for PDFs and builds collision-safe .autumn slugs', () => {

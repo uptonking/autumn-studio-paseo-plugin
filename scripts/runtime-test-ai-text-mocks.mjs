@@ -52,6 +52,29 @@ const DEFAULT_PROFILES = [MINERU_CLOUD_FREE_PROFILE];
 
 import { ENGINE_DESCRIPTORS } from './runtime-test-ai-text-engines.mjs';
 
+/** The saved version Markdown wins over the in-memory extraction result, like
+ * the server reading the file back from disk. */
+function mockActiveContent(entry, version, simulatedDiskFiles) {
+  if (!version) return null;
+  const saved = simulatedDiskFiles?.get(version.relPath);
+  if (saved) return saved.content.toString('utf8');
+  return entry.contentsById.get(version.id) ?? null;
+}
+
+/** Mirrors the server's content fingerprint: a saved version Markdown that no
+ * longer matches the extractor's output means the user's edits are live, and a
+ * recorded app save makes the stored Markdown authoritative even when the
+ * version predates fingerprinting. */
+function mockContentEdited(entry, version, simulatedDiskFiles) {
+  if (!version) return null;
+  const saved = simulatedDiskFiles?.get(version.relPath);
+  if (!saved) return false;
+  const extracted = entry.contentsById.get(version.id) ?? null;
+  if (version.savedContentHash && !version.contentHash) return true;
+  if (extracted === null) return false;
+  return saved.content.toString('utf8') !== extracted;
+}
+
 export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDiskFiles) {
   if (rpcName === 'ai_text.stats.list') {
     return {
@@ -98,7 +121,7 @@ export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDi
   if (rpcName === 'ai_text.metadata.get') {
     const entry = simulatedAutumnDocs.get(input.relPath);
     if (!entry) {
-      return { metadata: null, activeContent: null };
+      return { metadata: null, activeContent: null, activeContentEdited: null };
     }
     const activeVersion =
       entry.metadata.versions.find((v) => v.id === entry.metadata.activeVersionId) ??
@@ -106,7 +129,8 @@ export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDi
       null;
     return {
       metadata: entry.metadata,
-      activeContent: activeVersion ? (entry.contentsById.get(activeVersion.id) ?? null) : null,
+      activeContent: mockActiveContent(entry, activeVersion, simulatedDiskFiles),
+      activeContentEdited: mockContentEdited(entry, activeVersion, simulatedDiskFiles),
     };
   }
   if (rpcName === 'ai_text.task.start') {
@@ -199,20 +223,42 @@ export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDi
     return {
       metadata: entry.metadata,
       activeVersion,
-      content: activeVersion ? (entry.contentsById.get(activeVersion.id) ?? null) : null,
+      content: mockActiveContent(entry, activeVersion, simulatedDiskFiles),
+      activeContentEdited: mockContentEdited(entry, activeVersion, simulatedDiskFiles),
+    };
+  }
+  if (rpcName === 'ai_text.version.mark_saved') {
+    const entry = simulatedAutumnDocs.get(input.relPath);
+    if (!entry) {
+      throw new Error(`No metadata for ${input.relPath}`);
+    }
+    const target = entry.metadata.versions.find((v) => v.id === input.versionId);
+    if (!target) {
+      throw new Error(`Unknown AI text version ${input.versionId}`);
+    }
+    entry.metadata = {
+      ...entry.metadata,
+      versions: entry.metadata.versions.map((version) =>
+        version.id === target.id ? { ...version, savedContentHash: 'mock-saved' } : version,
+      ),
+    };
+    const marked = entry.metadata.versions.find((v) => v.id === target.id) ?? target;
+    return {
+      metadata: entry.metadata,
+      activeContentEdited: mockContentEdited(entry, marked, simulatedDiskFiles),
     };
   }
   if (rpcName === 'ai_text.version.delete') {
     const entry = simulatedAutumnDocs.get(input.relPath);
     if (!entry) {
-      return { metadata: null, activeVersion: null, content: null };
+      return { metadata: null, activeVersion: null, content: null, activeContentEdited: null };
     }
     entry.contentsById.delete(input.versionId);
     simulatedLayouts.delete(`${input.relPath}::${input.versionId}`);
     const remaining = entry.metadata.versions.filter((v) => v.id !== input.versionId);
     if (remaining.length === 0) {
       simulatedAutumnDocs.delete(input.relPath);
-      return { metadata: null, activeVersion: null, content: null };
+      return { metadata: null, activeVersion: null, content: null, activeContentEdited: null };
     }
     const nextActive =
       remaining.find((v) => v.id === entry.metadata.activeVersionId) ?? remaining[0];
@@ -224,7 +270,8 @@ export function handleAiTextRpc(rpcName, input, currentSettingsData, simulatedDi
     return {
       metadata: entry.metadata,
       activeVersion: nextActive,
-      content: entry.contentsById.get(nextActive.id) ?? null,
+      content: mockActiveContent(entry, nextActive, simulatedDiskFiles),
+      activeContentEdited: mockContentEdited(entry, nextActive, simulatedDiskFiles),
     };
   }
   return undefined;

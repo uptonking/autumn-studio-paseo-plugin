@@ -1,6 +1,6 @@
 /**
  * Pure Markdown table and inline-token parsing shared by the rendered Text
- * viewer (markdown-preview.tsx) and the Paginated Text Doc bridge. Kept free
+ * viewer (markdown-preview.tsx) and the Text Pages View bridge. Kept free
  * of React and DOM types so both the island bundle and node tests can use it.
  */
 

@@ -1,5 +1,5 @@
 /**
- * Maps the extracted AI Text layout blocks into the Paginated Text Doc block
+ * Maps the extracted AI Text layout blocks into the Text Pages View block
  * tree, one page per PDF page: blocks are grouped by `pageNumber`, explicit
  * page breaks keep page N of the paginated document aligned with page N of
  * the original PDF, and empty pages are preserved as blank pages.
@@ -94,6 +94,11 @@ export function groupLayoutBlocksByPage(
   return pages;
 }
 
+/** Attaches the source layout block id to every derived document block. */
+function withSourceId(blocks: readonly DocumentBlock[], sourceId: string): DocumentBlock[] {
+  return blocks.map((block) => ({ ...block, sourceId }));
+}
+
 export function layoutToDocumentBlocks(
   layout: AiTextLayoutDocument,
   options: LayoutToDocumentOptions = {},
@@ -107,7 +112,7 @@ export function layoutToDocumentBlocks(
     }
     const pageContent: DocumentBlock[] = [];
     for (const block of pageBlocks) {
-      pageContent.push(...layoutBlockToDocumentBlocks(block, options));
+      pageContent.push(...withSourceId(layoutBlockToDocumentBlocks(block, options), block.id));
     }
     // A page with no renderable content still needs a block so the explicit
     // page break keeps this page separate from its neighbours.

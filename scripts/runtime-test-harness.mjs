@@ -3,6 +3,7 @@ import { runtimePaseoApi } from './runtime-test-ai-text-engines.mjs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { JSDOM } from 'jsdom';
+import { installJsdomEditorPolyfills } from './runtime-test-jsdom-polyfills.mjs';
 import { handleAiTextRpc, verifyAiTextSettingsSection } from './runtime-test-ai-text.mjs';
 import { createSettingsInput } from './runtime-test-settings-input.mjs';
 
@@ -23,6 +24,7 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+installJsdomEditorPolyfills(dom.window);
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 globalThis.customElements = dom.window.customElements;
 for (const key of Object.getOwnPropertyNames(dom.window)) {
